@@ -9,9 +9,7 @@ I had an `imagemagick` script for a couple of years for exporting specific layer
 
 After a bit of Googling I couldn't land on a solution for my problem so I made this crate.
 
-If anything is missing from the spec it's because I don't need it for my use case.
-
-That being said, I'm more than happy to add whatever you need, just open an issue!
+If there's anything missing that you need please feel very free to open an issue!
 
 ## Usage
 
