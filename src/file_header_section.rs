@@ -1,5 +1,4 @@
 use failure::{Error, Fail};
-use std::io::prelude::*;
 use std::io::Cursor;
 use std::io::Read;
 
@@ -106,23 +105,23 @@ impl FileHeaderSection {
         }
 
         // The next 2 bytes represent the channel count
-        cursor.read_exact(&mut two_bytes);
+        cursor.read_exact(&mut two_bytes)?;
         let channel_count = ChannelCount::new(two_bytes[1])?;
 
         // 4 bytes for the width
-        cursor.read_exact(&mut four_bytes);
+        cursor.read_exact(&mut four_bytes)?;
         let width = PsdWidth::new(as_u32_be(&four_bytes))?;
 
         // 4 bytes for the height
-        cursor.read_exact(&mut four_bytes);
+        cursor.read_exact(&mut four_bytes)?;
         let height = PsdHeight::new(as_u32_be(&four_bytes))?;
 
         // 2 bytes for depth
-        cursor.read_exact(&mut two_bytes);
+        cursor.read_exact(&mut two_bytes)?;
         let depth = PsdDepth::new(two_bytes[1])?;
 
         // 2 bytes for color mode
-        cursor.read_exact(&mut two_bytes);
+        cursor.read_exact(&mut two_bytes)?;
         let color_mode = ColorMode::new(two_bytes[1])?;
 
         Ok(FileHeaderSection {
@@ -310,14 +309,6 @@ fn as_u32_be(array: &[u8; 4]) -> u32 {
         + ((array[1] as u32) << 16)
         + ((array[2] as u32) << 8)
         + ((array[3] as u32) << 0)
-}
-
-/// Convert a little endian byte slice into a u32
-fn as_u32_le(array: &[u8; 4]) -> u32 {
-    ((array[0] as u32) << 0)
-        + ((array[1] as u32) << 8)
-        + ((array[2] as u32) << 16)
-        + ((array[3] as u32) << 24)
 }
 
 #[cfg(test)]

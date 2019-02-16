@@ -19,7 +19,7 @@ pub use crate::file_header_section::ColorMode;
 /// support should be trivial. If you'd like to support PSB please open an issue.
 #[derive(Debug)]
 pub struct Psd {
-    file_section_header: FileHeaderSection,
+    file_header_section: FileHeaderSection,
 }
 
 impl Psd {
@@ -35,8 +35,10 @@ impl Psd {
     /// let psd = Psd::from_bytes(psd_bytes);
     /// ```
     pub fn from_bytes(bytes: &[u8]) -> Result<Psd, Error> {
+        let file_header_section = FileHeaderSection::from_bytes(&bytes[0..26])?;
+
         Ok(Psd {
-            file_section_header: FileHeaderSection::from_bytes(&bytes[0..26])?,
+            file_header_section,
         })
     }
 }
@@ -45,21 +47,21 @@ impl Psd {
 impl Psd {
     /// The width of the PSD file
     pub fn width(&self) -> u32 {
-        self.file_section_header.width.0
+        self.file_header_section.width.0
     }
 
     /// The height of the PSD file
     pub fn height(&self) -> u32 {
-        self.file_section_header.height.0
+        self.file_header_section.height.0
     }
 
     /// The number of bits per channel
     pub fn depth(&self) -> u8 {
-        self.file_section_header.depth as u8
+        self.file_header_section.depth as u8
     }
 
     /// The color mode of the file
     pub fn color_mode(&self) -> ColorMode {
-        self.file_section_header.color_mode
+        self.file_header_section.color_mode
     }
 }
