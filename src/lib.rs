@@ -4,12 +4,13 @@
 
 #![deny(missing_docs)]
 
-mod file_header_section;
+pub use crate::sections::file_header_section::ColorMode;
+
+use self::sections::file_header_section::FileHeaderSection;
+use crate::sections::MajorSections;
 use failure::Error;
 
-use self::file_header_section::FileHeaderSection;
-
-pub use crate::file_header_section::ColorMode;
+mod sections;
 
 /// Represents the contents of a PSD file
 ///
@@ -35,7 +36,9 @@ impl Psd {
     /// let psd = Psd::from_bytes(psd_bytes);
     /// ```
     pub fn from_bytes(bytes: &[u8]) -> Result<Psd, Error> {
-        let file_header_section = FileHeaderSection::from_bytes(&bytes[0..26])?;
+        let major_sections = MajorSections::from_bytes(bytes)?;
+
+        let file_header_section = FileHeaderSection::from_bytes(major_sections.file_header)?;
 
         Ok(Psd {
             file_header_section,

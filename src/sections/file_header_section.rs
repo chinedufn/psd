@@ -1,3 +1,4 @@
+use crate::sections::as_u32_be;
 use failure::{Error, Fail};
 use std::io::Cursor;
 use std::io::Read;
@@ -50,19 +51,19 @@ pub enum FileHeaderSectionError {
     )]
     IncorrectLength { length: usize },
     #[fail(
-        display = r#"Byte indices 0-3 a PSD must always equal [56, 66, 80, 83],
+        display = r#"The first four bytes (indices 0-3) of a PSD must always equal [56, 66, 80, 83],
          which in string form is '8BPS'. Found bytes {:#?}."#,
         bytes
     )]
     InvalidSignature { bytes: [u8; 4] },
     #[fail(
-        display = r#"Byte indices 4-5 must always be [0, 1], Representing a PSD version of 1.
+        display = r#"Bytes 5 and 6 (indices 4-5) must always be [0, 1], Representing a PSD version of 1.
     Found bytes {:#?}."#,
         version
     )]
     InvalidVersion { version: [u8; 2] },
     #[fail(
-        display = r#"Byte indices 6-11 must be zeroes. Found bytes {:#?}."#,
+        display = r#"Bytes 7-12 (indices 6-11) must be zeroes. Found bytes {:#?}."#,
         reserved
     )]
     InvalidReserved { reserved: [u8; 6] },
@@ -77,7 +78,7 @@ impl FileHeaderSection {
         let mut four_bytes = [0; 4];
         let mut six_bytes = [0; 6];
 
-        // File section header must be 26 bytes long
+        // File header section must be 26 bytes long
         if bytes.len() != 26 {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
@@ -268,10 +269,14 @@ impl PsdDepth {
 pub enum ColorMode {
     Bitmap = 0,
     Grayscale = 1,
+    // TODO: Indexed(Vec<u8>)
+    // Where the vector is the data from the color mode data section
     Indexed = 2,
     Rgb = 3,
     Cmyk = 4,
     Multichannel = 7,
+    // TODO: DuoTone(Vec<u8>)
+    // Where the vector is the data from the color mode data section.
     Duotone = 8,
     Lab = 9,
 }
@@ -301,14 +306,6 @@ impl ColorMode {
             _ => Err(ColorModeError::InvalidColorMode { color_mode })?,
         }
     }
-}
-
-/// Convert a big endian byte slice into a u32
-fn as_u32_be(array: &[u8; 4]) -> u32 {
-    ((array[0] as u32) << 24)
-        + ((array[1] as u32) << 16)
-        + ((array[2] as u32) << 8)
-        + ((array[3] as u32) << 0)
 }
 
 #[cfg(test)]

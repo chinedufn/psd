@@ -1,7 +1,7 @@
 use psd::{ColorMode, Psd};
 
 #[test]
-fn file_section_header() {
+fn file_header_section() {
     let psd = include_bytes!("./green-1x1.psd");
 
     let psd = Psd::from_bytes(psd).unwrap();
