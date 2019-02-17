@@ -10,6 +10,7 @@ const FILE_HEADER_SECTION_LEN: usize = 26;
 const LENGTH_MARKER_LEN: usize = 4;
 
 pub(crate) mod file_header_section;
+pub(crate) mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file
 pub struct MajorSections<'a> {
@@ -210,10 +211,31 @@ pub enum NotEnoughBytesError {
     },
 }
 
-/// Convert a big endian byte slice into a u32
+/// Convert a big endian byte array into a u32
 pub(self) fn as_u32_be(array: &[u8; 4]) -> u32 {
     ((array[0] as u32) << 24)
         + ((array[1] as u32) << 16)
         + ((array[2] as u32) << 8)
         + ((array[3] as u32) << 0)
+}
+
+/// Convert a big endian byte array into a u16
+pub(self) fn as_u16_be(array: &[u8; 2]) -> u16 {
+    ((array[1] as u16) << 8) + ((array[0] as u16) << 0)
+}
+
+/// A Cursor wrapping bytes from a PSD file.
+///
+/// Provides methods that abstract common ways of parsing PSD bytes.
+pub(self) struct PsdCursor<'a> {
+    cursor: Cursor<&'a [u8]>,
+}
+
+impl<'a> PsdCursor<'a> {
+    /// Create a new PsdCursor
+    pub fn new(bytes: &[u8]) -> PsdCursor {
+        PsdCursor {
+            cursor: Cursor::new(bytes),
+        }
+    }
 }

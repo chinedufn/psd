@@ -71,6 +71,10 @@ pub enum FileHeaderSectionError {
 
 impl FileHeaderSection {
     /// Create a FileSectionHeader from the first 26 bytes of a PSD
+    ///
+    /// TODO: Accept a ColorModeSection along with the bytes so that we can add
+    /// any ColorModeSection data to the ColorMode if necessary. Rename this method
+    /// to "new" in the process.
     pub fn from_bytes(bytes: &[u8]) -> Result<FileHeaderSection, Error> {
         let mut cursor = Cursor::new(bytes);
 
