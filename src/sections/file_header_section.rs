@@ -340,7 +340,7 @@ mod tests {
         let error = error_from_bytes(&bytes);
 
         match error {
-            FileHeaderSectionError::InvalidSignature { bytes } => assert_eq!(bytes, [0, 1, 2, 3]),
+            FileHeaderSectionError::InvalidSignature {} => {}
             _ => panic!("Should have returned invalid signature error"),
         };
     }
@@ -351,7 +351,7 @@ mod tests {
         bytes[0..4].copy_from_slice(&EXPECTED_PSD_SIGNATURE);
 
         match error_from_bytes(&bytes) {
-            FileHeaderSectionError::InvalidVersion { version } => assert_eq!(version, [4, 5]),
+            FileHeaderSectionError::InvalidVersion {} => {}
             _ => panic!("Should have returned invalid version error"),
         };
     }
@@ -363,9 +363,7 @@ mod tests {
         bytes[4..6].copy_from_slice(&EXPECTED_VERSION);
 
         match error_from_bytes(&bytes) {
-            FileHeaderSectionError::InvalidReserved { reserved } => {
-                assert_eq!(reserved, [6, 7, 8, 9, 10, 11])
-            }
+            FileHeaderSectionError::InvalidReserved {} => {}
             _ => panic!("Should have returned reserved section error"),
         };
     }
