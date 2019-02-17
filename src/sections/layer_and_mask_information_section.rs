@@ -1,5 +1,6 @@
 use crate::sections::as_u16_be;
 use crate::sections::as_u32_be;
+use crate::sections::PsdCursor;
 use failure::{Error, Fail};
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -42,32 +43,50 @@ impl LayerAndMaskInformationSection {
     /// Create a LayerAndMaskInformationSection from the bytes in the corresponding secton in a
     /// PSD file.
     pub fn from_bytes(bytes: &[u8]) -> Result<LayerAndMaskInformationSection, Error> {
-        let mut cursor = Cursor::new(bytes);
+        let mut cursor = PsdCursor::new(bytes);
 
-        let mut two_bytes = [0; 2];
-        let mut four_bytes = [0; 4];
+        let mut layers = HashMap::new();
 
         // The first four bytes of the section is the length marker for the layer and mask
         // information section, we won't be needing it.
-        cursor.read_exact(&mut four_bytes)?;
+        cursor.read_4()?;
 
         // Read the next four bytes to get the length of the layer info section
-        cursor.read_exact(&mut four_bytes)?;
-        let layer_info_section_len = as_u32_be(&four_bytes);
+        let layer_info_section_len = cursor.read_u32()?;
 
         // Next 2 bytes is the layer count
-        cursor.read_exact(&mut two_bytes)?;
-        let layer_count = as_u16_be(&two_bytes);
+        let layer_count = cursor.read_u16()?;
 
-        // Read each layer
+        let mut layer_records = vec![];
+
+        // Read each layer record
         for layer_num in 0..layer_count {
-            let layer = read_layer_record(bytes, &mut cursor)?;
+            layer_records.push(read_layer_record(bytes, &mut cursor)?);
         }
 
-        // inside of read_layer method skip over data that we don't need right now, but
-        // leave a comment
+        // Read each layer's channel image data
+        for layer_record in layer_records {
+            let mut psd_layer = PsdLayer::new();
 
-        unimplemented!();
+            for (channel_kind, channel_length) in layer_record.channel_lengths {
+                let compression = cursor.read_2()?;
+                let compression = PsdLayerChannelCompression::new(compression[1])?;
+
+                let channel_data = cursor.read(channel_length)?;
+
+                psd_layer.channels.insert(
+                    channel_kind,
+                    PsdLayerChannel {
+                        compression,
+                        channel_data: channel_data.into(),
+                    },
+                );
+            }
+
+            layers.insert(layer_record.name, psd_layer);
+        }
+
+        Ok(LayerAndMaskInformationSection { layers })
     }
 }
 
@@ -97,69 +116,66 @@ impl LayerAndMaskInformationSection {
 /// | Variable               | Layer mask data: See See Layer mask / adjustment layer data for structure. Can be 40 bytes, 24 bytes, or 4 bytes if no layer mask.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 /// | Variable               | Layer blending ranges: See See Layer blending ranges data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 /// | Variable               | Layer name: Pascal string, padded to a multiple of 4 bytes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-fn read_layer_record(bytes: &[u8], cursor: &mut Cursor<&[u8]>) -> Result<LayerRecord, Error> {
-    let mut channels = vec![];
-
-    // TODO: Create a PsdCursor that provides an easy API for skipping bytes.
-    // cursor.skip(2)
-    // let two_bytes: &[u8] = cursor.read(2) (advances cursor by 2)
-    let mut one_byte = [0; 1];
-    let mut two_bytes = [0; 2];
-    let mut four_bytes = [0; 4];
-    let mut six_bytes = [0; 6];
+fn read_layer_record(bytes: &[u8], cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
+    let mut channel_lengths = vec![];
 
     // We do not currently parse the layer rectangle, skip it
     let rectangle_bytes = 16;
-    cursor.set_position(cursor.position() + rectangle_bytes);
+    cursor.read(rectangle_bytes)?;
 
     // Get the number of channels in the layer
-    cursor.read(&mut two_bytes)?;
-    let channel_count = as_u16_be(&two_bytes);
+    let channel_count = cursor.read_u16()?;
 
     // Read the channel information
     for _ in 0..channel_count {
-        cursor.read_exact(&mut six_bytes);
-        let channel_id = six_bytes[1] as i8;
-        let channel_id = PsdLayerChannel::new(channel_id)?;
+        let channel_id = cursor.read_2()?;
+        let channel_id = channel_id[1] as i8;
+        let channel_id = PsdLayerChannelKind::new(channel_id)?;
 
-        let channel_length = as_u32_be(&[six_bytes[2], six_bytes[3], six_bytes[4], six_bytes[5]]);
+        let channel_length = cursor.read_u32()?;
 
-        channels.push((channel_id, channel_length));
+        channel_lengths.push((channel_id, channel_length));
     }
 
     // We do not currently parse the blend mode signature, skip it
-    cursor.read_exact(&mut four_bytes)?;
+    cursor.read_4()?;
 
     // We do not currently parse the blend mode key, skip it
-    cursor.read_exact(&mut four_bytes)?;
+    cursor.read_4()?;
 
     // We do not currently parse the opacity, skip it
-    cursor.read_exact(&mut one_byte)?;
+    cursor.read_1()?;
 
     // We do not currently parse the clipping, skip it
-    cursor.read_exact(&mut one_byte)?;
+    cursor.read_1()?;
 
     // We do not currently parse the flags, skip it
-    cursor.read_exact(&mut one_byte)?;
+    cursor.read_1()?;
 
     // We do not currently parse the filter, skip it
-    cursor.read_exact(&mut one_byte)?;
+    cursor.read_1()?;
 
     // We do not currently use the length of the extra data field, skip it
-    cursor.read_exact(&mut four_bytes)?;
+    cursor.read_4()?;
 
-    let name = "".to_string();
+    // We do not currently use the layer mask data, skip it
+    let layer_mask_data_len = cursor.read_u32()?;
+    cursor.read(layer_mask_data_len)?;
 
-    Ok(LayerRecord { name, channels })
-}
+    // We do not currently use the layer blending range, skip it
+    let layer_blending_range_data_len = cursor.read_u32()?;
+    cursor.read(layer_blending_range_data_len)?;
 
-/// A layer record within the layer info section
-#[derive(Debug)]
-struct LayerRecord {
-    /// The name of the layer
-    name: String,
-    /// The channels that this record has and the number of bytes in each channel.
-    channels: Vec<(PsdLayerChannel, u32)>,
+    // Read the layer name
+    let name_len = cursor.read_u8()?;
+    let name = cursor.read(name_len as u32)?;
+    let name = String::from_utf8_lossy(name);
+    let name = name.to_string();
+
+    Ok(LayerRecord {
+        name,
+        channel_lengths,
+    })
 }
 
 /// Information about a layer in a PSD file.
@@ -172,13 +188,103 @@ pub struct PsdLayer {
     /// channel, or you might make use of the layer masks.
     ///
     /// Storing the channels separately allows for this flexability.
-    channels: HashMap<PsdLayerChannel, Vec<u8>>,
+    channels: HashMap<PsdLayerChannelKind, PsdLayerChannel>,
+}
+
+/// An error when working with a PsdLayer
+#[derive(Debug, Fail)]
+pub enum PsdLayerError {
+    #[fail(
+        display = r#"Could not combine Red, Green, Blue and Alpha.
+        This layer is missing channel: {:#?}"#,
+        channel
+    )]
+    MissingChannels { channel: PsdLayerChannelKind },
+}
+
+impl PsdLayer {
+    /// Create a new photoshop layer
+    pub fn new() -> PsdLayer {
+        PsdLayer {
+            channels: HashMap::new(),
+        }
+    }
+
+    /// Create a vector that interleaves the red, green, blue and alpha channels in this PSD
+    ///
+    /// vec![R, G, B, A, R, G, B, A, ...]
+    pub fn rgba(&self) -> Result<Vec<u8>, Error> {
+        let red = self.get_channel(PsdLayerChannelKind::Red)?;
+        let green = self.get_channel(PsdLayerChannelKind::Green)?;
+        let blue = self.get_channel(PsdLayerChannelKind::Blue)?;
+        let alpha = self.get_channel(PsdLayerChannelKind::TransparencyMask)?;
+
+        let mut rgba = vec![];
+
+        for idx in 0..red.channel_data.len() {
+            rgba.push(red.channel_data[idx]);
+            rgba.push(green.channel_data[idx]);
+            rgba.push(blue.channel_data[idx]);
+            rgba.push(alpha.channel_data[idx]);
+        }
+
+        Ok(rgba)
+    }
+
+    // Get one of the PsdLayerChannels of this PsdLayer
+    fn get_channel(&self, channel: PsdLayerChannelKind) -> Result<&PsdLayerChannel, Error> {
+        match self.channels.get(&channel) {
+            Some(layer_channel) => Ok(layer_channel),
+            None => Err(PsdLayerError::MissingChannels { channel })?,
+        }
+    }
+}
+
+/// A layer record within the layer info section
+#[derive(Debug)]
+struct LayerRecord {
+    /// The name of the layer
+    name: String,
+    /// The channels that this record has and the number of bytes in each channel.
+    channel_lengths: Vec<(PsdLayerChannelKind, u32)>,
+}
+
+/// A channel within a PSD Layer
+#[derive(Debug)]
+pub struct PsdLayerChannel {
+    /// How the channel data is compressed
+    compression: PsdLayerChannelCompression,
+    /// The data for this image channel
+    channel_data: Vec<u8>,
+}
+
+/// How is this layer channel data compressed?
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub enum PsdLayerChannelCompression {
+    RawData = 0,
+    RleCompressed = 1,
+    ZipWithoutPrediction = 2,
+    ZipWithPrediction = 3,
+}
+
+impl PsdLayerChannelCompression {
+    /// Create a new PsdLayerChannelCompression
+    pub fn new(compression: u8) -> Result<PsdLayerChannelCompression, Error> {
+        match compression {
+            0 => Ok(PsdLayerChannelCompression::RawData),
+            1 => Ok(PsdLayerChannelCompression::RleCompressed),
+            2 => Ok(PsdLayerChannelCompression::ZipWithoutPrediction),
+            3 => Ok(PsdLayerChannelCompression::ZipWithPrediction),
+            _ => Err(PsdLayerChannelError::InvalidCompression { compression })?,
+        }
+    }
 }
 
 /// The different kinds of channels in a layer (red, green, blue, ...).
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[allow(missing_docs)]
-enum PsdLayerChannel {
+pub enum PsdLayerChannelKind {
     Red = 0,
     Green = 1,
     Blue = 2,
@@ -195,18 +301,23 @@ pub enum PsdLayerChannelError {
         channel_id
     )]
     InvalidChannel { channel_id: i8 },
+    #[fail(
+        display = "{} is an invalid layer channel compression. Must be 0, 1, 2 or 3",
+        compression
+    )]
+    InvalidCompression { compression: u8 },
 }
 
-impl PsdLayerChannel {
+impl PsdLayerChannelKind {
     /// Create a new PsdLayerChannel
-    pub fn new(channel_id: i8) -> Result<PsdLayerChannel, Error> {
+    pub fn new(channel_id: i8) -> Result<PsdLayerChannelKind, Error> {
         match channel_id {
-            0 => Ok(PsdLayerChannel::Red),
-            1 => Ok(PsdLayerChannel::Green),
-            2 => Ok(PsdLayerChannel::Blue),
-            -1 => Ok(PsdLayerChannel::TransparencyMask),
-            -2 => Ok(PsdLayerChannel::UserSuppliedLayerMask),
-            -3 => Ok(PsdLayerChannel::RealUserSuppliedLayerMask),
+            0 => Ok(PsdLayerChannelKind::Red),
+            1 => Ok(PsdLayerChannelKind::Green),
+            2 => Ok(PsdLayerChannelKind::Blue),
+            -1 => Ok(PsdLayerChannelKind::TransparencyMask),
+            -2 => Ok(PsdLayerChannelKind::UserSuppliedLayerMask),
+            -3 => Ok(PsdLayerChannelKind::RealUserSuppliedLayerMask),
             _ => Err(PsdLayerChannelError::InvalidChannel { channel_id })?,
         }
     }

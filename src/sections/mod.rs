@@ -257,6 +257,18 @@ impl<'a> PsdCursor<'a> {
         self.read(6)
     }
 
+    /// Read 1 byte as a u8
+    pub fn read_u8(&mut self) -> Result<u8, Error> {
+        Ok(self.read_1()?[0])
+    }
+
+    /// Read 2 bytes as a u16
+    pub fn read_u16(&mut self) -> Result<u16, Error> {
+        let bytes = self.read_2()?;
+
+        Ok(as_u16_be(bytes))
+    }
+
     /// Read 4 bytes as a u32
     pub fn read_u32(&mut self) -> Result<u32, Error> {
         let bytes = self.read_4()?;
@@ -274,6 +286,6 @@ pub(self) fn as_u32_be(array: &[u8]) -> u32 {
 }
 
 /// Convert a big endian byte array into a u16
-pub(self) fn as_u16_be(array: &[u8; 2]) -> u16 {
+pub(self) fn as_u16_be(array: &[u8]) -> u16 {
     ((array[1] as u16) << 8) + ((array[0] as u16) << 0)
 }

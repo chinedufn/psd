@@ -7,8 +7,12 @@
 pub use crate::sections::file_header_section::ColorMode;
 
 use self::sections::file_header_section::FileHeaderSection;
+use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
 use failure::Error;
+use crate::sections::layer_and_mask_information_section::PsdLayer;
+use std::collections::HashMap;
+use crate::sections::layer_and_mask_information_section::PsdLayerChannelError;
 
 mod sections;
 
@@ -21,6 +25,7 @@ mod sections;
 #[derive(Debug)]
 pub struct Psd {
     file_header_section: FileHeaderSection,
+    layer_and_mask_information_section: LayerAndMaskInformationSection,
 }
 
 impl Psd {
@@ -39,9 +44,12 @@ impl Psd {
         let major_sections = MajorSections::from_bytes(bytes)?;
 
         let file_header_section = FileHeaderSection::from_bytes(major_sections.file_header)?;
+        let layer_and_mask_information_section =
+            LayerAndMaskInformationSection::from_bytes(major_sections.layer_and_mask)?;
 
         Ok(Psd {
             file_header_section,
+            layer_and_mask_information_section,
         })
     }
 }
@@ -66,5 +74,10 @@ impl Psd {
     /// The color mode of the file
     pub fn color_mode(&self) -> ColorMode {
         self.file_header_section.color_mode
+    }
+
+    /// Get all of the layers in the PSD
+    pub fn layers (&self) -> &HashMap<String, PsdLayer> {
+        &self.layer_and_mask_information_section.layers
     }
 }
