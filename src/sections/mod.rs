@@ -211,19 +211,6 @@ pub enum NotEnoughBytesError {
     },
 }
 
-/// Convert a big endian byte array into a u32
-pub(self) fn as_u32_be(array: &[u8; 4]) -> u32 {
-    ((array[0] as u32) << 24)
-        + ((array[1] as u32) << 16)
-        + ((array[2] as u32) << 8)
-        + ((array[3] as u32) << 0)
-}
-
-/// Convert a big endian byte array into a u16
-pub(self) fn as_u16_be(array: &[u8; 2]) -> u16 {
-    ((array[1] as u16) << 8) + ((array[0] as u16) << 0)
-}
-
 /// A Cursor wrapping bytes from a PSD file.
 ///
 /// Provides methods that abstract common ways of parsing PSD bytes.
@@ -238,4 +225,55 @@ impl<'a> PsdCursor<'a> {
             cursor: Cursor::new(bytes),
         }
     }
+
+    /// Advance the cursor by count bytes and return those bytes
+    pub fn read(&mut self, count: u32) -> Result<&[u8], Error> {
+        let start = self.cursor.position() as usize;
+        let end = start + count as usize;
+        let bytes = &self.cursor.get_ref()[start..end];
+
+        self.cursor.set_position(end as u64);
+
+        Ok(bytes)
+    }
+
+    /// Read 1 byte
+    pub fn read_1(&mut self) -> Result<&[u8], Error> {
+        self.read(1)
+    }
+
+    /// Read 2 bytes
+    pub fn read_2(&mut self) -> Result<&[u8], Error> {
+        self.read(2)
+    }
+
+    /// Read 4 bytes
+    pub fn read_4(&mut self) -> Result<&[u8], Error> {
+        self.read(4)
+    }
+
+    /// Read 6 bytes
+    pub fn read_6(&mut self) -> Result<&[u8], Error> {
+        self.read(6)
+    }
+
+    /// Read 4 bytes as a u32
+    pub fn read_u32(&mut self) -> Result<u32, Error> {
+        let bytes = self.read_4()?;
+
+        Ok(as_u32_be(bytes))
+    }
+}
+
+/// Convert a big endian byte array into a u32
+pub(self) fn as_u32_be(array: &[u8]) -> u32 {
+    ((array[0] as u32) << 24)
+        + ((array[1] as u32) << 16)
+        + ((array[2] as u32) << 8)
+        + ((array[3] as u32) << 0)
+}
+
+/// Convert a big endian byte array into a u16
+pub(self) fn as_u16_be(array: &[u8; 2]) -> u16 {
+    ((array[1] as u16) << 8) + ((array[0] as u16) << 0)
 }

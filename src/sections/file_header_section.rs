@@ -1,4 +1,5 @@
 use crate::sections::as_u32_be;
+use crate::sections::PsdCursor;
 use failure::{Error, Fail};
 use std::io::Cursor;
 use std::io::Read;
@@ -52,21 +53,15 @@ pub enum FileHeaderSectionError {
     IncorrectLength { length: usize },
     #[fail(
         display = r#"The first four bytes (indices 0-3) of a PSD must always equal [56, 66, 80, 83],
-         which in string form is '8BPS'. Found bytes {:#?}."#,
-        bytes
+         which in string form is '8BPS'."#
     )]
-    InvalidSignature { bytes: [u8; 4] },
+    InvalidSignature {},
     #[fail(
-        display = r#"Bytes 5 and 6 (indices 4-5) must always be [0, 1], Representing a PSD version of 1.
-    Found bytes {:#?}."#,
-        version
+        display = r#"Bytes 5 and 6 (indices 4-5) must always be [0, 1], Representing a PSD version of 1."#
     )]
-    InvalidVersion { version: [u8; 2] },
-    #[fail(
-        display = r#"Bytes 7-12 (indices 6-11) must be zeroes. Found bytes {:#?}."#,
-        reserved
-    )]
-    InvalidReserved { reserved: [u8; 6] },
+    InvalidVersion {},
+    #[fail(display = r#"Bytes 7-12 (indices 6-11) must be zeroes"#)]
+    InvalidReserved {},
 }
 
 impl FileHeaderSection {
@@ -76,11 +71,7 @@ impl FileHeaderSection {
     /// any ColorModeSection data to the ColorMode if necessary. Rename this method
     /// to "new" in the process.
     pub fn from_bytes(bytes: &[u8]) -> Result<FileHeaderSection, Error> {
-        let mut cursor = Cursor::new(bytes);
-
-        let mut two_bytes = [0; 2];
-        let mut four_bytes = [0; 4];
-        let mut six_bytes = [0; 6];
+        let mut cursor = PsdCursor::new(bytes);
 
         // File header section must be 26 bytes long
         if bytes.len() != 26 {
@@ -90,44 +81,42 @@ impl FileHeaderSection {
         }
 
         // First four bytes must be '8BPS'
-        cursor.read_exact(&mut four_bytes)?;
-        if &four_bytes != &EXPECTED_PSD_SIGNATURE {
-            return Err(FileHeaderSectionError::InvalidSignature { bytes: four_bytes })?;
+        let signature = cursor.read_4()?;
+        if signature != &EXPECTED_PSD_SIGNATURE {
+            return Err(FileHeaderSectionError::InvalidSignature {})?;
         }
 
         // The next 2 bytes represent the version
-        cursor.read_exact(&mut two_bytes)?;
-        if &two_bytes != &EXPECTED_VERSION {
-            return Err(FileHeaderSectionError::InvalidVersion { version: two_bytes })?;
+        let version = cursor.read_2()?;
+        if version != &EXPECTED_VERSION {
+            return Err(FileHeaderSectionError::InvalidVersion {})?;
         }
 
         // The next 6 bytes are reserved and should always be 0
-        cursor.read_exact(&mut six_bytes)?;
-        if &six_bytes != &EXPECTED_RESERVED {
-            return Err(FileHeaderSectionError::InvalidReserved {
-                reserved: six_bytes,
-            })?;
+        let reserved = cursor.read_6()?;
+        if reserved != &EXPECTED_RESERVED {
+            return Err(FileHeaderSectionError::InvalidReserved {})?;
         }
 
         // The next 2 bytes represent the channel count
-        cursor.read_exact(&mut two_bytes)?;
-        let channel_count = ChannelCount::new(two_bytes[1])?;
+        let channel = cursor.read_2()?;
+        let channel_count = ChannelCount::new(channel[1])?;
 
         // 4 bytes for the width
-        cursor.read_exact(&mut four_bytes)?;
-        let width = PsdWidth::new(as_u32_be(&four_bytes))?;
+        let width = cursor.read_u32()?;
+        let width = PsdWidth::new(width)?;
 
         // 4 bytes for the height
-        cursor.read_exact(&mut four_bytes)?;
-        let height = PsdHeight::new(as_u32_be(&four_bytes))?;
+        let height = cursor.read_u32()?;
+        let height = PsdHeight::new(height)?;
 
         // 2 bytes for depth
-        cursor.read_exact(&mut two_bytes)?;
-        let depth = PsdDepth::new(two_bytes[1])?;
+        let depth = cursor.read_2()?;
+        let depth = PsdDepth::new(depth[1])?;
 
         // 2 bytes for color mode
-        cursor.read_exact(&mut two_bytes)?;
-        let color_mode = ColorMode::new(two_bytes[1])?;
+        let color_mode = cursor.read_2()?;
+        let color_mode = ColorMode::new(color_mode[1])?;
 
         Ok(FileHeaderSection {
             version: PsdVersion::One,
