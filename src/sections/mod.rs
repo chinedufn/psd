@@ -1,18 +1,15 @@
-use crate::sections::NotEnoughBytesError::LengthMarkerTooShort;
 use failure::{Error, Fail};
 use std::io::Cursor;
 use std::io::Read;
 
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
-/// The first four bytes of major sections (excluding File Header) indicate how long
-/// the rest of the section is.
-const LENGTH_MARKER_LEN: usize = 4;
 
 pub(crate) mod file_header_section;
 pub(crate) mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file
+#[derive(Debug)]
 pub struct MajorSections<'a> {
     pub(crate) file_header: &'a [u8],
     pub(crate) color_mode_data: &'a [u8],
@@ -69,7 +66,7 @@ impl<'a> MajorSections<'a> {
     ///
     /// The string of Unicode values, two bytes per character.
     pub fn from_bytes(bytes: &[u8]) -> Result<MajorSections, Error> {
-        let mut cursor = Cursor::new(bytes);;
+        let mut cursor = PsdCursor::new(bytes);
 
         // File header section must be 26 bytes long.
         if bytes.len() < FILE_HEADER_SECTION_LEN {
@@ -78,18 +75,30 @@ impl<'a> MajorSections<'a> {
             })?;
         }
 
-        let file_header = &bytes[cursor.position() as usize..FILE_HEADER_SECTION_LEN];
+        // File Header Section
+        let file_header = &bytes[0..FILE_HEADER_SECTION_LEN];
+        cursor.read(FILE_HEADER_SECTION_LEN as u32)?;
 
-        cursor.set_position(FILE_HEADER_SECTION_LEN as u64);
+        // Color Mode Section
+        let color_mode_section_start = cursor.position() as usize;
+        let color_mode_section_length = cursor.read_u32()?;
+        cursor.read(color_mode_section_length)?;
+        let color_mode_section_end = cursor.position() as usize;
+        let color_mode_data = &bytes[color_mode_section_start..color_mode_section_end];
 
-        // NOTE: The order matters here since we're mutating our cursor as we parse.
-        // This is the same section ordering that PSD files use.
-        let color_mode_data =
-            get_major_section(&MajorSectionKind::ColorModeData, bytes, &mut cursor)?;
-        let image_resources =
-            get_major_section(&MajorSectionKind::ImageResources, bytes, &mut cursor)?;
-        let layer_and_mask =
-            get_major_section(&MajorSectionKind::LayerAndMask, bytes, &mut cursor)?;
+        // Image Resources Section
+        let image_resources_section_start = cursor.position() as usize;
+        let image_resources_section_length = cursor.read_u32()?;
+        cursor.read(image_resources_section_length)?;
+        let image_resources_section_end = cursor.position() as usize;
+        let image_resources = &bytes[image_resources_section_start..image_resources_section_end];
+
+        // Layer and Mask Section
+        let layer_and_mask_section_start = cursor.position() as usize;
+        let layer_and_mask_section_length = cursor.read_u32()?;
+        cursor.read(layer_and_mask_section_length)?;
+        let layer_and_mask_section_end = cursor.position() as usize;
+        let layer_and_mask = &bytes[layer_and_mask_section_start..layer_and_mask_section_end];
 
         // The remaining bytes are the image data section.
         let image_data = &bytes[cursor.position() as usize..];
@@ -102,78 +111,6 @@ impl<'a> MajorSections<'a> {
             image_data,
         })
     }
-}
-
-/// Get the bytes for a major section, including the section's length marker
-/// (this will be the first four bytes of the returned byte slice)
-///
-/// We'll advance the cursor before returning the section bytes so that our major_sections
-/// function can continue parsing without worrying about advancing the cursor.
-fn get_major_section<'a>(
-    section: &MajorSectionKind,
-    bytes: &'a [u8],
-    cursor: &mut Cursor<&[u8]>,
-) -> Result<&'a [u8], Error> {
-    check_length_marker_present(&section, bytes, &cursor)?;
-
-    let data_len = get_major_section_data_len(&section, bytes, &cursor)?;
-
-    let start = cursor.position() as usize;
-    let end = start + LENGTH_MARKER_LEN + data_len;
-
-    let data = &bytes[start..end];
-
-    cursor.set_position(cursor.position() + data.len() as u64);
-
-    Ok(data)
-}
-
-/// The length marker of a major section is 4 bytes long. I we see less than 4 bytes we'll
-/// return an error indicating that we ran out of bytes before getting to the fourth byte of
-/// the length marker.
-fn check_length_marker_present(
-    section: &MajorSectionKind,
-    bytes: &[u8],
-    cursor: &Cursor<&[u8]>,
-) -> Result<(), Error> {
-    // Color mode section must be at least four bytes
-    let remaining_to_parse = bytes.len() - cursor.position() as usize;
-    if remaining_to_parse < LENGTH_MARKER_LEN {
-        return Err(NotEnoughBytesError::LengthMarkerTooShort {
-            section: MajorSectionKind::FileHeader,
-            len_marker_size: remaining_to_parse,
-        })?;
-    }
-
-    Ok(())
-}
-
-/// The first four bytes of a major section (excluding the file header section) encodes a u32.
-/// This u32 is the length of the rest of the data in the section.
-///
-/// We'll decode this u32 and return it as a usize
-fn get_major_section_data_len(
-    section: &MajorSectionKind,
-    bytes: &[u8],
-    cursor: &Cursor<&[u8]>,
-) -> Result<usize, Error> {
-    let mut four_bytes = [0; LENGTH_MARKER_LEN];
-
-    let position = cursor.position() as usize;
-    four_bytes.copy_from_slice(&bytes[position..position + 4]);
-
-    let data_len = as_u32_be(&four_bytes) as usize;
-
-    if cursor.position() as usize + data_len > bytes.len() {
-        let actual_bytes_remaining = bytes.len() - cursor.position() as usize;
-        return Err(NotEnoughBytesError::VariableSectionTooShort {
-            section: *section,
-            expected_byte_count: data_len,
-            actual_bytes_remaining,
-        })?;
-    }
-
-    Ok(data_len)
 }
 
 /// A section specified that it had more bytes than were provided.
@@ -206,7 +143,7 @@ pub enum NotEnoughBytesError {
     )]
     VariableSectionTooShort {
         section: MajorSectionKind,
-        expected_byte_count: usize,
+        expected_byte_count: u32,
         actual_bytes_remaining: usize,
     },
 }
@@ -226,6 +163,16 @@ impl<'a> PsdCursor<'a> {
         }
     }
 
+    /// Get the cursor's position
+    pub fn position(&self) -> u64 {
+        self.cursor.position()
+    }
+
+    /// Get the underlying bytes in the cursor
+    pub fn get_ref(&self) -> &[u8] {
+        self.cursor.get_ref()
+    }
+
     /// Advance the cursor by count bytes and return those bytes
     pub fn read(&mut self, count: u32) -> Result<&[u8], Error> {
         let start = self.cursor.position() as usize;
@@ -235,6 +182,20 @@ impl<'a> PsdCursor<'a> {
         self.cursor.set_position(end as u64);
 
         Ok(bytes)
+    }
+
+    /// Peek at the next four bytes
+    pub fn peek_4(&mut self) -> Result<&[u8], Error> {
+        self.peek(4)
+    }
+
+    /// Get the next n bytes without moving the cursor
+    fn peek(&mut self, n: u8) -> Result<&[u8], Error> {
+        let start = self.cursor.position() as usize;
+        let end = start + n as usize;
+        let bytes = &self.cursor.get_ref()[start..end];
+
+        Ok(&bytes)
     }
 
     /// Read 1 byte
@@ -266,26 +227,29 @@ impl<'a> PsdCursor<'a> {
     pub fn read_u16(&mut self) -> Result<u16, Error> {
         let bytes = self.read_2()?;
 
-        Ok(as_u16_be(bytes))
+        let mut array = [0; 2];
+        array.copy_from_slice(bytes);
+
+        Ok(u16::from_be_bytes(array))
     }
 
     /// Read 4 bytes as a u32
     pub fn read_u32(&mut self) -> Result<u32, Error> {
         let bytes = self.read_4()?;
 
-        Ok(as_u32_be(bytes))
+        let mut array = [0; 4];
+        array.copy_from_slice(bytes);
+
+        Ok(u32::from_be_bytes(array))
     }
-}
 
-/// Convert a big endian byte array into a u32
-pub(self) fn as_u32_be(array: &[u8]) -> u32 {
-    ((array[0] as u32) << 24)
-        + ((array[1] as u32) << 16)
-        + ((array[2] as u32) << 8)
-        + ((array[3] as u32) << 0)
-}
+    /// Read 2 bytes as a i16
+    pub fn read_i16(&mut self) -> Result<i16, Error> {
+        let bytes = self.read_2()?;
 
-/// Convert a big endian byte array into a u16
-pub(self) fn as_u16_be(array: &[u8]) -> u16 {
-    ((array[1] as u16) << 8) + ((array[0] as u16) << 0)
+        let mut array = [0; 2];
+        array.copy_from_slice(bytes);
+
+        Ok(i16::from_be_bytes(array))
+    }
 }

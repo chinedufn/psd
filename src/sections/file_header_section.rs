@@ -1,8 +1,5 @@
-use crate::sections::as_u32_be;
 use crate::sections::PsdCursor;
 use failure::{Error, Fail};
-use std::io::Cursor;
-use std::io::Read;
 
 /// Bytes representing the string "8BPS".
 const EXPECTED_PSD_SIGNATURE: [u8; 4] = [56, 66, 80, 83];

@@ -1,11 +1,12 @@
-use crate::sections::as_u16_be;
-use crate::sections::as_u32_be;
 use crate::sections::PsdCursor;
 use failure::{Error, Fail};
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::io::Read;
-use std::sync::mpsc::channel;
+
+/// One of the possible additional layer block signatures
+const SIGNATURE_EIGHT_BIM: [u8; 4] = [56, 66, 73, 77];
+/// One of the possible additional layer block signatures
+const SIGNATURE_EIGHT_B64: [u8; 4] = [56, 66, 54, 52];
 
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
@@ -41,7 +42,7 @@ pub struct LayerAndMaskInformationSection {
 
 impl LayerAndMaskInformationSection {
     /// Create a LayerAndMaskInformationSection from the bytes in the corresponding secton in a
-    /// PSD file.
+    /// PSD file (including the length marker).
     pub fn from_bytes(bytes: &[u8]) -> Result<LayerAndMaskInformationSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
@@ -61,16 +62,16 @@ impl LayerAndMaskInformationSection {
 
         // Read each layer record
         for layer_num in 0..layer_count {
-            layer_records.push(read_layer_record(bytes, &mut cursor)?);
+            layer_records.push(read_layer_record(&mut cursor)?);
         }
 
         // Read each layer's channel image data
         for layer_record in layer_records {
             let mut psd_layer = PsdLayer::new();
 
-            for (channel_kind, channel_length) in layer_record.channel_lengths {
-                let compression = cursor.read_2()?;
-                let compression = PsdLayerChannelCompression::new(compression[1])?;
+            for (channel_kind, channel_length) in layer_record.channel_data_lengths {
+                let compression = cursor.read_u16()?;
+                let compression = PsdLayerChannelCompression::new(compression)?;
 
                 let channel_data = cursor.read(channel_length)?;
 
@@ -116,8 +117,8 @@ impl LayerAndMaskInformationSection {
 /// | Variable               | Layer mask data: See See Layer mask / adjustment layer data for structure. Can be 40 bytes, 24 bytes, or 4 bytes if no layer mask.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 /// | Variable               | Layer blending ranges: See See Layer blending ranges data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 /// | Variable               | Layer name: Pascal string, padded to a multiple of 4 bytes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-fn read_layer_record(bytes: &[u8], cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
-    let mut channel_lengths = vec![];
+fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
+    let mut channel_data_lengths = vec![];
 
     // We do not currently parse the layer rectangle, skip it
     let rectangle_bytes = 16;
@@ -128,13 +129,15 @@ fn read_layer_record(bytes: &[u8], cursor: &mut PsdCursor) -> Result<LayerRecord
 
     // Read the channel information
     for _ in 0..channel_count {
-        let channel_id = cursor.read_2()?;
-        let channel_id = channel_id[1] as i8;
+        let channel_id = cursor.read_i16()?;
         let channel_id = PsdLayerChannelKind::new(channel_id)?;
 
         let channel_length = cursor.read_u32()?;
+        // The first two bytes encode the compression, the rest of the bytes
+        // are the channel data.
+        let channel_data_length = channel_length - 2;
 
-        channel_lengths.push((channel_id, channel_length));
+        channel_data_lengths.push((channel_id, channel_data_length));
     }
 
     // We do not currently parse the blend mode signature, skip it
@@ -172,9 +175,29 @@ fn read_layer_record(bytes: &[u8], cursor: &mut PsdCursor) -> Result<LayerRecord
     let name = String::from_utf8_lossy(name);
     let name = name.to_string();
 
+    // Layer name is padded to the next multiple of 4 bytes.
+    // So if the name length is 9, there will be three throwaway bytes
+    // after it. Here we skip over those throwaday bytes.
+    //
+    // The 1 is the 1 byte that we read for the name length
+    let bytes_mod_4 = (name_len + 1) % 4;
+    let padding = (4 - bytes_mod_4) % 4;
+    cursor.read(padding as u32)?;
+
+    // We do not currently handle additional layer information, so we skip it.
+    //
+    // There can be multiple additional layer information sections so we'll loop
+    // until we stop seeing them.
+    while cursor.peek_4()? == &SIGNATURE_EIGHT_BIM || cursor.peek_4()? == &SIGNATURE_EIGHT_B64 {
+        let _signature = cursor.read_4()?;
+        let _key = cursor.read_4()?;
+        let additional_layer_info_len = cursor.read_u32()?;
+        cursor.read(additional_layer_info_len)?;
+    }
+
     Ok(LayerRecord {
         name,
-        channel_lengths,
+        channel_data_lengths,
     })
 }
 
@@ -246,7 +269,13 @@ struct LayerRecord {
     /// The name of the layer
     name: String,
     /// The channels that this record has and the number of bytes in each channel.
-    channel_lengths: Vec<(PsdLayerChannelKind, u32)>,
+    ///
+    /// Each channel has one byte per pixel in the PSD.
+    ///
+    /// So a 1x1 image would have 1 byte per channel.
+    ///
+    /// A 2x2 image would have 4 bytes per channel.
+    channel_data_lengths: Vec<(PsdLayerChannelKind, u32)>,
 }
 
 /// A channel within a PSD Layer
@@ -270,7 +299,7 @@ pub enum PsdLayerChannelCompression {
 
 impl PsdLayerChannelCompression {
     /// Create a new PsdLayerChannelCompression
-    pub fn new(compression: u8) -> Result<PsdLayerChannelCompression, Error> {
+    pub fn new(compression: u16) -> Result<PsdLayerChannelCompression, Error> {
         match compression {
             0 => Ok(PsdLayerChannelCompression::RawData),
             1 => Ok(PsdLayerChannelCompression::RleCompressed),
@@ -300,17 +329,17 @@ pub enum PsdLayerChannelError {
         display = "{} is an invalid channel id, must be 0, 1, 2, -1, -2, or -3.",
         channel_id
     )]
-    InvalidChannel { channel_id: i8 },
+    InvalidChannel { channel_id: i16 },
     #[fail(
         display = "{} is an invalid layer channel compression. Must be 0, 1, 2 or 3",
         compression
     )]
-    InvalidCompression { compression: u8 },
+    InvalidCompression { compression: u16 },
 }
 
 impl PsdLayerChannelKind {
     /// Create a new PsdLayerChannel
-    pub fn new(channel_id: i8) -> Result<PsdLayerChannelKind, Error> {
+    pub fn new(channel_id: i16) -> Result<PsdLayerChannelKind, Error> {
         match channel_id {
             0 => Ok(PsdLayerChannelKind::Red),
             1 => Ok(PsdLayerChannelKind::Green),

@@ -8,11 +8,10 @@ pub use crate::sections::file_header_section::ColorMode;
 
 use self::sections::file_header_section::FileHeaderSection;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
+use crate::sections::layer_and_mask_information_section::PsdLayer;
 use crate::sections::MajorSections;
 use failure::Error;
-use crate::sections::layer_and_mask_information_section::PsdLayer;
 use std::collections::HashMap;
-use crate::sections::layer_and_mask_information_section::PsdLayerChannelError;
 
 mod sections;
 
@@ -77,7 +76,7 @@ impl Psd {
     }
 
     /// Get all of the layers in the PSD
-    pub fn layers (&self) -> &HashMap<String, PsdLayer> {
+    pub fn layers(&self) -> &HashMap<String, PsdLayer> {
         &self.layer_and_mask_information_section.layers
     }
 }
