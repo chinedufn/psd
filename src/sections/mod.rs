@@ -79,38 +79,31 @@ impl<'a> MajorSections<'a> {
         let file_header = &bytes[0..FILE_HEADER_SECTION_LEN];
         cursor.read(FILE_HEADER_SECTION_LEN as u32)?;
 
-        // Color Mode Section
-        let color_mode_section_start = cursor.position() as usize;
-        let color_mode_section_length = cursor.read_u32()?;
-        cursor.read(color_mode_section_length)?;
-        let color_mode_section_end = cursor.position() as usize;
-        let color_mode_data = &bytes[color_mode_section_start..color_mode_section_end];
-
-        // Image Resources Section
-        let image_resources_section_start = cursor.position() as usize;
-        let image_resources_section_length = cursor.read_u32()?;
-        cursor.read(image_resources_section_length)?;
-        let image_resources_section_end = cursor.position() as usize;
-        let image_resources = &bytes[image_resources_section_start..image_resources_section_end];
-
-        // Layer and Mask Section
-        let layer_and_mask_section_start = cursor.position() as usize;
-        let layer_and_mask_section_length = cursor.read_u32()?;
-        cursor.read(layer_and_mask_section_length)?;
-        let layer_and_mask_section_end = cursor.position() as usize;
-        let layer_and_mask = &bytes[layer_and_mask_section_start..layer_and_mask_section_end];
+        let (color_start, color_end) = read_major_section_start_end(&mut cursor)?;
+        let (img_res_start, img_res_end) = read_major_section_start_end(&mut cursor)?;
+        let (layer_mask_start, layer_mask_end) = read_major_section_start_end(&mut cursor)?;
 
         // The remaining bytes are the image data section.
         let image_data = &bytes[cursor.position() as usize..];
 
         Ok(MajorSections {
             file_header,
-            color_mode_data,
-            image_resources,
-            layer_and_mask,
+            color_mode_data: &bytes[color_start..color_end],
+            image_resources: &bytes[img_res_start..img_res_end],
+            layer_and_mask: &bytes[layer_mask_start..layer_mask_end],
             image_data,
         })
     }
+}
+
+/// Get the start and end indices of a major section
+fn read_major_section_start_end(cursor: &mut PsdCursor) -> Result<(usize, usize), Error> {
+    let start = cursor.position() as usize;
+    let data_len = cursor.read_u32()?;
+    cursor.read(data_len)?;
+    let end = cursor.position() as usize;
+
+    Ok((start, end))
 }
 
 /// A section specified that it had more bytes than were provided.
