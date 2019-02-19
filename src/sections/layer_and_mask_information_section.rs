@@ -37,7 +37,9 @@ const SIGNATURE_EIGHT_B64: [u8; 4] = [56, 66, 54, 52];
 /// | Variable | (Photoshop 4.0 and later) <br> Series of tagged blocks containing various types of data. See See Additional Layer Information for the list of the types of data that can be included here. |
 #[derive(Debug)]
 pub struct LayerAndMaskInformationSection {
-    pub(in crate) layers: HashMap<String, PsdLayer>,
+    pub(in crate) layers: Vec<PsdLayer>,
+    /// A map of layer name to index within our layers vector
+    pub(in crate) layer_names: HashMap<String, usize>,
 }
 
 impl LayerAndMaskInformationSection {
@@ -46,7 +48,8 @@ impl LayerAndMaskInformationSection {
     pub fn from_bytes(bytes: &[u8]) -> Result<LayerAndMaskInformationSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
-        let mut layers = HashMap::new();
+        let mut layers = vec![];
+        let mut layer_names = HashMap::new();
 
         // The first four bytes of the section is the length marker for the layer and mask
         // information section, we won't be needing it.
@@ -66,7 +69,7 @@ impl LayerAndMaskInformationSection {
         }
 
         // Read each layer's channel image data
-        for layer_record in layer_records {
+        for (idx, layer_record) in layer_records.into_iter().enumerate() {
             let mut psd_layer = PsdLayer::new();
 
             for (channel_kind, channel_length) in layer_record.channel_data_lengths {
@@ -84,10 +87,14 @@ impl LayerAndMaskInformationSection {
                 );
             }
 
-            layers.insert(layer_record.name, psd_layer);
+            layer_names.insert(layer_record.name, idx);
+            layers.push(psd_layer);
         }
 
-        Ok(LayerAndMaskInformationSection { layers })
+        Ok(LayerAndMaskInformationSection {
+            layers,
+            layer_names,
+        })
     }
 }
 

@@ -10,7 +10,7 @@ fn layer_and_mask_information_section() {
 
     assert_eq!(psd.layers().len(), 1);
 
-    let layer = psd.layers().get("First Layer").unwrap();
+    let layer = psd.layer_by_name("First Layer").unwrap();
 
     assert_eq!(&layer.rgba().unwrap()[..], &GREEN_PIXEL);
 }

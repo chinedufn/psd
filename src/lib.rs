@@ -85,8 +85,18 @@ impl Psd {
 // Methods for working with layers
 impl Psd {
     /// Get all of the layers in the PSD
-    pub fn layers(&self) -> &HashMap<String, PsdLayer> {
+    pub fn layers(&self) -> &Vec<PsdLayer> {
         &self.layer_and_mask_information_section.layers
+    }
+
+    /// Get a layer by name
+    pub fn layer_by_name(&self, name: &str) -> Result<&PsdLayer, Error> {
+        let layer_idx = self
+            .layer_and_mask_information_section
+            .layer_names
+            .get(name)
+            .unwrap();
+        Ok(&self.layer_and_mask_information_section.layers[*layer_idx])
     }
 }
 
