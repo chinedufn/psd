@@ -7,6 +7,7 @@
 pub use crate::sections::file_header_section::ColorMode;
 
 use self::sections::file_header_section::FileHeaderSection;
+use crate::sections::image_data_section::ImageDataSection;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::layer_and_mask_information_section::PsdLayer;
 use crate::sections::MajorSections;
@@ -19,12 +20,13 @@ mod sections;
 ///
 /// ## PSB Support
 ///
-/// We do not currently support PSB since the originally authors didn't need it, but adding
+/// We do not currently support PSB since the original authors didn't need it, but adding
 /// support should be trivial. If you'd like to support PSB please open an issue.
 #[derive(Debug)]
 pub struct Psd {
     file_header_section: FileHeaderSection,
     layer_and_mask_information_section: LayerAndMaskInformationSection,
+    image_data_section: ImageDataSection,
 }
 
 impl Psd {
@@ -43,17 +45,21 @@ impl Psd {
         let major_sections = MajorSections::from_bytes(bytes)?;
 
         let file_header_section = FileHeaderSection::from_bytes(major_sections.file_header)?;
+
         let layer_and_mask_information_section =
             LayerAndMaskInformationSection::from_bytes(major_sections.layer_and_mask)?;
+
+        let image_data_section = ImageDataSection::from_bytes(major_sections.image_data)?;
 
         Ok(Psd {
             file_header_section,
             layer_and_mask_information_section,
+            image_data_section,
         })
     }
 }
 
-// Information from the file section header
+// Methods for working with the file section header
 impl Psd {
     /// The width of the PSD file
     pub fn width(&self) -> u32 {
@@ -74,9 +80,20 @@ impl Psd {
     pub fn color_mode(&self) -> ColorMode {
         self.file_header_section.color_mode
     }
+}
 
+// Methods for working with layers
+impl Psd {
     /// Get all of the layers in the PSD
     pub fn layers(&self) -> &HashMap<String, PsdLayer> {
         &self.layer_and_mask_information_section.layers
+    }
+}
+
+// Methods for working with the final flattened image data
+impl Psd {
+    /// Get the pixels [R,G,B,R,G,B,...,R,G,B] for the final flattened image in the PSD.
+    pub fn rgb(&self) -> &Vec<u8> {
+        &self.image_data_section.rgb
     }
 }

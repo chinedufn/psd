@@ -32,7 +32,8 @@ fn main () {
     assert_eq!(psd.width(), 500);
     assert_eq!(psd.height(), 500);
 
-    for (layer_name, layer) in psd.layers().iter() {
+    for (_layer_name, layer) in psd.layers().iter() {
+        let pixels = layer.rgba();
     }
 }
 ```

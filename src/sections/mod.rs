@@ -6,6 +6,7 @@ use std::io::Read;
 const FILE_HEADER_SECTION_LEN: usize = 26;
 
 pub(crate) mod file_header_section;
+pub(crate) mod image_data_section;
 pub(crate) mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file

@@ -41,7 +41,7 @@ pub struct LayerAndMaskInformationSection {
 }
 
 impl LayerAndMaskInformationSection {
-    /// Create a LayerAndMaskInformationSection from the bytes in the corresponding secton in a
+    /// Create a LayerAndMaskInformationSection from the bytes in the corresponding section in a
     /// PSD file (including the length marker).
     pub fn from_bytes(bytes: &[u8]) -> Result<LayerAndMaskInformationSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
