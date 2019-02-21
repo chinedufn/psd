@@ -145,7 +145,7 @@ pub enum NotEnoughBytesError {
 /// A Cursor wrapping bytes from a PSD file.
 ///
 /// Provides methods that abstract common ways of parsing PSD bytes.
-pub(self) struct PsdCursor<'a> {
+pub(crate) struct PsdCursor<'a> {
     cursor: Cursor<&'a [u8]>,
 }
 
@@ -235,6 +235,16 @@ impl<'a> PsdCursor<'a> {
         array.copy_from_slice(bytes);
 
         Ok(u32::from_be_bytes(array))
+    }
+
+    /// Read 1 byte as a i8
+    pub fn read_i8(&mut self) -> Result<i8, Error> {
+        let bytes = self.read_1()?;
+
+        let mut array = [0; 1];
+        array.copy_from_slice(bytes);
+
+        Ok(i8::from_be_bytes(array))
     }
 
     /// Read 2 bytes as a i16

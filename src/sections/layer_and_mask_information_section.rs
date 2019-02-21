@@ -59,7 +59,20 @@ impl LayerAndMaskInformationSection {
         let layer_info_section_len = cursor.read_u32()?;
 
         // Next 2 bytes is the layer count
-        let layer_count = cursor.read_u16()?;
+        //
+        // NOTE: Appears to be -1 when we create a new PSD and don't create any new layers but
+        // instead only manipulate the default background layer.
+        //
+        // # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
+        //
+        // Layer count. If it is a negative number, its absolute value is the number of layers and
+        // the first alpha channel contains the transparency data for the merged result.
+        let layer_count = cursor.read_i16()?;
+
+        // TODO: If the layer count was negative we were supposed to treat the first alpha
+        // channel as transparency data for the merged result.. So add a new test with a transparent
+        // PSD and make sure that we're handling this case properly.
+        let layer_count: u16 = layer_count.abs() as u16;
 
         let mut layer_records = vec![];
 
@@ -295,12 +308,16 @@ pub struct PsdLayerChannel {
 }
 
 /// How is this layer channel data compressed?
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum PsdLayerChannelCompression {
+    /// Not compressed
     RawData = 0,
+    /// Compressed using [PackBits RLE compression](https://en.wikipedia.org/wiki/PackBits)
     RleCompressed = 1,
+    /// Currently unsupported
     ZipWithoutPrediction = 2,
+    /// Currently unsupported
     ZipWithPrediction = 3,
 }
 
