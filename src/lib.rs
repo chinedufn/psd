@@ -184,13 +184,17 @@ impl Psd {
     ) {
         let mut cursor = PsdCursor::new(&channel_bytes[..]);
 
+        let blue = PsdLayerChannelKind::Blue == channel_kind;
+
         let mut idx = 0;
         let offset = channel_kind as usize;
 
         while cursor.position() != cursor.get_ref().len() as u64 {
-            let header = cursor.read_i8().unwrap();
+            let header = cursor.read_i8().unwrap() as i16;
 
-            if header >= 0 {
+            if header == -128 {
+                continue;
+            } else if header >= 0 {
                 let bytes_to_read = 1 + header;
                 for byte in cursor.read(bytes_to_read as u32).unwrap() {
                     rgb[idx * 3 + offset] = *byte;

@@ -90,11 +90,11 @@ impl ImageDataSection {
 
                 let (green_start, green_end) = (red_end, red_end + green_byte_count);
 
-                let blue_start = green_end;
+                let (blue_start, blue_end) = (green_end, green_end + blue_byte_count);
 
                 let red = bytes[red_start as usize..red_end as usize].into();
                 let green = bytes[green_start as usize..green_end as usize].into();
-                let blue = bytes[blue_start as usize..].into();
+                let blue = bytes[blue_start as usize..blue_end as usize].into();
 
                 (
                     ChannelBytes::RleCompressed(red),

@@ -14,8 +14,3 @@ fn file_header_section() {
     assert_eq!(psd.color_mode(), ColorMode::Rgb);
 }
 
-#[test]
-fn bug() {
-    let psd = include_bytes!("./black-256x256.psd");
-    let psd = Psd::from_bytes(psd).unwrap();
-}
