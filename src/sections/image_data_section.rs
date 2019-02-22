@@ -1,4 +1,4 @@
-use crate::sections::layer_and_mask_information_section::PsdLayerChannelCompression;
+use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelCompression;
 use crate::sections::PsdCursor;
 use failure::Error;
 
@@ -36,7 +36,6 @@ impl ImageDataSection {
         let compression = cursor.read_u16()?;
         let compression = PsdLayerChannelCompression::new(compression)?;
 
-        // TODO: FIXME: If the compression is Rle interpret bytes as i8.
         let (red, green, blue) = match compression {
             PsdLayerChannelCompression::RawData => {
                 // 3 channels, RGB. First 2 bytes are compression bytes, the rest are rgb bytes
@@ -59,11 +58,14 @@ impl ImageDataSection {
                 )
             }
             // # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
+            //
             // RLE compressed the image data starts with the byte counts for all the scan lines
             // (rows * channels), with each count stored as a two-byte value. The RLE compressed
             // data follows, with each scan line compressed separately. The RLE compression is
             // the same compression algorithm used by the Macintosh ROM routine PackBits,
             // and the TIFF standard.
+            //
+            // TODO: Normalize with layer.rs rle compression code
             PsdLayerChannelCompression::RleCompressed => {
                 // The final image data has 3 channels, red, green, blue
                 let channel_count = 3;
@@ -83,6 +85,10 @@ impl ImageDataSection {
                 }
 
                 // 2 bytes for compression level, then 2 bytes for each scanline of each channel
+                // We're skipping over the bytes that describe the length of each scanling since
+                // we don't currently use them. We might re-think this in the future when we
+                // implement serialization of a Psd back into bytes.. But not a concern at the
+                // moment.
                 let channel_data_start = 2 + (channel_count * scanlines * 2);
 
                 let (red_start, red_end) =

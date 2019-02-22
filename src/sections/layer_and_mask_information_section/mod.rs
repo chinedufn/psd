@@ -1,12 +1,18 @@
+use crate::sections::image_data_section::ChannelBytes;
+use crate::sections::layer_and_mask_information_section::layer::LayerRecord;
+use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
+use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelCompression;
+use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelKind;
 use crate::sections::PsdCursor;
-use failure::{Error, Fail};
+use failure::Error;
 use std::collections::HashMap;
-use std::io::Read;
 
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_BIM: [u8; 4] = [56, 66, 73, 77];
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_B64: [u8; 4] = [56, 66, 54, 52];
+
+pub mod layer;
 
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
@@ -83,7 +89,13 @@ impl LayerAndMaskInformationSection {
 
         // Read each layer's channel image data
         for (idx, layer_record) in layer_records.into_iter().enumerate() {
-            let mut psd_layer = PsdLayer::new();
+            let mut psd_layer = PsdLayer::new(
+                layer_record.name.clone(),
+                layer_record.top,
+                layer_record.left,
+                layer_record.bottom,
+                layer_record.right,
+            );
 
             for (channel_kind, channel_length) in layer_record.channel_data_lengths {
                 let compression = cursor.read_u16()?;
@@ -91,13 +103,27 @@ impl LayerAndMaskInformationSection {
 
                 let channel_data = cursor.read(channel_length)?;
 
-                psd_layer.channels.insert(
-                    channel_kind,
-                    PsdLayerChannel {
-                        compression,
-                        channel_data: channel_data.into(),
-                    },
-                );
+                let channel_bytes = match compression {
+                    PsdLayerChannelCompression::RawData => {
+                        ChannelBytes::RawData(channel_data.into())
+                    }
+                    PsdLayerChannelCompression::RleCompressed => {
+                        let scanlines = (layer_record.bottom - layer_record.top) as usize;
+
+                        // We're skipping over the bytes that describe the length of each scanling since
+                        // we don't currently use them. We might re-think this in the future when we
+                        // implement serialization of a Psd back into bytes.. But not a concern at the
+                        // moment.
+                        // Compressed bytes per scanling are encoded at the beginning as 2 bytes
+                        // per scanline
+                        let channel_data = &channel_data[2 * scanlines..];
+
+                        ChannelBytes::RleCompressed(channel_data.into())
+                    }
+                    _ => unimplemented!("Zip compression currently unsupported"),
+                };
+
+                psd_layer.channels.insert(channel_kind, channel_bytes);
             }
 
             layer_names.insert(layer_record.name, idx);
@@ -140,9 +166,11 @@ impl LayerAndMaskInformationSection {
 fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     let mut channel_data_lengths = vec![];
 
-    // We do not currently parse the layer rectangle, skip it
-    let rectangle_bytes = 16;
-    cursor.read(rectangle_bytes)?;
+    // Read the rectangle that encloses the layer mask.
+    let top = cursor.read_i32()?;
+    let left = cursor.read_i32()?;
+    let bottom = cursor.read_i32()?;
+    let right = cursor.read_i32()?;
 
     // Get the number of channels in the layer
     let channel_count = cursor.read_u16()?;
@@ -218,160 +246,9 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     Ok(LayerRecord {
         name,
         channel_data_lengths,
+        top,
+        left,
+        bottom,
+        right,
     })
-}
-
-/// Information about a layer in a PSD file.
-#[derive(Debug)]
-pub struct PsdLayer {
-    /// The channels of the layer, stored separately.
-    ///
-    /// You can combine these channels into a final image. For example, you might combine
-    /// the Red, Green and Blue channels, or you might also combine the TransparencyMask (alpha)
-    /// channel, or you might make use of the layer masks.
-    ///
-    /// Storing the channels separately allows for this flexability.
-    channels: HashMap<PsdLayerChannelKind, PsdLayerChannel>,
-}
-
-/// An error when working with a PsdLayer
-#[derive(Debug, Fail)]
-pub enum PsdLayerError {
-    #[fail(
-        display = r#"Could not combine Red, Green, Blue and Alpha.
-        This layer is missing channel: {:#?}"#,
-        channel
-    )]
-    MissingChannels { channel: PsdLayerChannelKind },
-}
-
-impl PsdLayer {
-    /// Create a new photoshop layer
-    pub fn new() -> PsdLayer {
-        PsdLayer {
-            channels: HashMap::new(),
-        }
-    }
-
-    /// Create a vector that interleaves the red, green, blue and alpha channels in this PSD
-    ///
-    /// vec![R, G, B, A, R, G, B, A, ...]
-    pub fn rgba(&self) -> Result<Vec<u8>, Error> {
-        let red = self.get_channel(PsdLayerChannelKind::Red)?;
-        let green = self.get_channel(PsdLayerChannelKind::Green)?;
-        let blue = self.get_channel(PsdLayerChannelKind::Blue)?;
-        let alpha = self.get_channel(PsdLayerChannelKind::TransparencyMask)?;
-
-        let mut rgba = vec![];
-
-        for idx in 0..red.channel_data.len() {
-            rgba.push(red.channel_data[idx]);
-            rgba.push(green.channel_data[idx]);
-            rgba.push(blue.channel_data[idx]);
-            rgba.push(alpha.channel_data[idx]);
-        }
-
-        Ok(rgba)
-    }
-
-    // Get one of the PsdLayerChannels of this PsdLayer
-    fn get_channel(&self, channel: PsdLayerChannelKind) -> Result<&PsdLayerChannel, Error> {
-        match self.channels.get(&channel) {
-            Some(layer_channel) => Ok(layer_channel),
-            None => Err(PsdLayerError::MissingChannels { channel })?,
-        }
-    }
-}
-
-/// A layer record within the layer info section
-#[derive(Debug)]
-struct LayerRecord {
-    /// The name of the layer
-    name: String,
-    /// The channels that this record has and the number of bytes in each channel.
-    ///
-    /// Each channel has one byte per pixel in the PSD.
-    ///
-    /// So a 1x1 image would have 1 byte per channel.
-    ///
-    /// A 2x2 image would have 4 bytes per channel.
-    channel_data_lengths: Vec<(PsdLayerChannelKind, u32)>,
-}
-
-/// A channel within a PSD Layer
-#[derive(Debug)]
-pub struct PsdLayerChannel {
-    /// How the channel data is compressed
-    compression: PsdLayerChannelCompression,
-    /// The data for this image channel
-    channel_data: Vec<u8>,
-}
-
-/// How is this layer channel data compressed?
-#[derive(Debug, Eq, PartialEq)]
-#[allow(missing_docs)]
-pub enum PsdLayerChannelCompression {
-    /// Not compressed
-    RawData = 0,
-    /// Compressed using [PackBits RLE compression](https://en.wikipedia.org/wiki/PackBits)
-    RleCompressed = 1,
-    /// Currently unsupported
-    ZipWithoutPrediction = 2,
-    /// Currently unsupported
-    ZipWithPrediction = 3,
-}
-
-impl PsdLayerChannelCompression {
-    /// Create a new PsdLayerChannelCompression
-    pub fn new(compression: u16) -> Result<PsdLayerChannelCompression, Error> {
-        match compression {
-            0 => Ok(PsdLayerChannelCompression::RawData),
-            1 => Ok(PsdLayerChannelCompression::RleCompressed),
-            2 => Ok(PsdLayerChannelCompression::ZipWithoutPrediction),
-            3 => Ok(PsdLayerChannelCompression::ZipWithPrediction),
-            _ => Err(PsdLayerChannelError::InvalidCompression { compression })?,
-        }
-    }
-}
-
-/// The different kinds of channels in a layer (red, green, blue, ...).
-#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[allow(missing_docs)]
-pub enum PsdLayerChannelKind {
-    Red = 0,
-    Green = 1,
-    Blue = 2,
-    TransparencyMask = -1,
-    UserSuppliedLayerMask = -2,
-    RealUserSuppliedLayerMask = -3,
-}
-
-/// Represents an invalid layer channel id
-#[derive(Debug, Fail)]
-pub enum PsdLayerChannelError {
-    #[fail(
-        display = "{} is an invalid channel id, must be 0, 1, 2, -1, -2, or -3.",
-        channel_id
-    )]
-    InvalidChannel { channel_id: i16 },
-    #[fail(
-        display = "{} is an invalid layer channel compression. Must be 0, 1, 2 or 3",
-        compression
-    )]
-    InvalidCompression { compression: u16 },
-}
-
-impl PsdLayerChannelKind {
-    /// Create a new PsdLayerChannel
-    pub fn new(channel_id: i16) -> Result<PsdLayerChannelKind, Error> {
-        match channel_id {
-            0 => Ok(PsdLayerChannelKind::Red),
-            1 => Ok(PsdLayerChannelKind::Green),
-            2 => Ok(PsdLayerChannelKind::Blue),
-            -1 => Ok(PsdLayerChannelKind::TransparencyMask),
-            -2 => Ok(PsdLayerChannelKind::UserSuppliedLayerMask),
-            -3 => Ok(PsdLayerChannelKind::RealUserSuppliedLayerMask),
-            _ => Err(PsdLayerChannelError::InvalidChannel { channel_id })?,
-        }
-    }
 }

@@ -30,19 +30,33 @@ fn start() -> Result<(), JsValue> {
     let mut psd_pixels = psd.rgba();
 
     let psd_pixels = Clamped(&mut psd_pixels[..]);
-    let psd_pixels = ImageData::new_with_u8_clamped_array_and_sh(psd_pixels, psd.width(), psd.height())?;
+    let psd_pixels =
+        ImageData::new_with_u8_clamped_array_and_sh(psd_pixels, psd.width(), psd.height())?;
 
+    let mut layers: Vec<VirtualNode> = psd
+        .layers()
+        .iter()
+        .map(|layer| {
+            html! {
+             <div>
+               <span>{ text!(layer.name()) }</span>
+               <input type="checkbox" checked="true">
+             </div>}
+
+        })
+        .collect();
+    layers.reverse();
 
     let app = html! {
        <div class=APP_CONTAINER>
 
          <div class="left-column">
-           <canvas id="psd-visual" width="500" height="500">
-           </canvas>
+           <canvas id="psd-visual" width="500" height="500"></canvas>
          </div>
 
          <div class="right-column">
            <strong>Layers</strong>
+           { layers }
          </div>
        </div>
     };
@@ -52,8 +66,7 @@ fn start() -> Result<(), JsValue> {
     let canvas: HtmlCanvasElement = document
         .get_element_by_id("psd-visual")
         .unwrap()
-        .dyn_into()
-        .unwrap();
+        .dyn_into()?;
     let context = canvas
         .get_context("2d")?
         .unwrap()

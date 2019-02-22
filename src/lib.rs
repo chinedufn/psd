@@ -13,12 +13,12 @@ use self::sections::file_header_section::FileHeaderSection;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
-use crate::sections::layer_and_mask_information_section::PsdLayer;
-pub use crate::sections::layer_and_mask_information_section::PsdLayerChannelCompression;
-use crate::sections::layer_and_mask_information_section::PsdLayerChannelKind;
 use crate::sections::MajorSections;
 use crate::sections::PsdCursor;
 use failure::Error;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelKind;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelCompression;
 
 mod sections;
 
@@ -166,8 +166,10 @@ impl Psd {
     ) {
         match channel_bytes {
             ChannelBytes::RawData(channel_bytes) => {
-                for (idx, r) in channel_bytes.iter().enumerate() {
-                    rgb[idx * 3] = *r;
+                let offset = channel_kind as usize;
+
+                for (idx, byte) in channel_bytes.iter().enumerate() {
+                    rgb[idx * 3 + offset] = *byte;
                 }
             }
             // https://en.wikipedia.org/wiki/PackBits
@@ -183,8 +185,6 @@ impl Psd {
         channel_bytes: &Vec<u8>,
     ) {
         let mut cursor = PsdCursor::new(&channel_bytes[..]);
-
-        let blue = PsdLayerChannelKind::Blue == channel_kind;
 
         let mut idx = 0;
         let offset = channel_kind as usize;

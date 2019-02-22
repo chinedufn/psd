@@ -5,9 +5,9 @@ use std::io::Read;
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
 
-pub(crate) mod file_header_section;
-pub(crate) mod image_data_section;
-pub(crate) mod layer_and_mask_information_section;
+pub mod file_header_section;
+pub mod image_data_section;
+pub mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file
 #[derive(Debug)]
@@ -255,5 +255,15 @@ impl<'a> PsdCursor<'a> {
         array.copy_from_slice(bytes);
 
         Ok(i16::from_be_bytes(array))
+    }
+
+    /// Read 4 bytes as a i32
+    pub fn read_i32(&mut self) -> Result<i32, Error> {
+        let bytes = self.read_4()?;
+
+        let mut array = [0; 4];
+        array.copy_from_slice(bytes);
+
+        Ok(i32::from_be_bytes(array))
     }
 }

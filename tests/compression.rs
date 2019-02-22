@@ -28,14 +28,36 @@ fn rle_decompress_final_image() -> Result<(), Error> {
 
 #[test]
 fn rle_decompress_layer() -> Result<(), Error> {
-    unimplemented!(
-        r#"Verify that red layer has channels with Rle then get rgba for red layer\
-    and make sure it is red 8x8"#
-    );
+    let psd = include_bytes!("./rle-3-layer-8x8.psd");
+    let psd = Psd::from_bytes(psd)?;
+
+    for (layer_name, expected_pixels) in [
+        ("Red Layer", make_red_8x8_rgba()),
+        ("Green Layer", make_green_8x8()),
+        ("Blue Layer", make_blue_8x8_rgba()),
+    ]
+    .iter()
+    {
+        test_rle_layer(&psd, &layer_name, expected_pixels);
+    }
+
+    Ok(())
 }
+
+fn test_rle_layer(psd: &Psd, layer_name: &str, expected_pixels: &Vec<u8>) {
+    let layer = psd.layer_by_name(layer_name).unwrap();
+    assert_eq!(&layer.rgba().unwrap(), expected_pixels);
+}
+
+// Below are methods to make different expected final pixels so that we can text our generated
+// pixels against these expected pixels below.
 
 fn make_red_8x8_rgba() -> Vec<u8> {
     make_8x8_rgba(RED_PIXEL)
+}
+
+fn make_green_8x8_rgba() -> Vec<u8> {
+    make_8x8_rgba(GREEN_PIXEL)
 }
 
 fn make_blue_8x8_rgba() -> Vec<u8> {
