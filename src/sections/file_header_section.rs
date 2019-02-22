@@ -99,13 +99,13 @@ impl FileHeaderSection {
         let channel = cursor.read_2()?;
         let channel_count = ChannelCount::new(channel[1])?;
 
-        // 4 bytes for the width
-        let width = cursor.read_u32()?;
-        let width = PsdWidth::new(width)?;
-
         // 4 bytes for the height
         let height = cursor.read_u32()?;
         let height = PsdHeight::new(height)?;
+
+        // 4 bytes for the width
+        let width = cursor.read_u32()?;
+        let width = PsdWidth::new(width)?;
 
         // 2 bytes for depth
         let depth = cursor.read_2()?;

@@ -17,13 +17,15 @@ pub struct PsdLayer {
     /// Storing the channels separately allows for this flexability.
     pub(super) channels: HashMap<PsdLayerChannelKind, ChannelBytes>,
     /// The position of the top of the image
-    pub(super) top: i32,
+    ///
+    /// TODO: None of these nee to be i32. u16 works. They aren't negative.
+    pub(crate) top: i32,
     /// The position of the left of the image
-    pub(super) left: i32,
+    pub(crate) left: i32,
     /// The position of the bottom of the image
-    pub(super) bottom: i32,
+    pub(crate) bottom: i32,
     /// The position of the right of the image
-    pub(super) right: i32,
+    pub(crate) right: i32,
 }
 
 /// An error when working with a PsdLayer

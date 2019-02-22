@@ -12,13 +12,14 @@ pub use crate::sections::file_header_section::ColorMode;
 use self::sections::file_header_section::FileHeaderSection;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelCompression;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelKind;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
 use crate::sections::PsdCursor;
 use failure::Error;
-pub use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelKind;
-pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
-pub use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelCompression;
+use std::collections::HashMap;
 
 mod sections;
 
@@ -106,6 +107,13 @@ impl Psd {
             .unwrap();
         Ok(&self.layer_and_mask_information_section.layers[*layer_idx])
     }
+
+    /// Get a layer by index.
+    ///
+    /// index 0 is the bottom layer, index 1 is the layer above that, etc
+    pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer, Error> {
+        Ok(&self.layer_and_mask_information_section.layers[idx])
+    }
 }
 
 // Methods for working with the final flattened image data
@@ -159,6 +167,47 @@ impl Psd {
         pixels
     }
 
+    /// Given a filter, combine all layers in the PSD that pass the filter into a vector
+    /// of RGBA pixels.
+    pub fn flatten_layers_rgba(
+        &self,
+        filter: &Fn((usize, &PsdLayer)) -> bool,
+    ) -> Result<Vec<u8>, Error> {
+        // Start from the top layer so that if none of the pixels are transparent we don't
+        // need to look at any of the layers below it.
+        // If they are we only continue to look downwards until we no longer see transparent
+        // pixels.
+        let mut layers_to_flatten: Vec<(usize, &PsdLayer)> = self
+            .layers()
+            .iter()
+            .enumerate()
+            .filter(|(idx, layer)| filter((*idx, layer)))
+            .collect();
+        layers_to_flatten.reverse();
+
+        let mut cached_layer_rgba = HashMap::new();
+
+        let pixels = self.width() * self.height();
+
+        let layer_count = layers_to_flatten.len();
+
+        let mut flattened_pixels = vec![];
+
+        for pixel_idx in 0..pixels as usize {
+            let left = pixel_idx % self.width() as usize;
+            let top = pixel_idx / self.width() as usize;
+            let pixel_coord = (left, top);
+
+            let pixel = flattened_pixel(0, pixel_coord, &layers_to_flatten, &mut cached_layer_rgba);
+            flattened_pixels.push(pixel[0]);
+            flattened_pixels.push(pixel[1]);
+            flattened_pixels.push(pixel[2]);
+            flattened_pixels.push(pixel[3]);
+        }
+
+        Ok(flattened_pixels)
+    }
+
     fn insert_channel_bytes(
         rgb: &mut Vec<u8>,
         channel_kind: PsdLayerChannelKind,
@@ -179,6 +228,7 @@ impl Psd {
         }
     }
 
+    // https://en.wikipedia.org/wiki/PackBits
     fn rle_decompress_channel(
         rgb: &mut Vec<u8>,
         channel_kind: PsdLayerChannelKind,
@@ -214,5 +264,73 @@ impl Psd {
     /// Get the compression level for the flattened image data
     pub fn compression(&self) -> &PsdLayerChannelCompression {
         &self.image_data_section.compression
+    }
+}
+
+fn flattened_pixel(
+    // Top is 0, below that is 1, ... etc
+    flattened_layer_top_down_idx: usize,
+    // (left, top)
+    pixel_coord: (usize, usize),
+    layers_to_flatten_top_down: &Vec<(usize, &PsdLayer)>,
+    cached_layer_rgba: &mut HashMap<usize, Vec<u8>>,
+) -> [u8; 4] {
+    let layer = layers_to_flatten_top_down[flattened_layer_top_down_idx].1;
+
+    let (left, top) = pixel_coord;
+
+    // If this pixel is out of bounds of this layer we return a transparent pixel
+    if left < layer.left as usize
+        || left > layer.right as usize
+        || top < layer.top as usize
+        || top > layer.bottom as usize
+    {
+        if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
+            return flattened_pixel(
+                flattened_layer_top_down_idx + 1,
+                pixel_coord,
+                layers_to_flatten_top_down,
+                cached_layer_rgba,
+            );
+        } else {
+            return [119; 4];
+        }
+    }
+
+    if cached_layer_rgba
+        .get(&flattened_layer_top_down_idx)
+        .is_none()
+    {
+        let pixels = layers_to_flatten_top_down[flattened_layer_top_down_idx]
+            .1
+            .rgba()
+            .unwrap();
+        cached_layer_rgba.insert(flattened_layer_top_down_idx, pixels);
+    }
+
+    let rgba = cached_layer_rgba
+        .get(&flattened_layer_top_down_idx)
+        .unwrap();
+
+    let left_offset = left - (layer.left as usize);
+    let top_offset = top - (layer.top as usize);
+
+    let pixel_idx = ((layer.width() as usize * top_offset) + left_offset) * 4;
+
+    let (start, end) = (pixel_idx, pixel_idx + 4);
+    let pixel = &rgba[start..end];
+
+    // This pixel as no transparency, use it
+    if pixel[3] == 255 {
+        let mut final_pixel = [0; 4];
+        final_pixel.copy_from_slice(&pixel);
+        final_pixel
+    } else {
+        // FIXME: Pixel has transparency. Use flattened_pixel to get the pixel below this, then
+        // blend the two pixels.
+        // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
+        //
+        // Create a test PSD and transparency.rs test that allows us to test this.
+        [8; 4]
     }
 }
