@@ -39,6 +39,7 @@ fn start() -> Result<(), JsValue> {
     let document = window.document().unwrap();
     let body = document.body().unwrap();
 
+//    let psd = include_bytes!("../demo.psd");
     let psd = include_bytes!("../demo.psd");
     let psd = Psd::from_bytes(psd).unwrap();
 
@@ -48,12 +49,12 @@ fn start() -> Result<(), JsValue> {
 
     let psd = &state.psd;
 
-    let mut psd_pixels = psd.rgba();
-    let mut psd_pixels = psd.flatten_layers_rgba(&|(idx, layer)| {
-        true
-//        !layer.name().contains("Fer")
-
-    }).unwrap();
+//    let mut psd_pixels = psd.rgba();
+//    let mut psd_pixels = psd.flatten_layers_rgba(&|(idx, layer)| {
+//        true
+////        !layer.name().contains("Fer")
+//
+//    }).unwrap();
     let mut psd_pixels = psd.layer_by_name("Ferris").unwrap().rgba().unwrap();
 
     let psd_pixels = Clamped(&mut psd_pixels[..]);

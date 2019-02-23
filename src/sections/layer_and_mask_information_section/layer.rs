@@ -105,6 +105,7 @@ impl PsdLayer {
         let blue = self.get_channel(PsdChannelKind::Blue)?;
         let alpha = self.get_channel(PsdChannelKind::TransparencyMask)?;
 
+        // FIXME: Default to 0, not 255. Just testing something.
         let mut rgba = vec![0; self.psd_width as usize * self.psd_height as usize * 4 as usize];
 
         self.insert_channel_bytes(&mut rgba, &PsdChannelKind::Red, &red);
@@ -184,7 +185,7 @@ impl PsdLayer {
                     let left_in_layer = idx % self.width() as usize;
                     let left_in_psd = self.layer_left as usize + left_in_layer;
 
-                    let top_in_psd = idx / self.width() as usize;
+                    let top_in_psd = idx / self.width() as usize + self.layer_top as usize;
 
                     let rgba_idx = (top_in_psd * self.psd_width as usize) + left_in_psd;
 
