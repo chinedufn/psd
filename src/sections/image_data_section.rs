@@ -1,4 +1,4 @@
-use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelCompression;
+use crate::sections::layer_and_mask_information_section::layer::PsdChannelCompression;
 use crate::sections::PsdCursor;
 use failure::{Error, Fail};
 
@@ -18,7 +18,7 @@ use failure::{Error, Fail};
 #[derive(Debug)]
 pub struct ImageDataSection {
     /// The compression method for the image.
-    pub(in crate) compression: PsdLayerChannelCompression,
+    pub(in crate) compression: PsdChannelCompression,
     /// The red channel of the final image
     pub(in crate) red: ChannelBytes,
     /// The green channel of the final image
@@ -33,15 +33,20 @@ pub struct ImageDataSection {
 impl ImageDataSection {
     /// Create an ImageDataSection from the bytes in the corresponding section in a PSD file
     /// (including the length market)
-    pub fn from_bytes(bytes: &[u8], width: u32, height: u32, channel_count: u8) -> Result<ImageDataSection, Error> {
+    pub fn from_bytes(
+        bytes: &[u8],
+        width: u32,
+        height: u32,
+        channel_count: u8,
+    ) -> Result<ImageDataSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
-        let channel_count= channel_count as usize;
+        let channel_count = channel_count as usize;
 
         let compression = cursor.read_u16()?;
-        let compression = PsdLayerChannelCompression::new(compression)?;
+        let compression = PsdChannelCompression::new(compression)?;
 
         let (red, green, blue, alpha) = match compression {
-            PsdLayerChannelCompression::RawData => {
+            PsdChannelCompression::RawData => {
                 // First 2 bytes were compression bytes
                 let channel_bytes = &bytes[2..];
                 let channel_byte_count = channel_bytes.len();
@@ -81,7 +86,7 @@ impl ImageDataSection {
             // and the TIFF standard.
             //
             // TODO: Normalize with layer.rs rle compression code
-            PsdLayerChannelCompression::RleCompressed => {
+            PsdChannelCompression::RleCompressed => {
                 // First 2 bytes were compression bytes
                 let channel_bytes = &bytes[2..];
                 let channel_byte_count = channel_bytes.len();
@@ -143,11 +148,11 @@ impl ImageDataSection {
                     alpha,
                 )
             }
-            PsdLayerChannelCompression::ZipWithoutPrediction => unimplemented!(
+            PsdChannelCompression::ZipWithoutPrediction => unimplemented!(
                 r#"Zip without prediction compression is currently unsupported.
                 Please open an issue"#
             ),
-            PsdLayerChannelCompression::ZipWithPrediction => unimplemented!(
+            PsdChannelCompression::ZipWithPrediction => unimplemented!(
                 r#"Zip with prediction compression is currently unsupported.
                 Please open an issue"#
             ),

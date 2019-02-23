@@ -1,4 +1,7 @@
 use psd::Psd;
+use psd::PsdChannelCompression;
+use psd::PsdChannelKind;
+use std::collections::HashMap;
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
@@ -17,18 +20,18 @@ fn transparency_raw_data() -> Result<(), failure::Error> {
     let psd = include_bytes!("./3x3-opaque-center.psd");
 
     let psd = Psd::from_bytes(psd)?;
-    let width = psd.width() as usize;
     let pixel_count = psd.width() * psd.height();
 
+    let blue_pixels = vec![(1, 1, BLUE_PIXEL), (2, 0, BLUE_PIXEL)];
+
     let mut expected_image_data = make_image(TRANSPARENT_PIXEL_IMAGE_DATA, pixel_count);
-    replace_pixel(&mut expected_image_data, width, 1, 1, BLUE_PIXEL);
+    assert_colors(psd.rgba(), &psd, &blue_pixels);
 
-    assert_eq!(psd.rgba(), expected_image_data);
-
-    let mut expected_layer = make_image(TRANSPARENT_PIXEL_LAYER, pixel_count);
-    replace_pixel(&mut expected_layer, width, 1, 1, BLUE_PIXEL);
-
-    assert_eq!(psd.layer_by_name("OpaqueCenter")?.rgba()?, expected_layer);
+    assert_colors(
+        psd.layer_by_name("OpaqueCenter")?.rgba()?,
+        &psd,
+        &blue_pixels,
+    );
 
     Ok(())
 }
@@ -37,23 +40,60 @@ fn transparency_raw_data() -> Result<(), failure::Error> {
 // return the correct RGBA
 #[test]
 fn transparency_rle_compressed() -> Result<(), failure::Error> {
-    let psd = include_bytes!("./9x9-rle-opaque-center.psd");
-
+    let psd = include_bytes!("./16x16-rle-partially-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
-    let width = psd.width() as usize;
+
     let pixel_count = psd.width() * psd.height();
 
-    let mut expected_image_data = make_image(TRANSPARENT_PIXEL_IMAGE_DATA, pixel_count);
-    replace_pixel(&mut expected_image_data, width, 4, 4, RED_PIXEL);
+    let mut red_block = vec![];
+    for left in 0..9 {
+        for top in 0..9 {
+            red_block.push((left + 1, top + 1, RED_PIXEL));
+        }
+    }
 
-    assert_eq!(psd.rgba(), expected_image_data);
+    assert_eq!(psd.compression(), &PsdChannelCompression::RleCompressed);
 
-    let mut expected_layer = make_image(TRANSPARENT_PIXEL_LAYER, pixel_count);
-    replace_pixel(&mut expected_layer, width, 4, 4, RED_PIXEL);
+//    assert_colors(psd.rgba(), &psd, &red_block);
 
-    assert_eq!(psd.layer_by_name("OpaqueCenter")?.rgba()?, expected_layer);
+    assert_eq!(
+        psd.layer_by_name("OpaqueCenter")?
+            .compression(&PsdChannelKind::Red)?,
+        PsdChannelCompression::RleCompressed
+    );
+
+    assert_colors(psd.layer_by_name("OpaqueCenter")?.rgba()?, &psd, &red_block);
 
     Ok(())
+}
+
+// Ensure that the specified, zero-indexed left, top coordinate has the provided pixel color.
+// Otherwise it should be fully transparent.
+// (left, top, pixel)
+fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &Vec<(usize, usize, [u8; 4])>) {
+    let pixel_count = (psd.width() * psd.height()) as usize;
+    let width = psd.width() as usize;
+
+    let mut asserts = HashMap::new();
+    for assertion in assertions {
+        asserts.insert((assertion.0, assertion.1), assertion.2);
+    }
+
+    for idx in 0..pixel_count {
+        let left = idx % width;
+        let top = idx / width;
+
+        let pixel_color = &image[idx * 4..idx * 4 + 4];
+
+        match asserts.get(&(left, top)) {
+            Some(expected_color) => {
+                assert_eq!(expected_color, pixel_color);
+            }
+            None => {
+                assert_eq!(pixel_color[3], 0, "Pixel should be transparent");
+            }
+        };
+    }
 }
 
 fn make_image(pixel: [u8; 4], pixel_count: u32) -> Vec<u8> {
@@ -70,7 +110,7 @@ fn make_image(pixel: [u8; 4], pixel_count: u32) -> Vec<u8> {
     image
 }
 
-fn replace_pixel(image: &mut Vec<u8>, width: usize, left: usize, top: usize, new: [u8; 4]) {
+fn put_pixel(image: &mut Vec<u8>, width: usize, left: usize, top: usize, new: [u8; 4]) {
     let idx = (top * width) + left;
     image[idx * 4] = new[0];
     image[idx * 4 + 1] = new[1];

@@ -1,5 +1,5 @@
 use failure::Error;
-use psd::{Psd, PsdLayerChannelCompression};
+use psd::{Psd, PsdChannelCompression};
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
@@ -12,7 +12,7 @@ fn rle_decompress_final_image() -> Result<(), Error> {
 
     assert_eq!(
         psd.compression(),
-        &PsdLayerChannelCompression::RleCompressed
+        &PsdChannelCompression::RleCompressed
     );
 
     let image_data_rgba = psd.rgba();

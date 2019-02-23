@@ -50,8 +50,9 @@ fn start() -> Result<(), JsValue> {
 
     let mut psd_pixels = psd.rgba();
     let mut psd_pixels = psd.flatten_layers_rgba(&|(idx, layer)| {
-//        true
-        layer.name().contains("Fer")
+        true
+//        !layer.name().contains("Fer")
+
     }).unwrap();
     let mut psd_pixels = psd.layer_by_name("Ferris").unwrap().rgba().unwrap();
 

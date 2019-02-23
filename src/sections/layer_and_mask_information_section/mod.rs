@@ -1,8 +1,8 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::layer_and_mask_information_section::layer::LayerRecord;
 use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
-use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelCompression;
-use crate::sections::layer_and_mask_information_section::layer::PsdLayerChannelKind;
+use crate::sections::layer_and_mask_information_section::layer::PsdChannelCompression;
+use crate::sections::layer_and_mask_information_section::layer::PsdChannelKind;
 use crate::sections::PsdCursor;
 use failure::Error;
 use std::collections::HashMap;
@@ -51,7 +51,11 @@ pub struct LayerAndMaskInformationSection {
 impl LayerAndMaskInformationSection {
     /// Create a LayerAndMaskInformationSection from the bytes in the corresponding section in a
     /// PSD file (including the length marker).
-    pub fn from_bytes(bytes: &[u8], psd_width: u32, psd_height: u32) -> Result<LayerAndMaskInformationSection, Error> {
+    pub fn from_bytes(
+        bytes: &[u8],
+        psd_width: u32,
+        psd_height: u32,
+    ) -> Result<LayerAndMaskInformationSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
         let mut layers = vec![];
@@ -96,23 +100,23 @@ impl LayerAndMaskInformationSection {
                 layer_record.bottom,
                 layer_record.right,
                 psd_width,
-                psd_height
+                psd_height,
             );
+
+            let scanlines = layer_record.height() as usize;
 
             for (channel_kind, channel_length) in layer_record.channel_data_lengths {
                 let compression = cursor.read_u16()?;
-                let compression = PsdLayerChannelCompression::new(compression)?;
+                let compression = PsdChannelCompression::new(compression)?;
 
                 let channel_data = cursor.read(channel_length)?;
 
                 let channel_bytes = match compression {
-                    PsdLayerChannelCompression::RawData => {
+                    PsdChannelCompression::RawData => {
                         ChannelBytes::RawData(channel_data.into())
                     }
-                    PsdLayerChannelCompression::RleCompressed => {
-                        let scanlines = (layer_record.bottom - layer_record.top) as usize;
-
-                        // We're skipping over the bytes that describe the length of each scanling since
+                    PsdChannelCompression::RleCompressed => {
+                        // We're skipping over the bytes that describe the length of each scanline since
                         // we don't currently use them. We might re-think this in the future when we
                         // implement serialization of a Psd back into bytes.. But not a concern at the
                         // moment.
@@ -171,8 +175,10 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // Read the rectangle that encloses the layer mask.
     let top = cursor.read_u32()?;
     let left = cursor.read_u32()?;
-    let bottom = cursor.read_u32()?;
-    let right = cursor.read_u32()?;
+    // Subtract one in order to zero index
+    let bottom = cursor.read_u32()? - 1;
+    // Subtract one in order to zero index
+    let right = cursor.read_u32()? - 1;
 
     // Get the number of channels in the layer
     let channel_count = cursor.read_u16()?;
@@ -180,7 +186,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // Read the channel information
     for _ in 0..channel_count {
         let channel_id = cursor.read_i16()?;
-        let channel_id = PsdLayerChannelKind::new(channel_id)?;
+        let channel_id = PsdChannelKind::new(channel_id)?;
 
         let channel_length = cursor.read_u32()?;
         // The first two bytes encode the compression, the rest of the bytes

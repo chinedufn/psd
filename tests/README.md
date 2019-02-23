@@ -34,13 +34,13 @@ since the left of the top most layer is transparent.
 
 #### 3x3-opaque-center.psd
 
-3x3 grid of pixels with all transparent except for an opaque middle blue pixel.
+3x3 grid of pixels with all transparent except for an opaque middle blue pixel and top right blue pixel.
 
 Originally created to test having a layer where the layer's dimensions are smaller than the PSD dimensions.
 
-#### 9x9-rle-opaque-center.psd
+#### 16x16-rle-partially-opaque.psd
 
-9x9 grid of pixels with all transparent except for an opaque middle red pixel.
+16x16 grid of pixels with all transparent except for an opaque block of 9x9 rle compressed red pixels,
 
 Originally created to test having an rle compressed layer where the layer's dimensions are smaller
 than the PSD dimensions.
