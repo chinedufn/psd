@@ -33,8 +33,9 @@ pub struct ImageDataSection {
 impl ImageDataSection {
     /// Create an ImageDataSection from the bytes in the corresponding section in a PSD file
     /// (including the length market)
-    pub fn from_bytes(bytes: &[u8], width: u32, height: u32) -> Result<ImageDataSection, Error> {
+    pub fn from_bytes(bytes: &[u8], width: u32, height: u32, channel_count: u8) -> Result<ImageDataSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
+        let channel_count= channel_count as usize;
 
         let compression = cursor.read_u16()?;
         let compression = PsdLayerChannelCompression::new(compression)?;
@@ -45,20 +46,6 @@ impl ImageDataSection {
                 let channel_bytes = &bytes[2..];
                 let channel_byte_count = channel_bytes.len();
                 let pixel_count = width * height;
-
-                // Done this way instead of doing
-                //   channel_count = channel_bytes.len() / pixel_count
-                // so that we don't end up rounding to the nearest integer when in actuality
-                // we had a few extra bytes that we weren't expecting.
-                let channel_count = if channel_bytes.len() as u32 == pixel_count * 3 {
-                    3
-                } else if channel_bytes.len() as u32 == pixel_count * 4 {
-                    4
-                } else {
-                    return Err(ImageDataSectionError::InvalidChannelCount {
-                        channel_byte_count: channel_bytes.len(),
-                    })?;
-                };
 
                 let bytes_per_channel = channel_byte_count / channel_count;
 
@@ -95,21 +82,30 @@ impl ImageDataSection {
             //
             // TODO: Normalize with layer.rs rle compression code
             PsdLayerChannelCompression::RleCompressed => {
-                // The final image data has 3 channels, red, green, blue
-                let channel_count = 3;
+                // First 2 bytes were compression bytes
+                let channel_bytes = &bytes[2..];
+                let channel_byte_count = channel_bytes.len();
+                let pixel_count = width * height;
 
                 let mut red_byte_count = 0;
                 let mut green_byte_count = 0;
                 let mut blue_byte_count = 0;
+                let mut alpha_byte_count = if channel_count == 4 { Some(0) } else { None };
 
                 for _ in 0..height {
-                    red_byte_count += cursor.read_u16()? as u32;
+                    red_byte_count += cursor.read_u16()? as usize;
                 }
                 for _ in 0..height {
-                    green_byte_count += cursor.read_u16()? as u32;
+                    green_byte_count += cursor.read_u16()? as usize;
                 }
                 for _ in 0..height {
-                    blue_byte_count += cursor.read_u16()? as u32;
+                    blue_byte_count += cursor.read_u16()? as usize;
+                }
+
+                if let Some(ref mut alpha_byte_count) = alpha_byte_count {
+                    for _ in 0..height {
+                        *alpha_byte_count += cursor.read_u16()? as usize;
+                    }
                 }
 
                 // 2 bytes for compression level, then 2 bytes for each scanline of each channel
@@ -117,7 +113,7 @@ impl ImageDataSection {
                 // we don't currently use them. We might re-think this in the future when we
                 // implement serialization of a Psd back into bytes.. But not a concern at the
                 // moment.
-                let channel_data_start = 2 + (channel_count * height * 2);
+                let channel_data_start = 2 + (channel_count * height as usize * 2);
 
                 let (red_start, red_end) =
                     (channel_data_start, channel_data_start + red_byte_count);
@@ -129,16 +125,22 @@ impl ImageDataSection {
                 let red = bytes[red_start as usize..red_end as usize].into();
                 let green = bytes[green_start as usize..green_end as usize].into();
                 let blue = bytes[blue_start as usize..blue_end as usize].into();
+                let alpha = match alpha_byte_count {
+                    Some(alpha_byte_count) => {
+                        let alpha_start = blue_end as usize;
+                        let alpha_end = alpha_start + alpha_byte_count as usize;
+                        Some(ChannelBytes::RleCompressed(
+                            bytes[alpha_start..alpha_end].into(),
+                        ))
+                    }
+                    None => None,
+                };
 
                 (
                     ChannelBytes::RleCompressed(red),
                     ChannelBytes::RleCompressed(green),
                     ChannelBytes::RleCompressed(blue),
-                    // FIXME: Add a test psd to transparency.rs that uses RLE compression
-                    // but has transparency. Then this line will cause that to fail since
-                    // we're expecting some transparency bytes.. So make it pass.
-                    // Just need an 8x8 image with the first pixel blue, rest transparent
-                    None,
+                    alpha,
                 )
             }
             PsdLayerChannelCompression::ZipWithoutPrediction => unimplemented!(
@@ -167,19 +169,6 @@ impl ImageDataSection {
     fn rle_rgb(cursor: &mut PsdCursor) -> Vec<u8> {
         unimplemented!();
     }
-}
-
-/// Represents an error when parsing the image data section
-#[derive(Fail, Debug)]
-pub enum ImageDataSectionError {
-    /// After reading the first 2 bytes that specify the compression level for the image data
-    /// section, if there is no compression and this is raw data then we should have either
-    /// 3, or 4 channels per pixel. 3 if it is rgb, 4 if it is rgba.
-    #[fail(
-        display = "Found {} channel bytes, which is not a multiple of 3 or 4",
-        channel_byte_count
-    )]
-    InvalidChannelCount { channel_byte_count: usize },
 }
 
 #[derive(Debug)]

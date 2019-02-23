@@ -56,12 +56,13 @@ impl Psd {
 
         let psd_width = file_header_section.width.0;
         let psd_height = file_header_section.height.0;
+        let channel_count = file_header_section.channel_count.count();
 
         let layer_and_mask_information_section =
             LayerAndMaskInformationSection::from_bytes(major_sections.layer_and_mask, psd_width, psd_height)?;
 
         let image_data_section =
-            ImageDataSection::from_bytes(major_sections.image_data, psd_width, psd_height)?;
+            ImageDataSection::from_bytes(major_sections.image_data, psd_width, psd_height, channel_count)?;
 
         Ok(Psd {
             file_header_section,

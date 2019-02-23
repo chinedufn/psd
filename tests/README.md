@@ -36,5 +36,11 @@ since the left of the top most layer is transparent.
 
 3x3 grid of pixels with all transparent except for an opaque middle blue pixel.
 
-Originally created to test having a layer where much of the pixel data isn't included since it
-is empty. Make sure we properly assign the pixel data to the middle pixel when returning RGBA data.
+Originally created to test having a layer where the layer's dimensions are smaller than the PSD dimensions.
+
+#### 9x9-rle-opaque-center.psd
+
+9x9 grid of pixels with all transparent except for an opaque middle red pixel.
+
+Originally created to test having an rle compressed layer where the layer's dimensions are smaller
+than the PSD dimensions.

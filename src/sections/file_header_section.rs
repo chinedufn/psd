@@ -164,6 +164,11 @@ impl ChannelCount {
 
         Ok(ChannelCount(channel_count))
     }
+
+    /// Return the channel count
+    pub fn count(&self) -> u8 {
+        self.0
+    }
 }
 
 /// Represents an incorrect channel count
