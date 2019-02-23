@@ -1,6 +1,6 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
-use failure::{Error, Fail};
+use failure::{format_err, Error, Fail};
 use std::collections::HashMap;
 
 /// Information about a layer in a PSD file.
@@ -239,6 +239,20 @@ impl PsdLayerChannelKind {
             -2 => Ok(PsdLayerChannelKind::UserSuppliedLayerMask),
             -3 => Ok(PsdLayerChannelKind::RealUserSuppliedLayerMask),
             _ => Err(PsdLayerChannelError::InvalidChannel { channel_id })?,
+        }
+    }
+
+    /// R -> 0
+    /// G -> 1
+    /// B -> 2
+    /// A -> 3
+    pub fn rgba_offset(&self) -> Result<usize, Error> {
+        match self {
+            PsdLayerChannelKind::Red => Ok(0),
+            PsdLayerChannelKind::Green => Ok(1),
+            PsdLayerChannelKind::Blue => Ok(2),
+            PsdLayerChannelKind::TransparencyMask => Ok(3),
+            _ => Err(format_err!("{:#?} is not an RGBA channel", &self)),
         }
     }
 }

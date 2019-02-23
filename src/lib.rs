@@ -56,9 +56,10 @@ impl Psd {
         let layer_and_mask_information_section =
             LayerAndMaskInformationSection::from_bytes(major_sections.layer_and_mask)?;
 
-        let scanlines = file_header_section.height.0;
+        let width = file_header_section.width.0;
+        let height = file_header_section.height.0;
         let image_data_section =
-            ImageDataSection::from_bytes(major_sections.image_data, scanlines)?;
+            ImageDataSection::from_bytes(major_sections.image_data, width, height)?;
 
         Ok(Psd {
             file_header_section,
@@ -118,53 +119,47 @@ impl Psd {
 
 // Methods for working with the final flattened image data
 impl Psd {
-    /// Get the pixels [R,G,B,R,G,B,...,R,G,B] for the final flattened image in the PSD.
-    pub fn rgb(&self) -> Vec<u8> {
-        let rgb_size = (self.width() * self.height() * 3) as usize;
+    /// Get the RGBA pixels for the PSD
+    /// [ R,G,B,A, R,G,B,A, R,G,B,A, ...]
+    pub fn rgba(&self) -> Vec<u8> {
+        let rgba_len = (self.width() * self.height() * 4) as usize;
 
-        // We use 119 because it's a weird number so we can easily see if we did something wrong.
-        let mut rgb = vec![119; rgb_size];
+        // We use 119 because it's a weird number so we can easily notice in case
+        // we're ever parsing something incorrectly.
+        let mut rgba = vec![119; rgba_len];
 
         Psd::insert_channel_bytes(
-            &mut rgb,
+            &mut rgba,
             PsdLayerChannelKind::Red,
             &self.image_data_section.red,
         );
 
         Psd::insert_channel_bytes(
-            &mut rgb,
+            &mut rgba,
             PsdLayerChannelKind::Green,
             &self.image_data_section.green,
         );
 
         Psd::insert_channel_bytes(
-            &mut rgb,
+            &mut rgba,
             PsdLayerChannelKind::Blue,
             &self.image_data_section.blue,
         );
 
-        rgb
-    }
-
-    /// Get the RGBA pixels for the PSD [R,G,B,A,R,G,B,A]...
-    ///
-    /// FIXME: Instead of building a vector just to build a new vector... make this and rgb
-    /// share the same underlying re-usable function but in this case we also insert an alpha
-    /// channel of 255 for each pixel.
-    pub fn rgba(&self) -> Vec<u8> {
-        let rgb = self.rgb();
-
-        // We use 119 because it's a weird number so we can easily see if we did something wrong.
-        let mut pixels = vec![119; rgb.len() * 4 / 3];
-
-        for idx in 0..rgb.len() / 3 {
-            pixels[idx * 4] = rgb[idx * 3];
-            pixels[idx * 4 + 1] = rgb[idx * 3 + 1];
-            pixels[idx * 4 + 2] = rgb[idx * 3 + 2];
-            pixels[idx * 4 + 3] = 255;
+        if let Some(alpha_channel) = &self.image_data_section.alpha {
+            Psd::insert_channel_bytes(
+                &mut rgba,
+                PsdLayerChannelKind::TransparencyMask,
+                alpha_channel,
+            );
+        } else {
+            // If there is no transparency data then the image is opaque
+            for idx in 0..rgba_len / 4 {
+                rgba[idx * 4 + 3] = 255;
+            }
         }
 
-        pixels
+        rgba
     }
 
     /// Given a filter, combine all layers in the PSD that pass the filter into a vector
@@ -208,36 +203,38 @@ impl Psd {
         Ok(flattened_pixels)
     }
 
+    // FIXME: Normalize with layer insert channel bytes.. Just pass in whether it is
+    // RGB or RGBA.. Or just use an enum rather ChannelCombination::{Rgb, Rgba}
     fn insert_channel_bytes(
-        rgb: &mut Vec<u8>,
+        rgba: &mut Vec<u8>,
         channel_kind: PsdLayerChannelKind,
         channel_bytes: &ChannelBytes,
     ) {
         match channel_bytes {
             ChannelBytes::RawData(channel_bytes) => {
-                let offset = channel_kind as usize;
+                let offset = channel_kind.rgba_offset().unwrap();
 
                 for (idx, byte) in channel_bytes.iter().enumerate() {
-                    rgb[idx * 3 + offset] = *byte;
+                    rgba[idx * 4 + offset] = *byte;
                 }
             }
             // https://en.wikipedia.org/wiki/PackBits
             ChannelBytes::RleCompressed(channel_bytes) => {
-                Psd::rle_decompress_channel(rgb, channel_kind, &channel_bytes);
+                Psd::rle_decompress_channel(rgba, channel_kind, &channel_bytes);
             }
         }
     }
 
     // https://en.wikipedia.org/wiki/PackBits
     fn rle_decompress_channel(
-        rgb: &mut Vec<u8>,
+        rgba: &mut Vec<u8>,
         channel_kind: PsdLayerChannelKind,
         channel_bytes: &Vec<u8>,
     ) {
         let mut cursor = PsdCursor::new(&channel_bytes[..]);
 
         let mut idx = 0;
-        let offset = channel_kind as usize;
+        let offset = channel_kind.rgba_offset().unwrap();
 
         while cursor.position() != cursor.get_ref().len() as u64 {
             let header = cursor.read_i8().unwrap() as i16;
@@ -247,14 +244,14 @@ impl Psd {
             } else if header >= 0 {
                 let bytes_to_read = 1 + header;
                 for byte in cursor.read(bytes_to_read as u32).unwrap() {
-                    rgb[idx * 3 + offset] = *byte;
+                    rgba[idx * 4 + offset] = *byte;
                     idx += 1;
                 }
             } else {
                 let repeat = 1 - header;
                 let byte = cursor.read_1().unwrap()[0];
                 for _ in 0..repeat as usize {
-                    rgb[idx * 3 + offset] = byte;
+                    rgba[idx * 4 + offset] = byte;
                     idx += 1;
                 }
             };
@@ -279,7 +276,8 @@ fn flattened_pixel(
 
     let (left, top) = pixel_coord;
 
-    // If this pixel is out of bounds of this layer we return a transparent pixel
+    // If this pixel is out of bounds of this layer we return the pixel below it.
+    // If there is no pixel below it we return a transparent pixel
     if left < layer.left as usize
         || left > layer.right as usize
         || top < layer.top as usize
@@ -293,7 +291,7 @@ fn flattened_pixel(
                 cached_layer_rgba,
             );
         } else {
-            return [119; 4];
+            return [0; 4];
         }
     }
 
@@ -326,11 +324,14 @@ fn flattened_pixel(
         final_pixel.copy_from_slice(&pixel);
         final_pixel
     } else {
-        // FIXME: Pixel has transparency. Use flattened_pixel to get the pixel below this, then
+        // TODO: Pixel has transparency. Use flattened_pixel to get the pixel below this, then
         // blend the two pixels.
         // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
         //
         // Create a test PSD and transparency.rs test that allows us to test this.
-        [8; 4]
+        // So a 3x1 PSD with first pixel opaque, second deleted, third opaque.
+        // Surroundng in opaque pixels allows us to be sure that it gets included in the
+        // transparency mask channel for the layer
+        [119; 4]
     }
 }
