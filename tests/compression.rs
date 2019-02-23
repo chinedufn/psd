@@ -15,12 +15,9 @@ fn rle_decompress_final_image() -> Result<(), Error> {
         &PsdLayerChannelCompression::RleCompressed
     );
 
-    let image_data_rgb = psd.rgb();
     let image_data_rgba = psd.rgba();
 
-    // Final image is red since the top layer is red
-    assert_eq!(image_data_rgb, make_8x8_rgb([0, 0, 255]));
-
+    // Final image is blue since the top layer is blue
     assert_eq!(image_data_rgba, make_blue_8x8_rgba());
 
     Ok(())

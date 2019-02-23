@@ -38,10 +38,3 @@ since the left of the top most layer is transparent.
 
 Originally created to test having a layer where much of the pixel data isn't included since it
 is empty. Make sure we properly assign the pixel data to the middle pixel when returning RGBA data.
-
-#### 3x3-transparent-center.psd
-
-3x3 grid of pixels with all opaque and blue except for a transparent middle pixel.
-
-Originally created to make sure that the transparency mask that is smaller than the rest of
-the image works properly.

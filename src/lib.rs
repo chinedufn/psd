@@ -20,6 +20,7 @@ use crate::sections::MajorSections;
 use crate::sections::PsdCursor;
 use failure::Error;
 use std::collections::HashMap;
+use std::cell::RefCell;
 
 mod sections;
 
@@ -53,13 +54,14 @@ impl Psd {
 
         let file_header_section = FileHeaderSection::from_bytes(major_sections.file_header)?;
 
-        let layer_and_mask_information_section =
-            LayerAndMaskInformationSection::from_bytes(major_sections.layer_and_mask)?;
+        let psd_width = file_header_section.width.0;
+        let psd_height = file_header_section.height.0;
 
-        let width = file_header_section.width.0;
-        let height = file_header_section.height.0;
+        let layer_and_mask_information_section =
+            LayerAndMaskInformationSection::from_bytes(major_sections.layer_and_mask, psd_width, psd_height)?;
+
         let image_data_section =
-            ImageDataSection::from_bytes(major_sections.image_data, width, height)?;
+            ImageDataSection::from_bytes(major_sections.image_data, psd_width, psd_height)?;
 
         Ok(Psd {
             file_header_section,
@@ -180,7 +182,7 @@ impl Psd {
             .collect();
         layers_to_flatten.reverse();
 
-        let mut cached_layer_rgba = HashMap::new();
+        let mut cached_layer_rgba = RefCell::new(HashMap::new());
 
         let pixels = self.width() * self.height();
 
@@ -264,13 +266,15 @@ impl Psd {
     }
 }
 
+
+
 fn flattened_pixel(
     // Top is 0, below that is 1, ... etc
     flattened_layer_top_down_idx: usize,
     // (left, top)
     pixel_coord: (usize, usize),
     layers_to_flatten_top_down: &Vec<(usize, &PsdLayer)>,
-    cached_layer_rgba: &mut HashMap<usize, Vec<u8>>,
+    cached_layer_rgba: &RefCell<HashMap<usize, Vec<u8>>>,
 ) -> [u8; 4] {
     let layer = layers_to_flatten_top_down[flattened_layer_top_down_idx].1;
 
@@ -278,10 +282,10 @@ fn flattened_pixel(
 
     // If this pixel is out of bounds of this layer we return the pixel below it.
     // If there is no pixel below it we return a transparent pixel
-    if left < layer.left as usize
-        || left > layer.right as usize
-        || top < layer.top as usize
-        || top > layer.bottom as usize
+    if left < layer.layer_left as usize
+        || left > layer.layer_right as usize
+        || top < layer.layer_top as usize
+        || top > layer.layer_bottom as usize
     {
         if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
             return flattened_pixel(
@@ -296,6 +300,7 @@ fn flattened_pixel(
     }
 
     if cached_layer_rgba
+        .borrow()
         .get(&flattened_layer_top_down_idx)
         .is_none()
     {
@@ -303,17 +308,17 @@ fn flattened_pixel(
             .1
             .rgba()
             .unwrap();
-        cached_layer_rgba.insert(flattened_layer_top_down_idx, pixels);
+        cached_layer_rgba.borrow_mut().insert(flattened_layer_top_down_idx, pixels);
     }
 
-    let rgba = cached_layer_rgba
-        .get(&flattened_layer_top_down_idx)
+    let cache = cached_layer_rgba
+        .borrow();
+    let rgba =
+        cache.get(&flattened_layer_top_down_idx)
         .unwrap();
 
-    let left_offset = left - (layer.left as usize);
-    let top_offset = top - (layer.top as usize);
-
-    let pixel_idx = ((layer.width() as usize * top_offset) + left_offset) * 4;
+    // FIXME: Just pass the pixel index in
+    let pixel_idx = ((layer.width() as usize * top) + left) * 4;
 
     let (start, end) = (pixel_idx, pixel_idx + 4);
     let pixel = &rgba[start..end];
@@ -324,7 +329,24 @@ fn flattened_pixel(
         final_pixel.copy_from_slice(&pixel);
         final_pixel
     } else {
-        // TODO: Pixel has transparency. Use flattened_pixel to get the pixel below this, then
+        let mut final_pixel = [0; 4];
+
+        if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
+            let pixel_below = flattened_pixel(
+                flattened_layer_top_down_idx + 1,
+                pixel_coord,
+                layers_to_flatten_top_down,
+                cached_layer_rgba,
+            );
+
+            final_pixel[0] = ((pixel[0] * pixel[3]) + (pixel_below[0] * (255 - pixel[3]))) / 2;
+            final_pixel[1] = ((pixel[1] * pixel[3]) + (pixel_below[1] * (255 - pixel[3]))) / 2;
+            final_pixel[2] = ((pixel[2] * pixel[3]) + (pixel_below[2] * (255 - pixel[3]))) / 2;
+            final_pixel[3] = 1;
+
+            final_pixel
+
+                    // TODO: Pixel has transparency. Use flattened_pixel to get the pixel below this, then
         // blend the two pixels.
         // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
         //
@@ -332,6 +354,9 @@ fn flattened_pixel(
         // So a 3x1 PSD with first pixel opaque, second deleted, third opaque.
         // Surroundng in opaque pixels allows us to be sure that it gets included in the
         // transparency mask channel for the layer
-        [119; 4]
+        } else {
+            final_pixel.copy_from_slice(pixel);
+            final_pixel
+        }
     }
 }

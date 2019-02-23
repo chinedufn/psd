@@ -4,6 +4,9 @@ use failure::{format_err, Error, Fail};
 use std::collections::HashMap;
 
 /// Information about a layer in a PSD file.
+///
+/// TODO: Set all ofo these pubs to get things working. Replace with private
+/// and accessor methods
 #[derive(Debug)]
 pub struct PsdLayer {
     /// The name of this layer
@@ -17,15 +20,17 @@ pub struct PsdLayer {
     /// Storing the channels separately allows for this flexability.
     pub(super) channels: HashMap<PsdLayerChannelKind, ChannelBytes>,
     /// The position of the top of the image
-    ///
-    /// TODO: None of these nee to be i32. u16 works. They aren't negative.
-    pub(crate) top: i32,
+    pub(crate) layer_top: u32,
     /// The position of the left of the image
-    pub(crate) left: i32,
+    pub(crate) layer_left: u32,
     /// The position of the bottom of the image
-    pub(crate) bottom: i32,
+    pub(crate) layer_bottom: u32,
     /// The position of the right of the image
-    pub(crate) right: i32,
+    pub(crate) layer_right: u32,
+    /// The width of the PSD
+    pub(crate) psd_width: u32,
+    /// The height of the PSD
+    pub(crate) psd_height: u32,
 }
 
 /// An error when working with a PsdLayer
@@ -41,14 +46,24 @@ pub enum PsdLayerError {
 
 impl PsdLayer {
     /// Create a new photoshop layer
-    pub fn new(name: String, top: i32, left: i32, bottom: i32, right: i32) -> PsdLayer {
+    pub fn new(
+        name: String,
+        layer_top: u32,
+        layer_left: u32,
+        layer_bottom: u32,
+        layer_right: u32,
+        psd_width: u32,
+        psd_height: u32,
+    ) -> PsdLayer {
         PsdLayer {
             name,
             channels: HashMap::new(),
-            top,
-            left,
-            bottom,
-            right,
+            layer_top,
+            layer_left,
+            layer_bottom,
+            layer_right,
+            psd_width,
+            psd_height,
         }
     }
 
@@ -59,12 +74,12 @@ impl PsdLayer {
 
     /// The width of the layer
     pub fn width(&self) -> u16 {
-        (self.right - self.left) as u16
+        (self.layer_right - self.layer_left) as u16
     }
 
     /// The height of the layer
     pub fn height(&self) -> u16 {
-        (self.bottom - self.top) as u16
+        (self.layer_bottom - self.layer_top) as u16
     }
 
     /// Create a vector that interleaves the red, green, blue and alpha channels in this PSD
@@ -76,16 +91,15 @@ impl PsdLayer {
         let blue = self.get_channel(PsdLayerChannelKind::Blue)?;
         let alpha = self.get_channel(PsdLayerChannelKind::TransparencyMask)?;
 
-        // We use 119 because it's a weird number so we can easily see if we did something wrong.
-        let mut rgba = vec![119; self.width() as usize * self.height() as usize * 4 as usize];
+        let mut rgba = vec![0; self.psd_width as usize * self.psd_height as usize * 4 as usize];
 
-        insert_channel_bytes(&mut rgba, 0, &red);
+        self.insert_channel_bytes(&mut rgba, 0, &red);
 
-        insert_channel_bytes(&mut rgba, 1, &green);
+        self.insert_channel_bytes(&mut rgba, 1, &green);
 
-        insert_channel_bytes(&mut rgba, 2, &blue);
+        self.insert_channel_bytes(&mut rgba, 2, &blue);
 
-        insert_channel_bytes(&mut rgba, 3, &alpha);
+        self.insert_channel_bytes(&mut rgba, 3, &alpha);
 
         Ok(rgba)
     }
@@ -97,52 +111,68 @@ impl PsdLayer {
             None => Err(PsdLayerError::MissingChannels { channel })?,
         }
     }
-}
 
-fn insert_channel_bytes(rgba: &mut Vec<u8>, offset: usize, channel_bytes: &ChannelBytes) {
-    match channel_bytes {
-        ChannelBytes::RawData(channel_bytes) => {
-            for (idx, byte) in channel_bytes.iter().enumerate() {
-                rgba[idx * 4 + offset] = *byte;
+    // FIXME: Normalize with image data section insert channel bytes
+    fn insert_channel_bytes(
+        &self,
+        rgba: &mut Vec<u8>,
+        // FIXME: Replace offset with channel_kind and use .rgba_offset()
+        offset: usize,
+        channel_bytes: &ChannelBytes,
+    ) {
+        match channel_bytes {
+            ChannelBytes::RawData(channel_bytes) => {
+                let start = (self.layer_top * self.psd_width) + self.layer_left;
+                let start = start as usize;
+
+                for (idx, byte) in channel_bytes.iter().enumerate() {
+                    rgba[(start + idx) * 4 + offset] = *byte;
+                }
             }
-        }
-        // https://en.wikipedia.org/wiki/PackBits
-        ChannelBytes::RleCompressed(channel_bytes) => {
-            rle_decompress_channel(rgba, offset, &channel_bytes);
+            // https://en.wikipedia.org/wiki/PackBits
+            ChannelBytes::RleCompressed(channel_bytes) => {
+                self.rle_decompress_channel(rgba, offset, &channel_bytes);
+            }
         }
     }
-}
 
-// https://en.wikipedia.org/wiki/PackBits
-// TODO: Normalize with image_data_section.rs rle compression code
-fn rle_decompress_channel(rgba: &mut Vec<u8>, offset: usize, channel_bytes: &Vec<u8>) {
-    let mut cursor = PsdCursor::new(&channel_bytes[..]);
+    // https://en.wikipedia.org/wiki/PackBits
+    // TODO: Normalize with image_data_section.rs rle compression code
+    fn rle_decompress_channel(&self, rgba: &mut Vec<u8>, offset: usize, channel_bytes: &Vec<u8>) {
+        let mut cursor = PsdCursor::new(&channel_bytes[..]);
 
-    let mut idx = 0;
+        let start = (self.layer_top * self.psd_width) + self.layer_left;
+        let start = start as usize;
 
-    while cursor.position() != cursor.get_ref().len() as u64 {
-        let header = cursor.read_i8().unwrap() as i16;
+        let mut idx = 0;
 
-        if header == -128 {
-            continue;
-        } else if header >= 0 {
-            let bytes_to_read = 1 + header;
-            for byte in cursor.read(bytes_to_read as u32).unwrap() {
-                rgba[idx * 4 + offset] = *byte;
-                idx += 1;
-            }
-        } else {
-            let repeat = 1 - header;
-            let byte = cursor.read_1().unwrap()[0];
-            for _ in 0..repeat as usize {
-                rgba[idx * 4 + offset] = byte;
-                idx += 1;
-            }
-        };
+        while cursor.position() != cursor.get_ref().len() as u64 {
+            let header = cursor.read_i8().unwrap() as i16;
+
+            if header == -128 {
+                continue;
+            } else if header >= 0 {
+                let bytes_to_read = 1 + header;
+                for byte in cursor.read(bytes_to_read as u32).unwrap() {
+                    rgba[(start + idx) * 4 + offset] = *byte;
+                    idx += 1;
+                }
+            } else {
+                let repeat = 1 - header;
+                let byte = cursor.read_1().unwrap()[0];
+                for _ in 0..repeat as usize {
+                    rgba[(start + idx) * 4 + offset] = byte;
+                    idx += 1;
+                }
+            };
+        }
     }
 }
 
 /// A layer record within the layer info section
+///
+/// TODO: Set all ofo these pubs to get things working. Replace with private
+/// and accessor methods
 #[derive(Debug)]
 pub struct LayerRecord {
     /// The name of the layer
@@ -156,13 +186,13 @@ pub struct LayerRecord {
     /// A 2x2 image would have 4 bytes per channel.
     pub(super) channel_data_lengths: Vec<(PsdLayerChannelKind, u32)>,
     /// The position of the top of the image
-    pub(super) top: i32,
+    pub(super) top: u32,
     /// The position of the left of the image
-    pub(super) left: i32,
+    pub(super) left: u32,
     /// The position of the bottom of the image
-    pub(super) bottom: i32,
+    pub(super) bottom: u32,
     /// The position of the right of the image
-    pub(super) right: i32,
+    pub(super) right: u32,
 }
 
 /// A channel within a PSD Layer

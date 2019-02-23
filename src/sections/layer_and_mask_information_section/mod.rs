@@ -51,7 +51,7 @@ pub struct LayerAndMaskInformationSection {
 impl LayerAndMaskInformationSection {
     /// Create a LayerAndMaskInformationSection from the bytes in the corresponding section in a
     /// PSD file (including the length marker).
-    pub fn from_bytes(bytes: &[u8]) -> Result<LayerAndMaskInformationSection, Error> {
+    pub fn from_bytes(bytes: &[u8], psd_width: u32, psd_height: u32) -> Result<LayerAndMaskInformationSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
         let mut layers = vec![];
@@ -95,6 +95,8 @@ impl LayerAndMaskInformationSection {
                 layer_record.left,
                 layer_record.bottom,
                 layer_record.right,
+                psd_width,
+                psd_height
             );
 
             for (channel_kind, channel_length) in layer_record.channel_data_lengths {
@@ -167,10 +169,10 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     let mut channel_data_lengths = vec![];
 
     // Read the rectangle that encloses the layer mask.
-    let top = cursor.read_i32()?;
-    let left = cursor.read_i32()?;
-    let bottom = cursor.read_i32()?;
-    let right = cursor.read_i32()?;
+    let top = cursor.read_u32()?;
+    let left = cursor.read_u32()?;
+    let bottom = cursor.read_u32()?;
+    let right = cursor.read_u32()?;
 
     // Get the number of channels in the layer
     let channel_count = cursor.read_u16()?;

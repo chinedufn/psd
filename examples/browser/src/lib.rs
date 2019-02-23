@@ -19,6 +19,21 @@ pub fn main() {
     start().unwrap();
 }
 
+struct State {
+    psd: Psd
+}
+
+impl State {
+    fn msg (&mut self) {
+    }
+}
+
+enum Msg {
+    ReplacePsd(Vec<u8>),
+    /// Set whether or not a layer (by index) should be visible
+    SetLaterVisible(usize, bool)
+}
+
 fn start() -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -27,7 +42,18 @@ fn start() -> Result<(), JsValue> {
     let psd = include_bytes!("../demo.psd");
     let psd = Psd::from_bytes(psd).unwrap();
 
+    let state = State {
+        psd
+    };
+
+    let psd = &state.psd;
+
     let mut psd_pixels = psd.rgba();
+    let mut psd_pixels = psd.flatten_layers_rgba(&|(idx, layer)| {
+//        true
+        layer.name().contains("Fer")
+    }).unwrap();
+    let mut psd_pixels = psd.layer_by_name("Ferris").unwrap().rgba().unwrap();
 
     let psd_pixels = Clamped(&mut psd_pixels[..]);
     let psd_pixels =
