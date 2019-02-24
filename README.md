@@ -3,10 +3,15 @@ psd [![Build Status](https://travis-ci.org/chinedufn/psd.svg?branch=master)](htt
 
 > A Rust API for parsing and working with PSD files.
 
-[Live Demo](https://chinedufn.github.io/drag-drop-demo/)
+## [Live Demo](https://chinedufn.github.io/psd/drag-drop-demo/)
 
 In the [live demo](https://chinedufn.github.io/drag-drop-demo/) you can visualize a PSD in the browser,
 toggle layers on and off and drag and drop a new PSD into the demo.
+
+## [The PSD Book](https://chinedufn.github.io/psd/book)
+
+The _WIP_ [PSD Book](https://chinedufn.github.io/psd/book) will contain information about getting started with the `psd` crate,
+a description of the architecture and information on how to get started.
 
 ## Background / Initial Motivation
 
@@ -49,14 +54,12 @@ fn main () {
     assert_eq!(psd.width(), 500);
     assert_eq!(psd.height(), 500);
 
+    // Get the combined final image for the PSD.
+    let final_image: Vec<u8> = psd.rgba();
+
     for (_layer_name, layer) in psd.layers().iter() {
         let name = layer.name();
 
-        // Generated on the fly by combining the red, green, blue and
-        // alpha channels that we store separately
-        // (since they might be compressed).
-        //
-        // [R,G,B,A, R,G,B,A, ...]
         let pixels: Vec<u8> = layer.rgba();
     }
 
