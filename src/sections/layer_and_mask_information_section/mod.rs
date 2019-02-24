@@ -1,8 +1,8 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::layer_and_mask_information_section::layer::LayerRecord;
-use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::layer::PsdChannelCompression;
 use crate::sections::layer_and_mask_information_section::layer::PsdChannelKind;
+use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::PsdCursor;
 use failure::Error;
 use std::collections::HashMap;
@@ -112,9 +112,7 @@ impl LayerAndMaskInformationSection {
                 let channel_data = cursor.read(channel_length)?;
 
                 let channel_bytes = match compression {
-                    PsdChannelCompression::RawData => {
-                        ChannelBytes::RawData(channel_data.into())
-                    }
+                    PsdChannelCompression::RawData => ChannelBytes::RawData(channel_data.into()),
                     PsdChannelCompression::RleCompressed => {
                         // We're skipping over the bytes that describe the length of each scanline since
                         // we don't currently use them. We might re-think this in the future when we

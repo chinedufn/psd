@@ -12,9 +12,9 @@ pub use crate::sections::file_header_section::ColorMode;
 use self::sections::file_header_section::FileHeaderSection;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
-pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdChannelCompression;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdChannelKind;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
 use crate::sections::PsdCursor;
@@ -138,11 +138,7 @@ impl Psd {
         // we're ever parsing something incorrectly.
         let mut rgba = vec![119; rgba_len];
 
-        Psd::insert_channel_bytes(
-            &mut rgba,
-            PsdChannelKind::Red,
-            &self.image_data_section.red,
-        );
+        Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::Red, &self.image_data_section.red);
 
         Psd::insert_channel_bytes(
             &mut rgba,
@@ -157,11 +153,7 @@ impl Psd {
         );
 
         if let Some(alpha_channel) = &self.image_data_section.alpha {
-            Psd::insert_channel_bytes(
-                &mut rgba,
-                PsdChannelKind::TransparencyMask,
-                alpha_channel,
-            );
+            Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::TransparencyMask, alpha_channel);
         } else {
             // If there is no transparency data then the image is opaque
             for idx in 0..rgba_len / 4 {
@@ -203,7 +195,7 @@ impl Psd {
             let top = pixel_idx / self.width() as usize;
             let pixel_coord = (left, top);
 
-            let pixel = flattened_pixel(0, pixel_coord, &layers_to_flatten, &mut cached_layer_rgba);
+            let pixel = self.flattened_pixel(0, pixel_coord, &layers_to_flatten, &mut cached_layer_rgba);
             flattened_pixels.push(pixel[0]);
             flattened_pixels.push(pixel[1]);
             flattened_pixels.push(pixel[2]);
@@ -272,96 +264,101 @@ impl Psd {
     pub fn compression(&self) -> &PsdChannelCompression {
         &self.image_data_section.compression
     }
-}
 
-fn flattened_pixel(
-    // Top is 0, below that is 1, ... etc
-    flattened_layer_top_down_idx: usize,
-    // (left, top)
-    pixel_coord: (usize, usize),
-    layers_to_flatten_top_down: &Vec<(usize, &PsdLayer)>,
-    cached_layer_rgba: &RefCell<HashMap<usize, Vec<u8>>>,
-) -> [u8; 4] {
-    let layer = layers_to_flatten_top_down[flattened_layer_top_down_idx].1;
+    /// Get the pixel at a coordinate within this image.
+    ///
+    /// If that pixel has transparency, recursively blending it with the pixel
+    /// below it until we reach a pixel with no transparency or the bottom of the stack.
+    fn flattened_pixel(
+        &self,
+        // Top is 0, below that is 1, ... etc
+        flattened_layer_top_down_idx: usize,
+        // (left, top)
+        pixel_coord: (usize, usize),
+        layers_to_flatten_top_down: &Vec<(usize, &PsdLayer)>,
+        cached_layer_rgba: &RefCell<HashMap<usize, Vec<u8>>>,
+    ) -> [u8; 4] {
+        let layer = layers_to_flatten_top_down[flattened_layer_top_down_idx].1;
 
-    let (left, top) = pixel_coord;
+        let (left, top) = pixel_coord;
 
-    // If this pixel is out of bounds of this layer we return the pixel below it.
-    // If there is no pixel below it we return a transparent pixel
-    if left < layer.layer_left as usize
-        || left > layer.layer_right as usize
-        || top < layer.layer_top as usize
-        || top > layer.layer_bottom as usize
-    {
-        if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
-            return flattened_pixel(
-                flattened_layer_top_down_idx + 1,
-                pixel_coord,
-                layers_to_flatten_top_down,
-                cached_layer_rgba,
-            );
-        } else {
-            return [0; 4];
+        // If this pixel is out of bounds of this layer we return the pixel below it.
+        // If there is no pixel below it we return a transparent pixel
+        if left < layer.layer_left as usize
+            || left > layer.layer_right as usize
+            || top < layer.layer_top as usize
+            || top > layer.layer_bottom as usize
+        {
+            if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
+                return self.flattened_pixel(
+                    flattened_layer_top_down_idx + 1,
+                    pixel_coord,
+                    layers_to_flatten_top_down,
+                    cached_layer_rgba,
+                );
+            } else {
+                return [0; 4];
+            }
         }
-    }
 
-    if cached_layer_rgba
-        .borrow()
-        .get(&flattened_layer_top_down_idx)
-        .is_none()
-    {
-        let pixels = layers_to_flatten_top_down[flattened_layer_top_down_idx]
-            .1
-            .rgba()
-            .unwrap();
-        cached_layer_rgba
-            .borrow_mut()
-            .insert(flattened_layer_top_down_idx, pixels);
-    }
+        if cached_layer_rgba
+            .borrow()
+            .get(&flattened_layer_top_down_idx)
+            .is_none()
+        {
+            let pixels = layers_to_flatten_top_down[flattened_layer_top_down_idx]
+                .1
+                .rgba()
+                .unwrap();
+            cached_layer_rgba
+                .borrow_mut()
+                .insert(flattened_layer_top_down_idx, pixels);
+        }
 
-    let cache = cached_layer_rgba.borrow();
-    let rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
+        let cache = cached_layer_rgba.borrow();
+        let rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
 
-    // FIXME: Just pass the pixel index in
-    let pixel_idx = ((layer.width() as usize * top) + left) * 4;
+        // FIXME: Just pass the pixel index in
+        let pixel_idx = ((self.width() as usize * top) + left) * 4;
 
-    let (start, end) = (pixel_idx, pixel_idx + 4);
-    let pixel = &rgba[start..end];
+        let (start, end) = (pixel_idx, pixel_idx + 4);
+        let pixel = &rgba[start..end];
 
-    // This pixel as no transparency, use it
-    if pixel[3] == 255 {
-        let mut final_pixel = [0; 4];
-        final_pixel.copy_from_slice(&pixel);
-        final_pixel
-    } else {
-        let mut final_pixel = [0; 4];
-
-        if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
-            let pixel_below = flattened_pixel(
-                flattened_layer_top_down_idx + 1,
-                pixel_coord,
-                layers_to_flatten_top_down,
-                cached_layer_rgba,
-            );
-
-            // FIXME: Move into method and clean up
-            // blend the two pixels.
-            // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
-            final_pixel[0] = (((pixel[0] as u16 * pixel[3] as u16)
-                + (pixel_below[0] as u16 * (255 - pixel[3] as u16)))
-                / 2) as u8;
-            final_pixel[1] = (((pixel[1] as u16 * pixel[3] as u16)
-                + (pixel_below[1] as u16 * (255 - pixel[3] as u16)))
-                / 2) as u8;
-            final_pixel[2] = (((pixel[2] as u16 * pixel[3] as u16)
-                + (pixel_below[2] as u16 * (255 - pixel[3] as u16)))
-                / 2) as u8;
-            final_pixel[3] = 255;
-
+        // This pixel as no transparency, use it
+        if pixel[3] == 255 {
+            let mut final_pixel = [0; 4];
+            final_pixel.copy_from_slice(&pixel);
             final_pixel
         } else {
-            final_pixel.copy_from_slice(pixel);
-            final_pixel
+            let mut final_pixel = [0; 4];
+
+            if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
+                let pixel_below = self.flattened_pixel(
+                    flattened_layer_top_down_idx + 1,
+                    pixel_coord,
+                    layers_to_flatten_top_down,
+                    cached_layer_rgba,
+                );
+
+                // FIXME: Move into method and clean up
+                // blend the two pixels.
+                // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
+                final_pixel[0] = (((pixel[0] as u16 * pixel[3] as u16)
+                    + (pixel_below[0] as u16 * (255 - pixel[3] as u16)))
+                    / 2) as u8;
+                final_pixel[1] = (((pixel[1] as u16 * pixel[3] as u16)
+                    + (pixel_below[1] as u16 * (255 - pixel[3] as u16)))
+                    / 2) as u8;
+                final_pixel[2] = (((pixel[2] as u16 * pixel[3] as u16)
+                    + (pixel_below[2] as u16 * (255 - pixel[3] as u16)))
+                    / 2) as u8;
+                final_pixel[3] = 255;
+
+                final_pixel
+            } else {
+                final_pixel.copy_from_slice(pixel);
+                final_pixel
+            }
         }
     }
 }

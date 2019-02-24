@@ -12,7 +12,7 @@ console_error_panic_hook = "0.1.6"
 css-rs-macro = "0.1.0"
 js-sys = "0.3.14"
 psd = {path = "../../"}
-virtual-dom-rs = "0.6.0"
+virtual-dom-rs = "0.6.1"
 wasm-bindgen = "0.2.37"
 
 [dependencies.web-sys]
@@ -20,7 +20,10 @@ version = "0.3"
 features = [
     "CanvasRenderingContext2d",
     "Document",
+    "Element",
+    "Event",
     "HtmlCanvasElement",
+    "HtmlInputElement",
     "ImageData",
     "MouseEvent",
     "Window",
