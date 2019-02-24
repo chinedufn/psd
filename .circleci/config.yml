@@ -93,16 +93,12 @@ jobs:
 
       # Build Site
       - run:
-          name: Build Docs
+          name: Build Site
           command: >
             (cd book && mdbook build)
             && cargo doc --no-deps -p psd
             && cp -R target/doc book/book/api
-
-      # Build Demo
-      - run:
-          name: Build Demo
-          command: >
+            # Build Demo
             (cd examples/drag-drop-browser && ./build-release.sh)
             && ls examples/drag-drop-browser
             && cp -R examples/drag-drop-browser/public book/book/drag-drop-demo
