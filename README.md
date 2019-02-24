@@ -33,9 +33,9 @@ My approach was to support as much of the PSD spec as I needed, so there might b
 
 That said, if there's anything missing that you need [please feel very free to open an issue](https://github.com/chinedufn/psd/issues)!
 
-## [API Docs](https://chinedufn.github.io/psd/api)
+## [API Docs](https://chinedufn.github.io/psd/api/psd)
 
-Check out the [API documentation](https://chinedufn.github.io/psd/api) to see everything that you can currently access.
+Check out the [API documentation](https://chinedufn.github.io/psd/api/psd) to see everything that you can currently access.
 
 ## Usage
 
