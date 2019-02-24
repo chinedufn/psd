@@ -572,6 +572,24 @@ __exports.__wbindgen_closure_wrapper145 = function(a, b, _ignored) {
     return addHeapObject(real);
 };
 
+function freeApp(ptr) {
+
+    wasm.__wbg_app_free(ptr);
+}
+/**
+* Our client side web application
+*/
+class App {
+
+    free() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+        freeApp(ptr);
+    }
+
+}
+__exports.App = App;
+
 function freeAppWrapper(ptr) {
 
     wasm.__wbg_appwrapper_free(ptr);
@@ -599,24 +617,6 @@ class AppWrapper {
     }
 }
 __exports.AppWrapper = AppWrapper;
-
-function freeApp(ptr) {
-
-    wasm.__wbg_app_free(ptr);
-}
-/**
-* Our client side web application
-*/
-class App {
-
-    free() {
-        const ptr = this.ptr;
-        this.ptr = 0;
-        freeApp(ptr);
-    }
-
-}
-__exports.App = App;
 
 __exports.__wbindgen_throw = function(ptr, len) {
     throw new Error(getStringFromWasm(ptr, len));
