@@ -16,69 +16,21 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[wasm_bindgen]
-struct App {
-    store: Rc<RefCell<Store>>,
-    dom_updater: DomUpdater,
-    raf_closure_holder: Rc<RefCell<Option<Box<dyn AsRef<JsValue>>>>>,
-}
-
-struct Store {
-    state: State,
-    on_msg: Option<Box<Fn()>>,
-}
-
-impl Deref for Store {
-    type Target = State;
-
-    fn deref(&self) -> &Self::Target {
-        &self.state
-    }
-}
-
-struct State {
-    psd: Psd,
-    // Layer name, whether or not it is visible
-    layer_visibility: HashMap<String, bool>,
-}
-
-impl Store {
-    fn msg(&mut self, msg: &Msg) {
-        self.state.msg(msg);
-        self.on_msg.as_ref().unwrap()();
-    }
-}
-
-impl State {
-    fn msg(&mut self, msg: &Msg) {
-        match msg {
-            Msg::ReplacePsd(psd) => {}
-            Msg::SetLayerVisibility(idx, visible) => {
-                let visibility = self
-                    .layer_visibility
-                    .get_mut(self.psd.layer_by_idx(*idx).unwrap().name())
-                    .unwrap();
-
-                *visibility = *visible;
-            }
-        }
-    }
-}
-
-enum Msg {
-    ReplacePsd(Psd),
-    /// Set whether or not a layer (by index) should be visible
-    SetLayerVisibility(usize, bool),
-}
-
+/// Wraps our application so that we can return it to the caller of this WebAssembly module.
+/// This ensures that our closures that we're holding on to in the App struct don't get dropped.
+///
+/// If we we didn't do this our closures would get dropped and wouldn't work.
 #[wasm_bindgen]
 struct AppWrapper(Rc<RefCell<App>>);
 
 #[wasm_bindgen]
 impl AppWrapper {
+    /// Create a new AppWrapper. We'll call this in a script tag in index.html
     #[wasm_bindgen(constructor)]
     pub fn new() -> AppWrapper {
-        let app = App::start().unwrap();
+        console_error_panic_hook::set_once();
+
+        let mut app = App::new();
 
         let closure_holder = Rc::clone(&app.raf_closure_holder);
 
@@ -87,62 +39,68 @@ impl AppWrapper {
         let app = Rc::new(RefCell::new(app));
         let app_clone = Rc::clone(&app);
 
-        let on_msg = move || {
-            let store = Rc::clone(&store);
-            let app = Rc::clone(&app);
-            let closure_holder = Rc::clone(&closure_holder);
-
-            let render = move || {
+        // Whenever state gets updated we'll re-render the page
+        {
+            let on_msg = move || {
                 let store = Rc::clone(&store);
                 let app = Rc::clone(&app);
+                let closure_holder = Rc::clone(&closure_holder);
 
-                let vdom = Renderer::render(store);
-                app.borrow_mut().update(vdom);
+                let re_render = move || {
+                    let store = Rc::clone(&store);
+                    let app = Rc::clone(&app);
+
+                    let vdom = app.borrow().render();
+                    app.borrow_mut().update(vdom);
+
+                    store.borrow_mut().msg(&Msg::SetIsRendering(false));
+                };
+                let mut re_render = Closure::wrap(Box::new(re_render) as Box<FnMut()>);
+
+                window().request_animation_frame(&re_render.as_ref().unchecked_ref());
+
+                *closure_holder.borrow_mut() = Some(Box::new(re_render));
             };
-            let mut callback = Closure::wrap(Box::new(render) as Box<FnMut()>);
-            web_sys::window()
-                .unwrap()
-                .request_animation_frame(&callback.as_ref().unchecked_ref());
 
-            *closure_holder.borrow_mut() = Some(Box::new(callback));
-        };
-
-        app_clone.borrow_mut().store.borrow_mut().on_msg = Some(Box::new(on_msg));
+            {
+                let mut app = app_clone.borrow_mut();
+                app.store.borrow_mut().on_msg = Some(Box::new(on_msg));
+                app.start();
+            }
+        }
 
         AppWrapper(app_clone)
     }
 }
 
+/// Our client side web application
+#[wasm_bindgen]
+struct App {
+    store: Rc<RefCell<Store>>,
+    dom_updater: DomUpdater,
+    /// Holds the most recent RAF clos
+    ///
+    /// FIXME: Don't queue up multiple RAF is we already have one... just use a
+    /// is_requesting_animation_frame: bool
+    raf_closure_holder: Rc<RefCell<Option<Box<dyn AsRef<JsValue>>>>>,
+}
+
 #[wasm_bindgen]
 impl App {
-    pub fn start() -> Result<App, JsValue> {
-        console_error_panic_hook::set_once();
-
-        let psd = include_bytes!("../demo.psd");
-        let psd = Psd::from_bytes(psd).unwrap();
-
-        let mut layer_visibility = HashMap::new();
-        for layer in psd.layers().iter() {
-            layer_visibility.insert(layer.name().to_string(), true);
-        }
-
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
-        let body = document.body().unwrap();
-
-        let app = html! { <div> </div> };
-        let mut dom_updater = DomUpdater::new_append_to_mount(app, &body);
+    /// Create a new App
+    fn new() -> App {
+        let vdom = html! { <div> </div> };
+        let mut dom_updater = DomUpdater::new_append_to_mount(vdom, &body());
 
         let state = State {
-            psd,
-            layer_visibility,
+            psd: None,
+            layer_visibility: HashMap::new(),
+            is_rendering: false,
         };
 
         let on_msg = None;
         let store = Store { state, on_msg };
         let store = Rc::new(RefCell::new(store));
-
-        let vdom = Renderer::render(Rc::clone(&store));
 
         let mut app = App {
             store,
@@ -150,62 +108,29 @@ impl App {
             raf_closure_holder: Rc::new(RefCell::new(None)),
         };
 
-        app.update(vdom);
-
-        Ok(app)
+        app
     }
 
-    fn update(&mut self, vdom: VirtualNode) -> Result<(), JsValue> {
-        self.dom_updater.update(vdom);
+    /// Start the demo
+    fn start(&mut self) {
+        let demo_psd = include_bytes!("../demo.psd");
 
-        let psd = &self.store.borrow().psd;
+        self.store.borrow_mut().msg(&Msg::ReplacePsd(demo_psd));
 
-        let mut psd_pixels = psd
-            .flatten_layers_rgba(&|(idx, layer)| {
-                let layer_visible = *self
-                    .store
-                    .borrow()
-                    .layer_visibility
-                    .get(layer.name())
-                    .unwrap();
-
-                layer_visible
-            })
-            .unwrap();
-
-        let psd_pixels = Clamped(&mut psd_pixels[..]);
-        let psd_pixels =
-            ImageData::new_with_u8_clamped_array_and_sh(psd_pixels, psd.width(), psd.height())?;
-
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
-        let body = document.body().unwrap();
-
-        let canvas: HtmlCanvasElement = document
-            .get_element_by_id("psd-visual")
-            .unwrap()
-            .dyn_into()?;
-        let context = canvas
-            .get_context("2d")?
-            .unwrap()
-            .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
-
-        context.put_image_data(&psd_pixels, 0., 0.)?;
-
-        Ok(())
+        let vdom = self.render();
+        self.update(vdom);
     }
-}
 
-struct Renderer {}
-
-impl Renderer {
-    fn render(store: Rc<RefCell<Store>>) -> VirtualNode {
-        let store_clone = Rc::clone(&store);
+    /// Render the virtual-dom
+    fn render(&self) -> VirtualNode {
+        let store = &self.store;
+        let store_clone = Rc::clone(store);
 
         let store = store.borrow();
 
-        let mut layers: Vec<VirtualNode> = store
-            .psd
+        let psd = store.psd.as_ref().unwrap();
+
+        let mut layers: Vec<VirtualNode> = psd
             .layers()
             .iter()
             .enumerate()
@@ -259,6 +184,152 @@ impl Renderer {
 
         vdom
     }
+
+    /// Patch the DOM with a new virtual dom and update our Canvas' pixels
+    fn update(&mut self, vdom: VirtualNode) -> Result<(), JsValue> {
+        self.dom_updater.update(vdom);
+
+        let psd = &self.store.borrow();
+        let psd = &psd.psd;
+        let psd = psd.as_ref().unwrap();
+
+        // Flatten the PSD into only the pixels from the layers that are currently
+        // toggled on.
+        let mut psd_pixels = psd
+            .flatten_layers_rgba(&|(idx, layer)| {
+                let layer_visible = *self
+                    .store
+                    .borrow()
+                    .layer_visibility
+                    .get(layer.name())
+                    .unwrap();
+
+                layer_visible
+            })
+            .unwrap();
+
+        let psd_pixels = Clamped(&mut psd_pixels[..]);
+        let psd_pixels =
+            ImageData::new_with_u8_clamped_array_and_sh(psd_pixels, psd.width(), psd.height())?;
+
+        let canvas: HtmlCanvasElement = document()
+            .get_element_by_id("psd-visual")
+            .unwrap()
+            .dyn_into()?;
+        let context = canvas
+            .get_context("2d")?
+            .unwrap()
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
+
+        context.put_image_data(&psd_pixels, 0., 0.)?;
+
+        Ok(())
+    }
+}
+
+/// A light wrapper around State, useful when you want to accept a Msg and handle
+/// anything impure (such as working with local storage) before passing the Msg
+/// along the State. Allowing you to keep State pure.
+struct Store {
+    state: State,
+    on_msg: Option<Box<Fn()>>,
+}
+
+/// You'll usually just want the underlying State, so we Deref for convenience.
+impl Deref for Store {
+    type Target = State;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
+
+/// Handles application state
+struct State {
+    /// The current PSD that is being displayed
+    psd: Option<Psd>,
+    /// Layer name -> whether or not it currently toggled on
+    layer_visibility: HashMap<String, bool>,
+    /// Whether or not we've already requested to render on the next animation frame
+    is_rendering: bool,
+}
+
+impl Store {
+    /// Send a new message to our Store, usually to update State
+    fn msg(&mut self, msg: &Msg) {
+        let is_rendering = self.state.is_rendering;
+
+        self.state.msg(msg);
+
+        if !is_rendering {
+            self.state.msg(&Msg::SetIsRendering(true));
+            self.on_msg.as_ref().unwrap()();
+        }
+    }
+}
+
+impl State {
+    /// Update State given some new Msg
+    fn msg(&mut self, msg: &Msg) {
+        match msg {
+            // Replace the current PSD with a new one
+            // Happens on page load and after drag/drop
+            Msg::ReplacePsd(psd) => {
+                let psd = Psd::from_bytes(psd).unwrap();
+
+                // When we upload a new PSD we set all layers to visible
+                let mut layer_visibility = HashMap::new();
+                for layer in psd.layers().iter() {
+                    layer_visibility.insert(layer.name().to_string(), true);
+                }
+
+                self.psd = Some(psd);
+                self.layer_visibility = layer_visibility;
+            }
+            // Set whether or not a layer is currently toggled on/off
+            Msg::SetLayerVisibility(idx, visible) => {
+                let visibility = self
+                    .layer_visibility
+                    .get_mut(
+                        self.psd
+                            .as_mut()
+                            .unwrap()
+                            .layer_by_idx(*idx)
+                            .unwrap()
+                            .name(),
+                    )
+                    .unwrap();
+
+                *visibility = *visible;
+            }
+            // Have we already queued up a re-render?
+            Msg::SetIsRendering(is_rendering) => {
+                self.is_rendering = *is_rendering;
+            }
+        }
+    }
+}
+
+/// All of our Msg variants that are used to update application state
+enum Msg<'a> {
+    /// Replace the current PSD with a new one, usually after drag and drop
+    ReplacePsd(&'a [u8]),
+    /// Set whether or not a layer (by index) should be visible
+    SetLayerVisibility(usize, bool),
+    /// Set that the application is planning to render on the next request animation frame
+    SetIsRendering(bool),
+}
+
+fn window() -> web_sys::Window {
+    web_sys::window().unwrap()
+}
+
+fn document() -> web_sys::Document {
+    window().document().unwrap()
+}
+
+fn body() -> web_sys::HtmlElement {
+    document().body().unwrap()
 }
 
 static APP_CONTAINER: &'static str = css! {r#"
