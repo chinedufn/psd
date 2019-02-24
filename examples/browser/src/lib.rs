@@ -181,7 +181,47 @@ impl App {
            <div class=APP_CONTAINER>
 
              <div class="left-column">
-               <canvas id="psd-visual" width="500" height="500"></canvas>
+               <canvas id="psd-visual"></canvas>
+               <div
+                 style="height: 100px; display: flex; align-items: center; justify-content: center;"
+                 ondragenter=|event: web_sys::DragEvent| {
+                    event.prevent_default();
+                    event.stop_propagation();
+                 }
+                 ondragover=|event: web_sys::DragEvent| {
+                    event.prevent_default();
+                    event.stop_propagation();
+                 }
+                 ondrop=move |event: web_sys::DragEvent| {
+                    event.prevent_default();
+                    event.stop_propagation();
+
+                    let store = Rc::clone(&store_clone);
+
+                    let dt = event.data_transfer().unwrap();
+                    let files = dt.files().unwrap();
+                    let psd = files.item(0).unwrap();
+
+                    let file_reader = web_sys::FileReader::new().unwrap();
+                    file_reader.read_as_array_buffer(&psd).unwrap();
+
+                    let mut onload = Closure::wrap(Box::new(move |event: Event| {
+                        let file_reader: FileReader = event.target().unwrap().dyn_into().unwrap();
+                        let psd = file_reader.result().unwrap();
+                        let psd = js_sys::Uint8Array::new(&psd);
+
+                        let mut psd_file = vec![0; psd.length() as usize];
+                        psd.copy_to(&mut psd_file);
+
+                        store.borrow_mut().msg(&Msg::ReplacePsd(&psd_file));
+                    }) as Box<FnMut(_)>);
+
+                    file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+                    onload.forget();
+                 }
+               >
+                 <strong>Drag and drop here to upload a PSD</strong>
+               </div>
              </div>
 
              <div class="right-column">
@@ -229,6 +269,9 @@ impl App {
             .get_context("2d")?
             .unwrap()
             .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
+
+        canvas.set_width(psd.width());
+        canvas.set_height(psd.height());
 
         context.put_image_data(&psd_pixels, 0., 0.)?;
 

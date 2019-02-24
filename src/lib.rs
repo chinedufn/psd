@@ -127,6 +127,8 @@ impl Psd {
 
     /// Given a filter, combine all layers in the PSD that pass the filter into a vector
     /// of RGBA pixels.
+    ///
+    /// FIXME: Last thing we need to refactor.
     pub fn flatten_layers_rgba(
         &self,
         filter: &Fn((usize, &PsdLayer)) -> bool,
