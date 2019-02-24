@@ -11,3 +11,6 @@ failure = "0.1.5"
 members = [
     "examples/browser"
 ]
+
+[profile.release]
+lto = true

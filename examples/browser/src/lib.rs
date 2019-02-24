@@ -20,6 +20,7 @@ use std::rc::Rc;
 struct App {
     store: Rc<RefCell<Store>>,
     dom_updater: DomUpdater,
+    raf_closure_holder: Rc<RefCell<Option<Box<dyn AsRef<JsValue>>>>>,
 }
 
 struct Store {
@@ -44,6 +45,7 @@ struct State {
 impl Store {
     fn msg(&mut self, msg: &Msg) {
         self.state.msg(msg);
+        self.on_msg.as_ref().unwrap()();
     }
 }
 
@@ -78,9 +80,36 @@ impl AppWrapper {
     pub fn new() -> AppWrapper {
         let app = App::start().unwrap();
 
-        let app = Rc::new(RefCell::new(app));
+        let closure_holder = Rc::clone(&app.raf_closure_holder);
 
-        AppWrapper(app)
+        let store = Rc::clone(&app.store);
+
+        let app = Rc::new(RefCell::new(app));
+        let app_clone = Rc::clone(&app);
+
+        let on_msg = move || {
+            let store = Rc::clone(&store);
+            let app = Rc::clone(&app);
+            let closure_holder = Rc::clone(&closure_holder);
+
+            let render = move || {
+                let store = Rc::clone(&store);
+                let app = Rc::clone(&app);
+
+                let vdom = Renderer::render(store);
+                app.borrow_mut().update(vdom);
+            };
+            let mut callback = Closure::wrap(Box::new(render) as Box<FnMut()>);
+            web_sys::window()
+                .unwrap()
+                .request_animation_frame(&callback.as_ref().unchecked_ref());
+
+            *closure_holder.borrow_mut() = Some(Box::new(callback));
+        };
+
+        app_clone.borrow_mut().store.borrow_mut().on_msg = Some(Box::new(on_msg));
+
+        AppWrapper(app_clone)
     }
 }
 
@@ -89,42 +118,17 @@ impl App {
     pub fn start() -> Result<App, JsValue> {
         console_error_panic_hook::set_once();
 
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
-        let body = document.body().unwrap();
-
         let psd = include_bytes!("../demo.psd");
         let psd = Psd::from_bytes(psd).unwrap();
-
-        let mut psd_pixels = psd.rgba();
-        let mut psd_pixels = psd
-            .flatten_layers_rgba(&|(idx, layer)| {
-                true
-                //        !layer.name().contains("Fer")
-            })
-            .unwrap();
-
-        let psd_pixels = Clamped(&mut psd_pixels[..]);
-        let psd_pixels =
-            ImageData::new_with_u8_clamped_array_and_sh(psd_pixels, psd.width(), psd.height())?;
-
-        let mut layers: Vec<VirtualNode> = psd
-            .layers()
-            .iter()
-            .map(|layer| {
-                html! {
-                <div>
-                  <span>{ text!(layer.name()) }</span>
-                  <input type="checkbox" checked="true">
-                </div>}
-            })
-            .collect();
-        layers.reverse();
 
         let mut layer_visibility = HashMap::new();
         for layer in psd.layers().iter() {
             layer_visibility.insert(layer.name().to_string(), true);
         }
+
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        let body = document.body().unwrap();
 
         let app = html! { <div> </div> };
         let mut dom_updater = DomUpdater::new_append_to_mount(app, &body);
@@ -138,10 +142,44 @@ impl App {
         let store = Store { state, on_msg };
         let store = Rc::new(RefCell::new(store));
 
-        let mut app = App { store, dom_updater };
+        let vdom = Renderer::render(Rc::clone(&store));
 
-        let vdom = app.render();
+        let mut app = App {
+            store,
+            dom_updater,
+            raf_closure_holder: Rc::new(RefCell::new(None)),
+        };
+
         app.update(vdom);
+
+        Ok(app)
+    }
+
+    fn update(&mut self, vdom: VirtualNode) -> Result<(), JsValue> {
+        self.dom_updater.update(vdom);
+
+        let psd = &self.store.borrow().psd;
+
+        let mut psd_pixels = psd
+            .flatten_layers_rgba(&|(idx, layer)| {
+                let layer_visible = *self
+                    .store
+                    .borrow()
+                    .layer_visibility
+                    .get(layer.name())
+                    .unwrap();
+
+                layer_visible
+            })
+            .unwrap();
+
+        let psd_pixels = Clamped(&mut psd_pixels[..]);
+        let psd_pixels =
+            ImageData::new_with_u8_clamped_array_and_sh(psd_pixels, psd.width(), psd.height())?;
+
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        let body = document.body().unwrap();
 
         let canvas: HtmlCanvasElement = document
             .get_element_by_id("psd-visual")
@@ -154,15 +192,19 @@ impl App {
 
         context.put_image_data(&psd_pixels, 0., 0.)?;
 
-        Ok(app)
+        Ok(())
     }
+}
 
-    fn render(&self) -> VirtualNode {
-        let store = &self.store;
-        let store_clone = Rc::clone(&self.store);
+struct Renderer {}
+
+impl Renderer {
+    fn render(store: Rc<RefCell<Store>>) -> VirtualNode {
+        let store_clone = Rc::clone(&store);
+
+        let store = store.borrow();
 
         let mut layers: Vec<VirtualNode> = store
-            .borrow()
             .psd
             .layers()
             .iter()
@@ -171,8 +213,6 @@ impl App {
                 let store = Rc::clone(&store_clone);
 
                 let checked = *store.borrow().layer_visibility.get(layer.name()).unwrap();
-
-                let msg = Msg::SetLayerVisibility(idx, checked);
 
                 let checked = if checked { "true" } else { "false" };
 
@@ -191,7 +231,8 @@ impl App {
                      // If the attribute starts with `on` treat the value as a closure.
                      onchange=move |event: web_sys::Event| {
                        let input: HtmlInputElement = event.target().unwrap().dyn_into().unwrap();
-                       let checked = !input.checked();
+
+                       let msg = Msg::SetLayerVisibility(idx, input.checked());
                        store.borrow_mut().msg(&msg);
                      }
                      >
@@ -217,10 +258,6 @@ impl App {
         };
 
         vdom
-    }
-
-    fn update(&mut self, vdom: VirtualNode) {
-        self.dom_updater.update(vdom);
     }
 }
 
