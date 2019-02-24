@@ -9,7 +9,7 @@ failure = "0.1.5"
 
 [workspace]
 members = [
-    "examples/browser"
+    "examples/drag-drop-browser"
 ]
 
 [profile.release]

@@ -1,5 +1,9 @@
-psd [![Build Status](https://travis-ci.org/chinedufn/psd.svg?branch=master)](https://travis-ci.org/chinedufn/psd) [![docs](https://docs.rs/psd/badge.svg)](https://docs.rs/psd)
-===============
+psd
+===
+
+[![Build status](https://circleci.com/gh/chinedufn/percy.svg?style=shield&circle-token=:circle-token)](https://circleci.com/gh/chinedufn/percy)
+
+[![docs](https://docs.rs/psd/badge.svg)](https://docs.rs/psd)
 
 > A Rust API for parsing and working with PSD files.
 
@@ -8,9 +12,9 @@ psd [![Build Status](https://travis-ci.org/chinedufn/psd.svg?branch=master)](htt
 In the [live demo](https://chinedufn.github.io/drag-drop-demo/) you can visualize a PSD in the browser,
 toggle layers on and off and drag and drop a new PSD into the demo.
 
-## [The PSD Book](https://chinedufn.github.io/psd/book)
+## [The Psd Book](https://chinedufn.github.io/psd)
 
-The _WIP_ [PSD Book](https://chinedufn.github.io/psd/book) will contain information about getting started with the `psd` crate,
+The _WIP_ [The Psd Book](https://chinedufn.github.io/psd/book) will contain information about getting started with the `psd` crate,
 a description of the architecture and information on how to get started.
 
 ## Background / Initial Motivation
@@ -33,7 +37,7 @@ That said, if there's anything missing that you need [please feel very free to o
 
 ## [API Docs](https://docs.rs/psd)
 
-Check out the [API documentation](https://docs.rs/psd) to see everything that you can currently access.
+Check out the [API documentation](https://chinedufn.github.io/psd/api) to see everything that you can currently access.
 
 ## Usage
 
