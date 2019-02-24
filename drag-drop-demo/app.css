@@ -1,0 +1,23 @@
+
+._css_rs_0 {
+    display: flex;
+}
+
+
+.left-column {
+}
+
+.right-column {
+    background-color: #f7f7f7;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.layer-dark-background {
+   background-color: #b8b8b8;
+}
+
+.layer-light-background {
+   background-color: #e0e0e0;
+}
+

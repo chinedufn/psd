@@ -1,0 +1,12 @@
+{
+  "name": "drag-drop-browser",
+  "collaborators": [
+    "Chinedu Francis Nwafili <frankie.nwafili@gmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "drag_drop_browser_bg.wasm",
+    "drag_drop_browser.js"
+  ],
+  "browser": "drag_drop_browser.js"
+}
