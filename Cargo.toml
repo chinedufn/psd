@@ -13,4 +13,5 @@ members = [
 ]
 
 [profile.release]
-lto = true
+# We can re-enable lto for the demo when wasm-pack 0.2.38 is released. There's a bug in 0.2.37
+# lto = true
