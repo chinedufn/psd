@@ -131,13 +131,14 @@ jobs:
           command: touch book/book/.nojekyll
       - run:
           name: Install and configure dependencies
-          command: >
-            npm install -g gh-pages@2
-            && git config user.email "ci-build@circleci"
-            && git config user.name "ci-build"
+          command: |
+            npm install -g --silent gh-pages@2.0.1
+            git config user.email "ci-build@klukas.net"
+            git config user.name "ci-build"
+
       - add_ssh_keys:
           fingerprints:
-            - "73:6a:11:1e:f2:b0:05:25:e6:de:b9:b2:b3:18:22:61"
+            - "74:9d:18:d2:11:b2:15:39:9f:d3:77:84:10:cd:f9:c1"
       - run:
           name: Deploy site to gh-pages branch
           command: gh-pages --dotfiles --message "[skip ci] Updates" --dist book/book
