@@ -1,6 +1,6 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
-use failure::{Fail, Error, format_err};
+use failure::{format_err, Error, Fail};
 
 pub trait InsertChannelBytes {
     /// Given an index of a pixel in the current rectangle
@@ -165,4 +165,3 @@ impl PsdChannelKind {
         }
     }
 }
-

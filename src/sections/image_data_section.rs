@@ -1,6 +1,6 @@
+use crate::psd_channel::PsdChannelCompression;
 use crate::sections::PsdCursor;
 use failure::{Error, Fail};
-use crate::psd_channel::PsdChannelCompression;
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
 /// of the final PSD image (the one that comes from combining all of the layers).

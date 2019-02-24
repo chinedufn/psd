@@ -1,10 +1,10 @@
 use crate::psd_channel::InsertChannelBytes;
+use crate::psd_channel::PsdChannelCompression;
+use crate::psd_channel::PsdChannelError;
+use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
 use failure::{Error, Fail};
 use std::collections::HashMap;
-use crate::psd_channel::PsdChannelKind;
-use crate::psd_channel::PsdChannelError;
-use crate::psd_channel::PsdChannelCompression;
 
 /// Information about a layer in a PSD file.
 ///
@@ -161,8 +161,40 @@ impl LayerRecord {
     }
 }
 
-
 impl InsertChannelBytes for PsdLayer {
+    /// A layer might take up only a subsection of a PSD, so if when iterating through
+    /// the pixels in a layer we need to transform the pixel's location before placing
+    /// it into the RGBA for the entire PSD.
+    ///
+    /// Given this illustration:
+    ///
+    /// ┌──────────────────────────────────────┐
+    /// │                                      │
+    /// │  Entire Psd                          │
+    /// │                                      │
+    /// │                                      │
+    /// │         ┌─────────────────────────┐  │
+    /// │         │                         │  │
+    /// │         │ Layer                   │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         │                         │  │
+    /// │         └─────────────────────────┘  │
+    /// │                                      │
+    /// └──────────────────────────────────────┘
+    ///
+    /// The top left pixel in the layer will have index 0, but within the PSD
+    /// that idx will be much more than 0 since there are some rows of pixels
+    /// above it.
+    ///
+    /// So we transform the pixel's index based on the layer's left and top
+    /// position within the PSD.
     fn rgba_idx(&self, idx: usize) -> usize {
         let left_in_layer = idx % self.width() as usize;
         let left_in_psd = self.layer_left as usize + left_in_layer;

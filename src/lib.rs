@@ -11,6 +11,7 @@ pub use crate::sections::file_header_section::ColorMode;
 
 use self::sections::file_header_section::FileHeaderSection;
 use crate::psd_channel::InsertChannelBytes;
+pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
 use crate::sections::image_data_section::ImageDataSection;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
@@ -18,7 +19,6 @@ use crate::sections::MajorSections;
 use failure::Error;
 use std::cell::RefCell;
 use std::collections::HashMap;
-pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
 
 mod psd_channel;
 mod sections;
@@ -128,46 +128,65 @@ impl Psd {
     /// Given a filter, combine all layers in the PSD that pass the filter into a vector
     /// of RGBA pixels.
     ///
-    /// FIXME: Last thing we need to refactor.
+    /// We'll start from the top most layer and iterate through the pixels.
+    ///
+    /// If the pixel is transparent, recursively blend it with the pixels below it until
+    /// we hit an opaque pixel or we hit the bottom of the stack.
+    ///
+    /// TODO: Take the layer's blend mode into account when blending layers. Right now
+    /// we just use ONE_MINUS_SRC_ALPHA blending regardless of the layer.
     pub fn flatten_layers_rgba(
         &self,
         filter: &Fn((usize, &PsdLayer)) -> bool,
     ) -> Result<Vec<u8>, Error> {
-        // Start from the top layer so that if none of the pixels are transparent we don't
-        // need to look at any of the layers below it.
-        // If they are we only continue to look downwards until we no longer see transparent
-        // pixels.
-        let mut layers_to_flatten: Vec<(usize, &PsdLayer)> = self
+        // Filter out layers based on the passed in filter.
+        let mut layers_to_flatten_bottom_to_top: Vec<(usize, &PsdLayer)> = self
             .layers()
             .iter()
             .enumerate()
             .filter(|(idx, layer)| filter((*idx, layer)))
             .collect();
-        layers_to_flatten.reverse();
+        layers_to_flatten_bottom_to_top.reverse();
 
-        let pixels = self.width() * self.height();
+        // index 0 = top layer ... index len = bottom layer
+        let layers_to_flatten_top_to_bottom = layers_to_flatten_bottom_to_top;
 
-        if layers_to_flatten.len() == 0 {
-            return Ok(vec![0; pixels as usize * 4]);
+        let pixel_count = self.width() * self.height();
+
+        // If there aren't any layers left after filtering we return a complete transparent image.
+        if layers_to_flatten_top_to_bottom.len() == 0 {
+            return Ok(vec![0; pixel_count as usize * 4]);
         }
 
+        // During the process of flattening the PSD we might need to look at the pixels on one of
+        // the layers below if an upper layer is transparent.
+        //
+        // Anytime we need to calculate the RGBA for a layer we cache it so that we don't need
+        // to perform that operation again.
         let mut cached_layer_rgba = RefCell::new(HashMap::new());
 
-        let layer_count = layers_to_flatten.len();
+        let layer_count = layers_to_flatten_top_to_bottom.len();
 
-        let mut flattened_pixels = Vec::with_capacity((self.width() * self.height() * 4) as usize);
+        let mut flattened_pixels = Vec::with_capacity((pixel_count * 4) as usize);
 
-        for pixel_idx in 0..pixels as usize {
+        // Iterate over each pixel and, if it is transparent, blend it with the pixel below it
+        // recursively.
+        for pixel_idx in 0..pixel_count as usize {
             let left = pixel_idx % self.width() as usize;
             let top = pixel_idx / self.width() as usize;
             let pixel_coord = (left, top);
 
-            let pixel =
-                self.flattened_pixel(0, pixel_coord, &layers_to_flatten, &mut cached_layer_rgba);
-            flattened_pixels.push(pixel[0]);
-            flattened_pixels.push(pixel[1]);
-            flattened_pixels.push(pixel[2]);
-            flattened_pixels.push(pixel[3]);
+            let blended_pixel = self.flattened_pixel(
+                0,
+                pixel_coord,
+                &layers_to_flatten_top_to_bottom,
+                &mut cached_layer_rgba,
+            );
+
+            flattened_pixels.push(blended_pixel[0]);
+            flattened_pixels.push(blended_pixel[1]);
+            flattened_pixels.push(blended_pixel[2]);
+            flattened_pixels.push(blended_pixel[3]);
         }
 
         Ok(flattened_pixels)
@@ -188,14 +207,14 @@ impl Psd {
     ) -> [u8; 4] {
         let layer = layers_to_flatten_top_down[flattened_layer_top_down_idx].1;
 
-        let (left, top) = pixel_coord;
+        let (pixel_left, pixel_top) = pixel_coord;
 
         // If this pixel is out of bounds of this layer we return the pixel below it.
         // If there is no pixel below it we return a transparent pixel
-        if left < layer.layer_left as usize
-            || left > layer.layer_right as usize
-            || top < layer.layer_top as usize
-            || top > layer.layer_bottom as usize
+        if pixel_left < layer.layer_left as usize
+            || pixel_left > layer.layer_right as usize
+            || pixel_top < layer.layer_top as usize
+            || pixel_top > layer.layer_bottom as usize
         {
             if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
                 return self.flattened_pixel(
@@ -209,6 +228,7 @@ impl Psd {
             }
         }
 
+        // If we haven't already calculated the RGBA for this layer, calculate and cache it
         if cached_layer_rgba
             .borrow()
             .get(&flattened_layer_top_down_idx)
@@ -224,48 +244,59 @@ impl Psd {
         }
 
         let cache = cached_layer_rgba.borrow();
-        let rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
+        let layer_rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
 
-        // FIXME: Just pass the pixel index in
-        let pixel_idx = ((self.width() as usize * top) + left) * 4;
+        let pixel_idx = ((self.width() as usize * pixel_top) + pixel_left) * 4;
 
         let (start, end) = (pixel_idx, pixel_idx + 4);
-        let pixel = &rgba[start..end];
+        let pixel = &layer_rgba[start..end];
 
-        // This pixel as no transparency, use it
+        // This pixel is fully opaque, return it
         if pixel[3] == 255 {
             let mut final_pixel = [0; 4];
             final_pixel.copy_from_slice(&pixel);
             final_pixel
         } else {
+            // If this pixel has some transparency, blend it with the layer below it
+
             let mut final_pixel = [0; 4];
 
-            if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
-                let pixel_below = self.flattened_pixel(
-                    flattened_layer_top_down_idx + 1,
-                    pixel_coord,
-                    layers_to_flatten_top_down,
-                    cached_layer_rgba,
-                );
+            match flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
+                // This pixel has some transparency and there is a pixel below it, blend them
+                true => {
+                    let pixel_below = self.flattened_pixel(
+                        flattened_layer_top_down_idx + 1,
+                        pixel_coord,
+                        layers_to_flatten_top_down,
+                        cached_layer_rgba,
+                    );
 
-                // FIXME: Move into method and clean up
-                // blend the two pixels.
-                // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
-                final_pixel[0] = (((pixel[0] as u16 * pixel[3] as u16)
-                    + (pixel_below[0] as u16 * (255 - pixel[3] as u16)))
-                    / 2) as u8;
-                final_pixel[1] = (((pixel[1] as u16 * pixel[3] as u16)
-                    + (pixel_below[1] as u16 * (255 - pixel[3] as u16)))
-                    / 2) as u8;
-                final_pixel[2] = (((pixel[2] as u16 * pixel[3] as u16)
-                    + (pixel_below[2] as u16 * (255 - pixel[3] as u16)))
-                    / 2) as u8;
-                final_pixel[3] = 255;
+                    // blend the two pixels.
+                    //
+                    // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
+                    //
+                    // TODO: Take the layer's blend mode into account when blending layers. Right now
+                    // we just use ONE_MINUS_SRC_ALPHA blending regardless of the layer.
+                    // Didn't bother cleaning this up to be readable since we need to replace it
+                    // anyways. Need to blend based on the layer's blend mode.
+                    final_pixel[0] = (((pixel[0] as u16 * pixel[3] as u16)
+                        + (pixel_below[0] as u16 * (255 - pixel[3] as u16)))
+                        / 2) as u8;
+                    final_pixel[1] = (((pixel[1] as u16 * pixel[3] as u16)
+                        + (pixel_below[1] as u16 * (255 - pixel[3] as u16)))
+                        / 2) as u8;
+                    final_pixel[2] = (((pixel[2] as u16 * pixel[3] as u16)
+                        + (pixel_below[2] as u16 * (255 - pixel[3] as u16)))
+                        / 2) as u8;
+                    final_pixel[3] = 255;
 
-                final_pixel
-            } else {
-                final_pixel.copy_from_slice(pixel);
-                final_pixel
+                    final_pixel
+                }
+                // There is no pixel below this layer, so use it even though it has transparency
+                false => {
+                    final_pixel.copy_from_slice(pixel);
+                    final_pixel
+                }
             }
         }
     }
