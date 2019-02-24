@@ -66,7 +66,7 @@ impl LayerAndMaskInformationSection {
         cursor.read_4()?;
 
         // Read the next four bytes to get the length of the layer info section
-        let layer_info_section_len = cursor.read_u32()?;
+        let _layer_info_section_len = cursor.read_u32()?;
 
         // Next 2 bytes is the layer count
         //
@@ -87,7 +87,7 @@ impl LayerAndMaskInformationSection {
         let mut layer_records = vec![];
 
         // Read each layer record
-        for layer_num in 0..layer_count {
+        for _layer_num in 0..layer_count {
             layer_records.push(read_layer_record(&mut cursor)?);
         }
 

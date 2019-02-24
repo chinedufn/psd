@@ -94,7 +94,6 @@ impl PsdLayer {
             Some(channel) => match channel {
                 ChannelBytes::RawData(_) => Ok(PsdChannelCompression::RawData),
                 ChannelBytes::RleCompressed(_) => Ok(PsdChannelCompression::RleCompressed),
-                _ => unimplemented!(),
             },
             None => Err(PsdChannelError::ChannelNotFound { channel: *channel })?,
         }

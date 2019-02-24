@@ -63,12 +63,8 @@ impl Psd {
             psd_height,
         )?;
 
-        let image_data_section = ImageDataSection::from_bytes(
-            major_sections.image_data,
-            psd_width,
-            psd_height,
-            channel_count,
-        )?;
+        let image_data_section =
+            ImageDataSection::from_bytes(major_sections.image_data, psd_height, channel_count)?;
 
         Ok(Psd {
             file_header_section,
@@ -164,8 +160,6 @@ impl Psd {
         // Anytime we need to calculate the RGBA for a layer we cache it so that we don't need
         // to perform that operation again.
         let mut cached_layer_rgba = RefCell::new(HashMap::new());
-
-        let layer_count = layers_to_flatten_top_to_bottom.len();
 
         let mut flattened_pixels = Vec::with_capacity((pixel_count * 4) as usize);
 

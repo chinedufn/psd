@@ -1,6 +1,6 @@
 use crate::psd_channel::PsdChannelCompression;
 use crate::sections::PsdCursor;
-use failure::{Error, Fail};
+use failure::Error;
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
 /// of the final PSD image (the one that comes from combining all of the layers).
@@ -35,7 +35,6 @@ impl ImageDataSection {
     /// (including the length market)
     pub fn from_bytes(
         bytes: &[u8],
-        width: u32,
         height: u32,
         channel_count: u8,
     ) -> Result<ImageDataSection, Error> {
@@ -84,10 +83,6 @@ impl ImageDataSection {
             // the same compression algorithm used by the Macintosh ROM routine PackBits,
             // and the TIFF standard.
             PsdChannelCompression::RleCompressed => {
-                // First 2 bytes were compression bytes
-                let channel_bytes = &bytes[2..];
-                let channel_byte_count = channel_bytes.len();
-
                 let mut red_byte_count = 0;
                 let mut green_byte_count = 0;
                 let mut blue_byte_count = 0;
@@ -161,14 +156,6 @@ impl ImageDataSection {
             blue,
             alpha,
         })
-    }
-    fn raw_data_rgb(cursor: &mut PsdCursor) -> Vec<u8> {
-        unimplemented!();
-    }
-
-    // https://en.wikipedia.org/wiki/PackBits
-    fn rle_rgb(cursor: &mut PsdCursor) -> Vec<u8> {
-        unimplemented!();
     }
 }
 

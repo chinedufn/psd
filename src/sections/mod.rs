@@ -1,6 +1,5 @@
 use failure::{Error, Fail};
 use std::io::Cursor;
-use std::io::Read;
 
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
@@ -17,17 +16,6 @@ pub struct MajorSections<'a> {
     pub(crate) image_resources: &'a [u8],
     pub(crate) layer_and_mask: &'a [u8],
     pub(crate) image_data: &'a [u8],
-}
-
-/// The five kinds of major sections in a PSD file
-#[derive(Debug, Copy, Clone)]
-#[allow(missing_docs)]
-pub enum MajorSectionKind {
-    FileHeader,
-    ColorModeData,
-    ImageResources,
-    LayerAndMask,
-    ImageData,
 }
 
 impl<'a> MajorSections<'a> {
@@ -120,26 +108,6 @@ pub enum NotEnoughBytesError {
         total_bytes
     )]
     FileHeader { total_bytes: usize },
-    #[fail(
-        display = r#"The {:#?} mode section must have a length marker that is 4 bytes long.
-        Only {} bytes were found.
-    "#,
-        section, len_marker_size
-    )]
-    LengthMarkerTooShort {
-        section: MajorSectionKind,
-        len_marker_size: usize,
-    },
-    #[fail(
-        display = r#"The {:#?} section's length section said that there were {} bytes of variable data,
-    but only found {} bytes."#,
-        section, expected_byte_count, actual_bytes_remaining
-    )]
-    VariableSectionTooShort {
-        section: MajorSectionKind,
-        expected_byte_count: u32,
-        actual_bytes_remaining: usize,
-    },
 }
 
 /// A Cursor wrapping bytes from a PSD file.
@@ -255,15 +223,5 @@ impl<'a> PsdCursor<'a> {
         array.copy_from_slice(bytes);
 
         Ok(i16::from_be_bytes(array))
-    }
-
-    /// Read 4 bytes as a i32
-    pub fn read_i32(&mut self) -> Result<i32, Error> {
-        let bytes = self.read_4()?;
-
-        let mut array = [0; 4];
-        array.copy_from_slice(bytes);
-
-        Ok(i32::from_be_bytes(array))
     }
 }
