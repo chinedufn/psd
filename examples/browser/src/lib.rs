@@ -139,14 +139,22 @@ impl App {
 
                 let checked = *store.borrow().layer_visibility.get(layer.name()).unwrap();
 
+                let background_color_class = if checked {
+                    "layer-dark-background"
+                } else {
+                    "layer-light-background"
+                };
+
                 let checked = if checked { "true" } else { "false" };
 
                 html! {
                 <div
-                    style="cursor: pointer; padding-top: 5px; padding-bottom: 5px;"
+                    style="cursor: pointer; margin-bottom: 8px; display: flex;"
+                    class=background_color_class
                 >
-                  <label style="cursor: pointer;">
-                    <span style="cursor: pointer;">{ text!(layer.name()) }</span>
+                  <label
+                    style="cursor: pointer; padding-top: 15px; padding-bottom: 15px; padding-left: 5px; padding-right: 5px; display: block; width: 100%;"
+                  >
                     <input
                      type="checkbox"
                      checked=checked
@@ -161,6 +169,7 @@ impl App {
                        store.borrow_mut().msg(&msg);
                      }
                      >
+                    <span style="cursor: pointer; margin-left: 5px;">{ text!(layer.name()) }</span>
                   </label>
                 </div>
                 }
@@ -176,7 +185,7 @@ impl App {
              </div>
 
              <div class="right-column">
-               <strong>Layers</strong>
+               <h2>Layers</h2>
                { layers }
              </div>
            </div>
@@ -343,6 +352,17 @@ static _LAYOUT: &'static str = css! {r#"
 }
 
 .right-column {
+    background-color: #f7f7f7;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.layer-dark-background {
+   background-color: #b8b8b8;
+}
+
+.layer-light-background {
+   background-color: #e0e0e0;
 }
 "#};
 
