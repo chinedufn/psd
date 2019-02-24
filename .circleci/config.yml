@@ -101,8 +101,8 @@ jobs:
             && (cd examples/drag-drop-browser && ./build-release.sh)
             && cp -R examples/drag-drop-browser/public book/book/drag-drop-demo
             && rm book/book/drag-drop-demo/.gitignore
-            && sed 's/drag_drop_browser/psd\/drag_drop_browser/g' book/book/drag-drop-demo/index.html > book/book/drag-drop-demo/index.html
-            && sed 's/app.css/psd\/app.css/g' book/book/drag-drop-demo/index.html > book/book/drag-drop-demo/index.html
+            && sed -i -e 's/drag_drop_browser/psd\/drag_drop_browser/g' book/book/drag-drop-demo/index.html # Fix script path
+            && sed -i -e 's/app.css/psd\/app.css/g' book/book/drag-drop-demo/index.html # Fix script path
 
       - persist_to_workspace:
           root: book
