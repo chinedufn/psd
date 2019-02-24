@@ -104,6 +104,7 @@ jobs:
           name: Build Demo
           command: >
             (cd examples/drag-drop-browser && ./build-release.sh)
+            && ls examples/drag-drop-browser
             && cp -R examples/drag-drop-browser/public book/book/drag-drop-demo
 
       - persist_to_workspace:
@@ -143,7 +144,7 @@ jobs:
             - "73:6a:11:1e:f2:b0:05:25:e6:de:b9:b2:b3:18:22:61"
       - run:
           name: Deploy site to gh-pages branch
-          command: gh-pages --dotfiles --message "Update Book [ci skip]" --dist book/book
+          command: gh-pages --dotfiles --message "[skip ci] Updates" --dist book/book
 
 workflows:
   version: 2
