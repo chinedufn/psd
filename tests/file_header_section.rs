@@ -13,4 +13,3 @@ fn file_header_section() {
 
     assert_eq!(psd.color_mode(), ColorMode::Rgb);
 }
-

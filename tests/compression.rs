@@ -10,10 +10,7 @@ fn rle_decompress_final_image() -> Result<(), Error> {
     let psd = include_bytes!("./rle-3-layer-8x8.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    assert_eq!(
-        psd.compression(),
-        &PsdChannelCompression::RleCompressed
-    );
+    assert_eq!(psd.compression(), &PsdChannelCompression::RleCompressed);
 
     let image_data_rgba = psd.rgba();
 

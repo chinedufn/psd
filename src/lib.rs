@@ -125,44 +125,6 @@ impl Psd {
     pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer, Error> {
         Ok(&self.layer_and_mask_information_section.layers[idx])
     }
-}
-
-// Methods for working with the final flattened image data
-impl Psd {
-    /// Get the RGBA pixels for the PSD
-    /// [ R,G,B,A, R,G,B,A, R,G,B,A, ...]
-    pub fn rgba(&self) -> Vec<u8> {
-        let rgba_len = (self.width() * self.height() * 4) as usize;
-
-        // We use 119 because it's a weird number so we can easily notice in case
-        // we're ever parsing something incorrectly.
-        let mut rgba = vec![119; rgba_len];
-
-        Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::Red, &self.image_data_section.red);
-
-        Psd::insert_channel_bytes(
-            &mut rgba,
-            PsdChannelKind::Green,
-            &self.image_data_section.green,
-        );
-
-        Psd::insert_channel_bytes(
-            &mut rgba,
-            PsdChannelKind::Blue,
-            &self.image_data_section.blue,
-        );
-
-        if let Some(alpha_channel) = &self.image_data_section.alpha {
-            Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::TransparencyMask, alpha_channel);
-        } else {
-            // If there is no transparency data then the image is opaque
-            for idx in 0..rgba_len / 4 {
-                rgba[idx * 4 + 3] = 255;
-            }
-        }
-
-        rgba
-    }
 
     /// Given a filter, combine all layers in the PSD that pass the filter into a vector
     /// of RGBA pixels.
@@ -265,11 +227,6 @@ impl Psd {
         }
     }
 
-    /// Get the compression level for the flattened image data
-    pub fn compression(&self) -> &PsdChannelCompression {
-        &self.image_data_section.compression
-    }
-
     /// Get the pixel at a coordinate within this image.
     ///
     /// If that pixel has transparency, recursively blending it with the pixel
@@ -365,5 +322,48 @@ impl Psd {
                 final_pixel
             }
         }
+    }
+}
+
+// Methods for working with the final flattened image data
+impl Psd {
+    /// Get the RGBA pixels for the PSD
+    /// [ R,G,B,A, R,G,B,A, R,G,B,A, ...]
+    pub fn rgba(&self) -> Vec<u8> {
+        let rgba_len = (self.width() * self.height() * 4) as usize;
+
+        // We use 119 because it's a weird number so we can easily notice in case
+        // we're ever parsing something incorrectly.
+        let mut rgba = vec![119; rgba_len];
+
+        Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::Red, &self.image_data_section.red);
+
+        Psd::insert_channel_bytes(
+            &mut rgba,
+            PsdChannelKind::Green,
+            &self.image_data_section.green,
+        );
+
+        Psd::insert_channel_bytes(
+            &mut rgba,
+            PsdChannelKind::Blue,
+            &self.image_data_section.blue,
+        );
+
+        if let Some(alpha_channel) = &self.image_data_section.alpha {
+            Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::TransparencyMask, alpha_channel);
+        } else {
+            // If there is no transparency data then the image is opaque
+            for idx in 0..rgba_len / 4 {
+                rgba[idx * 4 + 3] = 255;
+            }
+        }
+
+        rgba
+    }
+
+    /// Get the compression level for the flattened image data
+    pub fn compression(&self) -> &PsdChannelCompression {
+        &self.image_data_section.compression
     }
 }
