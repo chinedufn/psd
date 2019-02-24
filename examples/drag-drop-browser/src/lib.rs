@@ -147,6 +147,8 @@ impl App {
 
                 let checked = if checked { "true" } else { "false" };
 
+                let name = layer.name().to_string();
+
                 html! {
                 <div
                     style="cursor: pointer; margin-bottom: 8px; display: flex;"
@@ -156,6 +158,7 @@ impl App {
                     style="cursor: pointer; padding-top: 15px; padding-bottom: 15px; padding-left: 5px; padding-right: 5px; display: block; width: 100%;"
                   >
                     <input
+                     key=name
                      type="checkbox"
                      checked=checked
                      // TODO: make virtual-dom-rs allow for variables .. `onchange=onchange`
@@ -164,7 +167,6 @@ impl App {
                      // If the attribute starts with `on` treat the value as a closure.
                      onchange=move |event: web_sys::Event| {
                        let input: HtmlInputElement = event.target().unwrap().dyn_into().unwrap();
-
                        let msg = Msg::SetLayerVisibility(idx, input.checked());
                        store.borrow_mut().msg(&msg);
                      }
