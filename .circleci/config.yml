@@ -98,12 +98,12 @@ jobs:
             (cd book && mdbook build)
             && cargo doc --no-deps -p psd
             && cp -R target/doc book/book/api
-            # Build Demo
             && (cd examples/drag-drop-browser && ./build-release.sh)
             && ls examples/drag-drop-browser
             && cp -R examples/drag-drop-browser/public book/book/drag-drop-demo
             && mkdir book/book/see-if-this-shows-up
             && touch book/book/see-if-this-shows-up/trial-and-error.txt
+            && cd book
 
       - persist_to_workspace:
           root: book
