@@ -7,7 +7,7 @@ psd
 
 ## [Live Demo](https://chinedufn.github.io/psd/drag-drop-demo/)
 
-In the [live demo](https://chinedufn.github.io/drag-drop-demo/) you can visualize a PSD in the browser,
+In the [live demo](https://chinedufn.github.io/psd/drag-drop-demo/) you can visualize a PSD in the browser,
 toggle layers on and off and drag and drop a new PSD into the demo.
 
 ## [The Psd Book](https://chinedufn.github.io/psd)
@@ -33,7 +33,7 @@ My approach was to support as much of the PSD spec as I needed, so there might b
 
 That said, if there's anything missing that you need [please feel very free to open an issue](https://github.com/chinedufn/psd/issues)!
 
-## [API Docs](https://docs.rs/psd)
+## [API Docs](https://chinedufn.github.io/psd/api)
 
 Check out the [API documentation](https://chinedufn.github.io/psd/api) to see everything that you can currently access.
 
