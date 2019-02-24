@@ -10,18 +10,17 @@
 pub use crate::sections::file_header_section::ColorMode;
 
 use self::sections::file_header_section::FileHeaderSection;
-use crate::sections::image_data_section::ChannelBytes;
+use crate::psd_channel::InsertChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
-pub use crate::sections::layer_and_mask_information_section::layer::PsdChannelCompression;
-pub use crate::sections::layer_and_mask_information_section::layer::PsdChannelKind;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
-use crate::sections::PsdCursor;
 use failure::Error;
 use std::cell::RefCell;
 use std::collections::HashMap;
+pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
 
+mod psd_channel;
 mod sections;
 
 /// Represents the contents of a PSD file
@@ -172,61 +171,6 @@ impl Psd {
         Ok(flattened_pixels)
     }
 
-    // FIXME: Normalize with layer insert channel bytes.. Just pass in whether it is
-    // RGB or RGBA.. Or just use an enum rather ChannelCombination::{Rgb, Rgba}
-    fn insert_channel_bytes(
-        rgba: &mut Vec<u8>,
-        channel_kind: PsdChannelKind,
-        channel_bytes: &ChannelBytes,
-    ) {
-        match channel_bytes {
-            ChannelBytes::RawData(channel_bytes) => {
-                let offset = channel_kind.rgba_offset().unwrap();
-
-                for (idx, byte) in channel_bytes.iter().enumerate() {
-                    rgba[idx * 4 + offset] = *byte;
-                }
-            }
-            // https://en.wikipedia.org/wiki/PackBits
-            ChannelBytes::RleCompressed(channel_bytes) => {
-                Psd::rle_decompress_channel(rgba, channel_kind, &channel_bytes);
-            }
-        }
-    }
-
-    // https://en.wikipedia.org/wiki/PackBits
-    fn rle_decompress_channel(
-        rgba: &mut Vec<u8>,
-        channel_kind: PsdChannelKind,
-        channel_bytes: &Vec<u8>,
-    ) {
-        let mut cursor = PsdCursor::new(&channel_bytes[..]);
-
-        let mut idx = 0;
-        let offset = channel_kind.rgba_offset().unwrap();
-
-        while cursor.position() != cursor.get_ref().len() as u64 {
-            let header = cursor.read_i8().unwrap() as i16;
-
-            if header == -128 {
-                continue;
-            } else if header >= 0 {
-                let bytes_to_read = 1 + header;
-                for byte in cursor.read(bytes_to_read as u32).unwrap() {
-                    rgba[idx * 4 + offset] = *byte;
-                    idx += 1;
-                }
-            } else {
-                let repeat = 1 - header;
-                let byte = cursor.read_1().unwrap()[0];
-                for _ in 0..repeat as usize {
-                    rgba[idx * 4 + offset] = byte;
-                    idx += 1;
-                }
-            };
-        }
-    }
-
     /// Get the pixel at a coordinate within this image.
     ///
     /// If that pixel has transparency, recursively blending it with the pixel
@@ -336,22 +280,14 @@ impl Psd {
         // we're ever parsing something incorrectly.
         let mut rgba = vec![119; rgba_len];
 
-        Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::Red, &self.image_data_section.red);
+        use crate::psd_channel::PsdChannelKind::*;
 
-        Psd::insert_channel_bytes(
-            &mut rgba,
-            PsdChannelKind::Green,
-            &self.image_data_section.green,
-        );
-
-        Psd::insert_channel_bytes(
-            &mut rgba,
-            PsdChannelKind::Blue,
-            &self.image_data_section.blue,
-        );
+        self.insert_channel_bytes(&mut rgba, &Red, &self.image_data_section.red);
+        self.insert_channel_bytes(&mut rgba, &Green, &self.image_data_section.green);
+        self.insert_channel_bytes(&mut rgba, &Blue, &self.image_data_section.blue);
 
         if let Some(alpha_channel) = &self.image_data_section.alpha {
-            Psd::insert_channel_bytes(&mut rgba, PsdChannelKind::TransparencyMask, alpha_channel);
+            self.insert_channel_bytes(&mut rgba, &TransparencyMask, alpha_channel);
         } else {
             // If there is no transparency data then the image is opaque
             for idx in 0..rgba_len / 4 {
@@ -365,5 +301,13 @@ impl Psd {
     /// Get the compression level for the flattened image data
     pub fn compression(&self) -> &PsdChannelCompression {
         &self.image_data_section.compression
+    }
+}
+
+impl InsertChannelBytes for Psd {
+    /// The PSD's final image is always the same size as the PSD so we don't need to transform
+    /// indices like we do with layers.
+    fn rgba_idx(&self, idx: usize) -> usize {
+        idx
     }
 }

@@ -1,7 +1,11 @@
+use crate::psd_channel::InsertChannelBytes;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
 use failure::{format_err, Error, Fail};
 use std::collections::HashMap;
+use crate::psd_channel::PsdChannelKind;
+use crate::psd_channel::PsdChannelError;
+use crate::psd_channel::PsdChannelCompression;
 
 /// Information about a layer in a PSD file.
 ///
@@ -92,7 +96,7 @@ impl PsdLayer {
                 ChannelBytes::RleCompressed(_) => Ok(PsdChannelCompression::RleCompressed),
                 _ => unimplemented!(),
             },
-            None => Err(PsdLayerChannelError::ChannelNotFound { channel: *channel })?,
+            None => Err(PsdChannelError::ChannelNotFound { channel: *channel })?,
         }
     }
 
@@ -124,89 +128,6 @@ impl PsdLayer {
         match self.channels.get(&channel) {
             Some(layer_channel) => Ok(layer_channel),
             None => Err(PsdLayerError::MissingChannels { channel })?,
-        }
-    }
-
-    // FIXME: Normalize with image data section insert channel bytes
-    fn insert_channel_bytes(
-        &self,
-        rgba: &mut Vec<u8>,
-        channel_kind: &PsdChannelKind,
-        channel_bytes: &ChannelBytes,
-    ) {
-        match channel_bytes {
-            ChannelBytes::RawData(channel_bytes) => {
-                let offset = channel_kind.rgba_offset().unwrap();
-
-                for (idx, byte) in channel_bytes.iter().enumerate() {
-                    let left_in_layer = idx % self.width() as usize;
-                    let left_in_psd = self.layer_left as usize + left_in_layer;
-
-                    let top_in_psd = idx / self.width() as usize + self.layer_top as usize;
-
-                    let rgba_idx = top_in_psd * self.psd_width as usize + left_in_psd;
-
-                    rgba[rgba_idx * 4 + offset] = *byte;
-                }
-            }
-            // https://en.wikipedia.org/wiki/PackBits
-            ChannelBytes::RleCompressed(channel_bytes) => {
-                self.rle_decompress_channel(rgba, channel_kind, &channel_bytes);
-            }
-        }
-    }
-
-    // https://en.wikipedia.org/wiki/PackBits
-    // TODO: Normalize with image_data_section.rs rle compression code
-    fn rle_decompress_channel(
-        &self,
-        rgba: &mut Vec<u8>,
-        channel_kind: &PsdChannelKind,
-        channel_bytes: &Vec<u8>,
-    ) {
-        let mut cursor = PsdCursor::new(&channel_bytes[..]);
-
-        let offset = channel_kind.rgba_offset().unwrap();
-
-        let start = (self.layer_top * self.psd_width) + self.layer_left;
-        let start = start as usize;
-
-        let mut idx = 0;
-
-        while cursor.position() != cursor.get_ref().len() as u64 {
-            let header = cursor.read_i8().unwrap() as i16;
-
-            // FIXME: Make DRY
-            if header == -128 {
-                continue;
-            } else if header >= 0 {
-                let bytes_to_read = 1 + header;
-                for byte in cursor.read(bytes_to_read as u32).unwrap() {
-                    let left_in_layer = idx % self.width() as usize;
-                    let left_in_psd = self.layer_left as usize + left_in_layer;
-
-                    let top_in_psd = idx / self.width() as usize + self.layer_top as usize;
-
-                    let rgba_idx = (top_in_psd * self.psd_width as usize) + left_in_psd;
-
-                    rgba[rgba_idx * 4 + offset] = *byte;
-                    idx += 1;
-                }
-            } else {
-                let repeat = 1 - header;
-                let byte = cursor.read_1().unwrap()[0];
-                for _ in 0..repeat as usize {
-                    let left_in_layer = idx % self.width() as usize;
-                    let left_in_psd = self.layer_left as usize + left_in_layer;
-
-                    let top_in_psd = idx / self.width() as usize + self.layer_top as usize;
-
-                    let rgba_idx = (top_in_psd * self.psd_width as usize) + left_in_psd;
-
-                    rgba[rgba_idx * 4 + offset] = byte;
-                    idx += 1;
-                }
-            };
         }
     }
 }
@@ -244,96 +165,16 @@ impl LayerRecord {
     }
 }
 
-/// A channel within a PSD Layer
-#[derive(Debug)]
-pub struct PsdLayerChannel {
-    /// How the channel data is compressed
-    pub(super) compression: PsdChannelCompression,
-    /// The data for this image channel
-    pub(super) channel_data: Vec<u8>,
-}
 
-/// How is this layer channel data compressed?
-#[derive(Debug, Eq, PartialEq)]
-#[allow(missing_docs)]
-pub enum PsdChannelCompression {
-    /// Not compressed
-    RawData = 0,
-    /// Compressed using [PackBits RLE compression](https://en.wikipedia.org/wiki/PackBits)
-    RleCompressed = 1,
-    /// Currently unsupported
-    ZipWithoutPrediction = 2,
-    /// Currently unsupported
-    ZipWithPrediction = 3,
-}
+impl InsertChannelBytes for PsdLayer {
+    fn rgba_idx(&self, idx: usize) -> usize {
+        let left_in_layer = idx % self.width() as usize;
+        let left_in_psd = self.layer_left as usize + left_in_layer;
 
-impl PsdChannelCompression {
-    /// Create a new PsdLayerChannelCompression
-    pub fn new(compression: u16) -> Result<PsdChannelCompression, Error> {
-        match compression {
-            0 => Ok(PsdChannelCompression::RawData),
-            1 => Ok(PsdChannelCompression::RleCompressed),
-            2 => Ok(PsdChannelCompression::ZipWithoutPrediction),
-            3 => Ok(PsdChannelCompression::ZipWithPrediction),
-            _ => Err(PsdLayerChannelError::InvalidCompression { compression })?,
-        }
-    }
-}
+        let top_in_psd = idx / self.width() as usize + self.layer_top as usize;
 
-/// The different kinds of channels in a layer (red, green, blue, ...).
-#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
-#[allow(missing_docs)]
-pub enum PsdChannelKind {
-    Red = 0,
-    Green = 1,
-    Blue = 2,
-    TransparencyMask = -1,
-    UserSuppliedLayerMask = -2,
-    RealUserSuppliedLayerMask = -3,
-}
+        let rgba_idx = (top_in_psd * self.psd_width as usize) + left_in_psd;
 
-/// Represents an invalid layer channel id
-#[derive(Debug, Fail)]
-pub enum PsdLayerChannelError {
-    #[fail(
-        display = "{} is an invalid channel id, must be 0, 1, 2, -1, -2, or -3.",
-        channel_id
-    )]
-    InvalidChannel { channel_id: i16 },
-    #[fail(
-        display = "{} is an invalid layer channel compression. Must be 0, 1, 2 or 3",
-        compression
-    )]
-    InvalidCompression { compression: u16 },
-    #[fail(display = "Channel {:#?} not present", channel)]
-    ChannelNotFound { channel: PsdChannelKind },
-}
-
-impl PsdChannelKind {
-    /// Create a new PsdLayerChannel
-    pub fn new(channel_id: i16) -> Result<PsdChannelKind, Error> {
-        match channel_id {
-            0 => Ok(PsdChannelKind::Red),
-            1 => Ok(PsdChannelKind::Green),
-            2 => Ok(PsdChannelKind::Blue),
-            -1 => Ok(PsdChannelKind::TransparencyMask),
-            -2 => Ok(PsdChannelKind::UserSuppliedLayerMask),
-            -3 => Ok(PsdChannelKind::RealUserSuppliedLayerMask),
-            _ => Err(PsdLayerChannelError::InvalidChannel { channel_id })?,
-        }
-    }
-
-    /// R -> 0
-    /// G -> 1
-    /// B -> 2
-    /// A -> 3
-    pub fn rgba_offset(&self) -> Result<usize, Error> {
-        match self {
-            PsdChannelKind::Red => Ok(0),
-            PsdChannelKind::Green => Ok(1),
-            PsdChannelKind::Blue => Ok(2),
-            PsdChannelKind::TransparencyMask => Ok(3),
-            _ => Err(format_err!("{:#?} is not an RGBA channel", &self)),
-        }
+        rgba_idx
     }
 }

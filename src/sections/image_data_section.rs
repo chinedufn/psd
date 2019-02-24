@@ -1,6 +1,6 @@
-use crate::sections::layer_and_mask_information_section::layer::PsdChannelCompression;
 use crate::sections::PsdCursor;
 use failure::{Error, Fail};
+use crate::psd_channel::PsdChannelCompression;
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
 /// of the final PSD image (the one that comes from combining all of the layers).
@@ -50,7 +50,6 @@ impl ImageDataSection {
                 // First 2 bytes were compression bytes
                 let channel_bytes = &bytes[2..];
                 let channel_byte_count = channel_bytes.len();
-                let pixel_count = width * height;
 
                 let bytes_per_channel = channel_byte_count / channel_count;
 
@@ -90,7 +89,6 @@ impl ImageDataSection {
                 // First 2 bytes were compression bytes
                 let channel_bytes = &bytes[2..];
                 let channel_byte_count = channel_bytes.len();
-                let pixel_count = width * height;
 
                 let mut red_byte_count = 0;
                 let mut green_byte_count = 0;

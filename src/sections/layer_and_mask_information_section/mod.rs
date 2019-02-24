@@ -1,11 +1,11 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::layer_and_mask_information_section::layer::LayerRecord;
-use crate::sections::layer_and_mask_information_section::layer::PsdChannelCompression;
-use crate::sections::layer_and_mask_information_section::layer::PsdChannelKind;
 use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::PsdCursor;
 use failure::Error;
 use std::collections::HashMap;
+use crate::psd_channel::PsdChannelKind;
+use crate::psd_channel::PsdChannelCompression;
 
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_BIM: [u8; 4] = [56, 66, 73, 77];
