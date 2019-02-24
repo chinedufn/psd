@@ -182,9 +182,13 @@ impl Psd {
             .collect();
         layers_to_flatten.reverse();
 
-        let mut cached_layer_rgba = RefCell::new(HashMap::new());
-
         let pixels = self.width() * self.height();
+
+        if layers_to_flatten.len() == 0 {
+            return Ok(vec![0; pixels as usize * 4]);
+        }
+
+        let mut cached_layer_rgba = RefCell::new(HashMap::new());
 
         let layer_count = layers_to_flatten.len();
 
@@ -195,7 +199,8 @@ impl Psd {
             let top = pixel_idx / self.width() as usize;
             let pixel_coord = (left, top);
 
-            let pixel = self.flattened_pixel(0, pixel_coord, &layers_to_flatten, &mut cached_layer_rgba);
+            let pixel =
+                self.flattened_pixel(0, pixel_coord, &layers_to_flatten, &mut cached_layer_rgba);
             flattened_pixels.push(pixel[0]);
             flattened_pixels.push(pixel[1]);
             flattened_pixels.push(pixel[2]);

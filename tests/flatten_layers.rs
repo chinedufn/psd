@@ -21,3 +21,18 @@ fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<(), failu
     Ok(())
 }
 
+// Make sure that if we're flattening with a filter that returns zero layers we get back
+// a transparent image.
+#[test]
+fn no_matching_layers() -> Result<(), failure::Error> {
+    let psd = include_bytes!("./transparent-top-layer-2x1.psd");
+    let psd = Psd::from_bytes(psd)?;
+
+    let flattened = psd.flatten_layers_rgba(&|(idx, layer)| {
+        false
+    })?;
+
+    assert_eq!(&flattened[0..8], &[0, 0, 0, 0, 0, 0, 0, 0]);
+
+    Ok(())
+}
