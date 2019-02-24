@@ -103,7 +103,7 @@ jobs:
       - run:
           name: Build Demo
           command: >
-            examples/drag-drop-browser/build-release.sh
+            (cd examples/drag-drop-browser && ./build-release.sh)
             && cp -R examples/drag-drop-browser/public book/book/drag-drop-demo
 
       - persist_to_workspace:
