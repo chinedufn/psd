@@ -411,8 +411,9 @@ static _LAYOUT: &'static str = css! {r#"
 }
 "#};
 
-// A macro to provide `println!(..)`-style syntax for `console.log` logging.
-// TODO: cfg debug attrs so that logs don't make it into production builds
+// Just like println! but works in the browser
+//
+// clog!("Hello world {}", some_variable);
 #[macro_export]
 macro_rules! clog {
     ( $( $t:tt )* ) => {
