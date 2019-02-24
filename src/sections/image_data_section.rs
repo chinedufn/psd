@@ -83,8 +83,6 @@ impl ImageDataSection {
             // data follows, with each scan line compressed separately. The RLE compression is
             // the same compression algorithm used by the Macintosh ROM routine PackBits,
             // and the TIFF standard.
-            //
-            // TODO: Normalize with layer.rs rle compression code
             PsdChannelCompression::RleCompressed => {
                 // First 2 bytes were compression bytes
                 let channel_bytes = &bytes[2..];

@@ -1,7 +1,6 @@
 use crate::psd_channel::InsertChannelBytes;
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::PsdCursor;
-use failure::{format_err, Error, Fail};
+use failure::{Error, Fail};
 use std::collections::HashMap;
 use crate::psd_channel::PsdChannelKind;
 use crate::psd_channel::PsdChannelError;
@@ -9,8 +8,9 @@ use crate::psd_channel::PsdChannelCompression;
 
 /// Information about a layer in a PSD file.
 ///
-/// TODO: Set all ofo these pubs to get things working. Replace with private
-/// and accessor methods
+/// TODO: I set all of these pub during a late evening of getting to get things working.
+/// Replace with private and accessor methods so that this crate is as locked down as possible
+/// (to allow us to be strict).
 #[derive(Debug)]
 pub struct PsdLayer {
     /// The name of this layer
@@ -109,15 +109,11 @@ impl PsdLayer {
         let blue = self.get_channel(PsdChannelKind::Blue)?;
         let alpha = self.get_channel(PsdChannelKind::TransparencyMask)?;
 
-        // FIXME: Default to 0, not 255. Just testing something.
         let mut rgba = vec![0; self.psd_width as usize * self.psd_height as usize * 4 as usize];
 
         self.insert_channel_bytes(&mut rgba, &PsdChannelKind::Red, &red);
-
         self.insert_channel_bytes(&mut rgba, &PsdChannelKind::Green, &green);
-
         self.insert_channel_bytes(&mut rgba, &PsdChannelKind::Blue, &blue);
-
         self.insert_channel_bytes(&mut rgba, &PsdChannelKind::TransparencyMask, &alpha);
 
         Ok(rgba)
