@@ -54,7 +54,7 @@ fn transparency_rle_compressed() -> Result<(), failure::Error> {
 
     assert_eq!(psd.compression(), &PsdChannelCompression::RleCompressed);
 
-//    assert_colors(psd.rgba(), &psd, &red_block);
+    assert_colors(psd.rgba(), &psd, &red_block);
 
     assert_eq!(
         psd.layer_by_name("OpaqueCenter")?
