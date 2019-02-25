@@ -12,7 +12,7 @@ toggle layers on and off and drag and drop a new PSD into the demo.
 
 ## [The Psd Book](https://chinedufn.github.io/psd)
 
-The _WIP_ [The Psd Book](https://chinedufn.github.io/psd/book) will contain information about getting started with the `psd` crate,
+The _WIP_ [The Psd Book](https://chinedufn.github.io/psd) will contain information about getting started with the `psd` crate,
 a description of the architecture and information on how to get started.
 
 ## Background / Initial Motivation
