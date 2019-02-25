@@ -389,6 +389,8 @@ fn body() -> web_sys::HtmlElement {
 static APP_CONTAINER: &'static str = css! {r#"
 :host {
     display: flex;
+    width: 100%;
+    height: 100%;
 }
 "#};
 

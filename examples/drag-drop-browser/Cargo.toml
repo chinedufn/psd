@@ -20,6 +20,7 @@ version = "0.3"
 features = [
     "Blob",
     "CanvasRenderingContext2d",
+    "CssStyleDeclaration",
     "DataTransfer",
     "Document",
     "DragEvent",
