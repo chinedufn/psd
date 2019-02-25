@@ -525,14 +525,14 @@ __exports.__wbindgen_closure_wrapper141 = function(a, b, _ignored) {
 };
 
 __exports.__wbindgen_closure_wrapper143 = function(a, b, _ignored) {
-    const f = wasm.__wbg_function_table.get(45);
+    const f = wasm.__wbg_function_table.get(41);
     const d = wasm.__wbg_function_table.get(42);
-    const cb = function() {
+    const cb = function(arg0) {
         this.cnt++;
         let a = this.a;
         this.a = 0;
         try {
-            return f(a, b);
+            return f(a, b, addHeapObject(arg0));
 
         } finally {
             this.a = a;
@@ -549,14 +549,14 @@ __exports.__wbindgen_closure_wrapper143 = function(a, b, _ignored) {
 };
 
 __exports.__wbindgen_closure_wrapper145 = function(a, b, _ignored) {
-    const f = wasm.__wbg_function_table.get(41);
+    const f = wasm.__wbg_function_table.get(46);
     const d = wasm.__wbg_function_table.get(42);
-    const cb = function(arg0) {
+    const cb = function() {
         this.cnt++;
         let a = this.a;
         this.a = 0;
         try {
-            return f(a, b, addHeapObject(arg0));
+            return f(a, b);
 
         } finally {
             this.a = a;
