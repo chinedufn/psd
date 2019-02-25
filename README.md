@@ -75,7 +75,7 @@ fn main () {
 
     // Combine the PSD layers top to bottom, ignoring any layers that begin with an `_`
     let pixels: Vec<u8> = psd.flatten_layers_rgba(|(_idx, layer)| {
-        layer.name().starts_with("_")
+        !layer.name().starts_with("_")
     });
 }
 ```
