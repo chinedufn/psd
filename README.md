@@ -15,6 +15,10 @@ toggle layers on and off and drag and drop a new PSD into the demo.
 The _WIP_ [The Psd Book](https://chinedufn.github.io/psd) will contain information about getting started with the `psd` crate,
 a description of the architecture and information on how to get started.
 
+## [API Docs](https://chinedufn.github.io/psd/api/psd)
+
+Check out the [API documentation](https://chinedufn.github.io/psd/api/psd) to see everything that you can currently access.
+
 ## Background / Initial Motivation
 
 I'm working on a game and part of my asset compilation process was a script that did the following:
@@ -32,10 +36,6 @@ After a bit of Googling I couldn't land on a solution for my problem so I decide
 My approach was to support as much of the PSD spec as I needed, so there might be bits of information that you'd like to make use of that aren't currently supported.
 
 That said, if there's anything missing that you need [please feel very free to open an issue](https://github.com/chinedufn/psd/issues)!
-
-## [API Docs](https://chinedufn.github.io/psd/api/psd)
-
-Check out the [API documentation](https://chinedufn.github.io/psd/api/psd) to see everything that you can currently access.
 
 ## Usage
 
