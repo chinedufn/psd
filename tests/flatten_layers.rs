@@ -7,7 +7,7 @@ const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 // A fully transparent pixel gets replaced by the pixel on the layer below it
 #[test]
 fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<(), failure::Error> {
-    let psd = include_bytes!("./transparent-top-layer-2x1.psd");
+    let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");
     let psd = Psd::from_bytes(psd)?;
 
     let flattened = psd.flatten_layers_rgba(&|(idx, layer)| {
@@ -24,7 +24,7 @@ fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<(), failu
 // a transparent image.
 #[test]
 fn no_matching_layers() -> Result<(), failure::Error> {
-    let psd = include_bytes!("./transparent-top-layer-2x1.psd");
+    let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");
     let psd = Psd::from_bytes(psd)?;
 
     let flattened = psd.flatten_layers_rgba(&|(idx, layer)| false)?;

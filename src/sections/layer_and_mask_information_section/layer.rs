@@ -102,28 +102,23 @@ impl PsdLayer {
     /// Create a vector that interleaves the red, green, blue and alpha channels in this PSD
     ///
     /// vec![R, G, B, A, R, G, B, A, ...]
+    ///
+    /// FIXME: Normalize with Psd.rgba()
     pub fn rgba(&self) -> Result<Vec<u8>, Error> {
-        let red = self.get_channel(PsdChannelKind::Red)?;
-        let green = self.get_channel(PsdChannelKind::Green)?;
-        let blue = self.get_channel(PsdChannelKind::Blue)?;
-        let alpha = self.get_channel(PsdChannelKind::TransparencyMask)?;
-
-        let mut rgba = vec![0; self.psd_width as usize * self.psd_height as usize * 4 as usize];
-
-        self.insert_channel_bytes(&mut rgba, &PsdChannelKind::Red, &red);
-        self.insert_channel_bytes(&mut rgba, &PsdChannelKind::Green, &green);
-        self.insert_channel_bytes(&mut rgba, &PsdChannelKind::Blue, &blue);
-        self.insert_channel_bytes(&mut rgba, &PsdChannelKind::TransparencyMask, &alpha);
-
+        let rgba = self.generate_rgba(
+            self.psd_width,
+            self.psd_height,
+            self.get_channel(PsdChannelKind::Red).unwrap(),
+            self.get_channel(PsdChannelKind::Green),
+            self.get_channel(PsdChannelKind::Blue),
+            self.get_channel(PsdChannelKind::TransparencyMask),
+        )?;
         Ok(rgba)
     }
 
     // Get one of the PsdLayerChannels of this PsdLayer
-    fn get_channel(&self, channel: PsdChannelKind) -> Result<&ChannelBytes, Error> {
-        match self.channels.get(&channel) {
-            Some(layer_channel) => Ok(layer_channel),
-            None => Err(PsdLayerError::MissingChannels { channel })?,
-        }
+    fn get_channel(&self, channel: PsdChannelKind) -> Option<&ChannelBytes> {
+        self.channels.get(&channel)
     }
 }
 

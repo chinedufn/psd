@@ -7,7 +7,7 @@ const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 
 #[test]
 fn rle_decompress_final_image() -> Result<(), Error> {
-    let psd = include_bytes!("./rle-3-layer-8x8.psd");
+    let psd = include_bytes!("./fixtures/rle-3-layer-8x8.psd");
     let psd = Psd::from_bytes(psd)?;
 
     assert_eq!(psd.compression(), &PsdChannelCompression::RleCompressed);
@@ -22,7 +22,7 @@ fn rle_decompress_final_image() -> Result<(), Error> {
 
 #[test]
 fn rle_decompress_layer() -> Result<(), Error> {
-    let psd = include_bytes!("./rle-3-layer-8x8.psd");
+    let psd = include_bytes!("./fixtures/rle-3-layer-8x8.psd");
     let psd = Psd::from_bytes(psd)?;
 
     for (layer_name, expected_pixels) in [

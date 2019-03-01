@@ -63,8 +63,12 @@ impl Psd {
             psd_height,
         )?;
 
-        let image_data_section =
-            ImageDataSection::from_bytes(major_sections.image_data, psd_height, channel_count)?;
+        let image_data_section = ImageDataSection::from_bytes(
+            major_sections.image_data,
+            psd_width,
+            psd_height,
+            channel_count,
+        )?;
 
         Ok(Psd {
             file_header_section,
@@ -135,6 +139,16 @@ impl Psd {
         &self,
         filter: &Fn((usize, &PsdLayer)) -> bool,
     ) -> Result<Vec<u8>, Error> {
+        // When you create a PSD but don't create any new layers the bottom layer might not
+        // show up in the layer and mask information section, so we won't see any layers.
+        //
+        // TODO: We should try and figure out where the layer name is so that we can return
+        // a completely transparent image if it is filtered out. But this should be a rare
+        // use case so we can just always return the final image for now.
+        if self.layers().len() == 0 {
+            return Ok(self.rgba());
+        }
+
         // Filter out layers based on the passed in filter.
         let mut layers_to_flatten_bottom_to_top: Vec<(usize, &PsdLayer)> = self
             .layers()
@@ -299,29 +313,18 @@ fn blend_pixels(top: [u8; 4], bottom: [u8; 4], out: &mut [u8; 4]) {
 impl Psd {
     /// Get the RGBA pixels for the PSD
     /// [ R,G,B,A, R,G,B,A, R,G,B,A, ...]
+    ///
+    /// FIXME: normalize with layer.rgba()
     pub fn rgba(&self) -> Vec<u8> {
-        let rgba_len = (self.width() * self.height() * 4) as usize;
-
-        // We use 119 because it's a weird number so we can easily notice in case
-        // we're ever parsing something incorrectly.
-        let mut rgba = vec![119; rgba_len];
-
-        use crate::psd_channel::PsdChannelKind::*;
-
-        self.insert_channel_bytes(&mut rgba, &Red, &self.image_data_section.red);
-        self.insert_channel_bytes(&mut rgba, &Green, &self.image_data_section.green);
-        self.insert_channel_bytes(&mut rgba, &Blue, &self.image_data_section.blue);
-
-        if let Some(alpha_channel) = &self.image_data_section.alpha {
-            self.insert_channel_bytes(&mut rgba, &TransparencyMask, alpha_channel);
-        } else {
-            // If there is no transparency data then the image is opaque
-            for idx in 0..rgba_len / 4 {
-                rgba[idx * 4 + 3] = 255;
-            }
-        }
-
-        rgba
+        self.generate_rgba(
+            self.width(),
+            self.height(),
+            &self.image_data_section.red,
+            self.image_data_section.green.as_ref(),
+            self.image_data_section.blue.as_ref(),
+            self.image_data_section.alpha.as_ref(),
+        )
+        .unwrap()
     }
 
     /// Get the compression level for the flattened image data

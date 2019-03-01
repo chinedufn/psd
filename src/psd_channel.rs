@@ -11,6 +11,51 @@ pub trait InsertChannelBytes {
     /// otherwise it will get transformed.
     fn rgba_idx(&self, idx: usize) -> usize;
 
+    fn generate_rgba(
+        &self,
+        psd_width: u32,
+        psd_height: u32,
+        red: &ChannelBytes,
+        green: Option<&ChannelBytes>,
+        blue: Option<&ChannelBytes>,
+        alpha: Option<&ChannelBytes>,
+    ) -> Result<Vec<u8>, Error> {
+        let rgba_len = (psd_width * psd_height * 4) as usize;
+
+        let mut rgba = vec![0; rgba_len];
+
+        use crate::psd_channel::PsdChannelKind::*;
+
+        self.insert_channel_bytes(&mut rgba, &Red, red);
+
+        // If there is a green channel we use it, otherwise we use the red channel since this is
+        // a single channel grey image (such as a heightmap).
+        if let Some(green) = green {
+            self.insert_channel_bytes(&mut rgba, &Green, green);
+        } else {
+            self.insert_channel_bytes(&mut rgba, &Green, red);
+        }
+
+        // If there is a blue channel we use it, otherwise we use the red channel since this is
+        // a single channel grey image (such as a heightmap).
+        if let Some(blue) = blue {
+            self.insert_channel_bytes(&mut rgba, &Blue, blue);
+        } else {
+            self.insert_channel_bytes(&mut rgba, &Blue, red);
+        }
+
+        if let Some(alpha_channel) = alpha {
+            self.insert_channel_bytes(&mut rgba, &TransparencyMask, alpha_channel);
+        } else {
+            // If there is no transparency data then the image is opaque
+            for idx in 0..rgba_len / 4 {
+                rgba[idx * 4 + 3] = 255;
+            }
+        }
+
+        Ok(rgba)
+    }
+
     /// Given some vector of bytes, insert the bytes from the given channel into the vector.
     ///
     /// Doing it this way allows us to allocate for one vector and insert all 4 (RGBA) channels into

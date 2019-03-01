@@ -1,8 +1,8 @@
+use failure::Error;
 use psd::Psd;
 use psd::PsdChannelCompression;
 use psd::PsdChannelKind;
 use std::collections::HashMap;
-use failure::Error;
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
@@ -18,7 +18,7 @@ const TRANSPARENT_PIXEL_LAYER: [u8; 4] = [0, 0, 0, 0];
 // return the correct RGBA
 #[test]
 fn transparency_raw_data() -> Result<(), failure::Error> {
-    let psd = include_bytes!("./3x3-opaque-center.psd");
+    let psd = include_bytes!("./fixtures/3x3-opaque-center.psd");
 
     let psd = Psd::from_bytes(psd)?;
     let pixel_count = psd.width() * psd.height();
@@ -41,7 +41,7 @@ fn transparency_raw_data() -> Result<(), failure::Error> {
 // return the correct RGBA
 #[test]
 fn transparency_rle_compressed() -> Result<(), failure::Error> {
-    let psd = include_bytes!("./16x16-rle-partially-opaque.psd");
+    let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
 
     let pixel_count = psd.width() * psd.height();
@@ -72,12 +72,10 @@ fn transparency_rle_compressed() -> Result<(), failure::Error> {
 // method when we were recursing into the method and trying to borrow when we'd already borrowed.
 #[test]
 fn transparent_above_opaque() -> Result<(), Error> {
-    let psd = include_bytes!("./transparent-above-opaque.psd");
+    let psd = include_bytes!("./fixtures/transparent-above-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    let image = psd.flatten_layers_rgba(&|_| {
-        true
-    })?;
+    let image = psd.flatten_layers_rgba(&|_| true)?;
 
     assert_eq!(image[0..4], BLUE_PIXEL);
 
