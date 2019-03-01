@@ -2,6 +2,7 @@ use psd::Psd;
 use psd::PsdChannelCompression;
 use psd::PsdChannelKind;
 use std::collections::HashMap;
+use failure::Error;
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
@@ -63,6 +64,22 @@ fn transparency_rle_compressed() -> Result<(), failure::Error> {
     );
 
     assert_colors(psd.layer_by_name("OpaqueCenter")?.rgba()?, &psd, &red_block);
+
+    Ok(())
+}
+
+// Fixes an `already borrowed: BorrowMutError` that we were getting in the `flattened_pixel`
+// method when we were recursing into the method and trying to borrow when we'd already borrowed.
+#[test]
+fn transparent_above_opaque() -> Result<(), Error> {
+    let psd = include_bytes!("./transparent-above-opaque.psd");
+    let psd = Psd::from_bytes(psd)?;
+
+    let image = psd.flatten_layers_rgba(&|_| {
+        true
+    })?;
+
+    assert_eq!(image[0..4], BLUE_PIXEL);
 
     Ok(())
 }

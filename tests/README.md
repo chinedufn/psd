@@ -44,3 +44,9 @@ Originally created to test having a layer where the layer's dimensions are small
 
 Originally created to test having an rle compressed layer where the layer's dimensions are smaller
 than the PSD dimensions.
+
+#### ./transparent-above-opaque.psd
+
+1x1 pixel PSD with top layer transparent bottom layer blue.
+
+Originally created to test an error where we were borrowing a RefCell twice while recursively flattening a transparent pixel.

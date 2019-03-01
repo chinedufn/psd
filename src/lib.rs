@@ -237,19 +237,23 @@ impl Psd {
                 .insert(flattened_layer_top_down_idx, pixels);
         }
 
-        let cache = cached_layer_rgba.borrow();
-        let layer_rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
+        let pixel = {
+            let cache = cached_layer_rgba.borrow();
+            let layer_rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
 
-        let pixel_idx = ((self.width() as usize * pixel_top) + pixel_left) * 4;
+            let pixel_idx = ((self.width() as usize * pixel_top) + pixel_left) * 4;
 
-        let (start, end) = (pixel_idx, pixel_idx + 4);
-        let pixel = &layer_rgba[start..end];
+            let (start, end) = (pixel_idx, pixel_idx + 4);
+
+            let pixel = &layer_rgba[start..end];
+            let mut copy = [0; 4];
+            copy.copy_from_slice(pixel);
+            copy
+        };
 
         // This pixel is fully opaque, return it
         if pixel[3] == 255 {
-            let mut final_pixel = [0; 4];
-            final_pixel.copy_from_slice(&pixel);
-            final_pixel
+            pixel
         } else {
             // If this pixel has some transparency, blend it with the layer below it
 
@@ -265,35 +269,30 @@ impl Psd {
                         cached_layer_rgba,
                     );
 
-                    // blend the two pixels.
-                    //
-                    // ((thisColor * thisAlpha) + (otherColor * (1 - thisAlpha)) / 2);
-                    //
-                    // TODO: Take the layer's blend mode into account when blending layers. Right now
-                    // we just use ONE_MINUS_SRC_ALPHA blending regardless of the layer.
-                    // Didn't bother cleaning this up to be readable since we need to replace it
-                    // anyways. Need to blend based on the layer's blend mode.
-                    final_pixel[0] = (((pixel[0] as u16 * pixel[3] as u16)
-                        + (pixel_below[0] as u16 * (255 - pixel[3] as u16)))
-                        / 2) as u8;
-                    final_pixel[1] = (((pixel[1] as u16 * pixel[3] as u16)
-                        + (pixel_below[1] as u16 * (255 - pixel[3] as u16)))
-                        / 2) as u8;
-                    final_pixel[2] = (((pixel[2] as u16 * pixel[3] as u16)
-                        + (pixel_below[2] as u16 * (255 - pixel[3] as u16)))
-                        / 2) as u8;
-                    final_pixel[3] = 255;
-
+                    blend_pixels(pixel, pixel_below, &mut final_pixel);
                     final_pixel
                 }
                 // There is no pixel below this layer, so use it even though it has transparency
-                false => {
-                    final_pixel.copy_from_slice(pixel);
-                    final_pixel
-                }
+                false => pixel,
             }
         }
     }
+}
+
+// blend the two pixels.
+//
+// TODO: Take the layer's blend mode into account when blending layers. Right now
+// we just use ONE_MINUS_SRC_ALPHA blending regardless of the layer.
+// Didn't bother cleaning this up to be readable since we need to replace it
+// anyways. Need to blend based on the layer's blend mode.
+fn blend_pixels(top: [u8; 4], bottom: [u8; 4], out: &mut [u8; 4]) {
+    let top_alpha = top[3] as f32 / 255.;
+
+    out[0] = (bottom[0] as f32 + ((top[0] as f32 - bottom[0] as f32) * top_alpha)) as u8;
+    out[1] = (bottom[1] as f32 + ((top[1] as f32 - bottom[1] as f32) * top_alpha)) as u8;
+    out[2] = (bottom[2] as f32 + ((top[2] as f32 - bottom[2] as f32) * top_alpha)) as u8;
+
+    out[3] = 255;
 }
 
 // Methods for working with the final flattened image data

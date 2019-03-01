@@ -173,10 +173,14 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // Read the rectangle that encloses the layer mask.
     let top = cursor.read_u32()?;
     let left = cursor.read_u32()?;
-    // Subtract one in order to zero index
-    let bottom = cursor.read_u32()? - 1;
-    // Subtract one in order to zero index
-    let right = cursor.read_u32()? - 1;
+    // Subtract one in order to zero index. If a layer is fully transparent it's bottom will
+    // already be 0 so we don't subtract
+    let bottom = cursor.read_u32()?;
+    let bottom = if bottom == 0 { 0 } else { bottom - 1 };
+    // Subtract one in order to zero index. If a layer is fully transparent it's right will
+    // already be zero so we don't subtract.
+    let right = cursor.read_u32()?;
+    let right = if right == 0 { 0 } else { right - 1 };
 
     // Get the number of channels in the layer
     let channel_count = cursor.read_u16()?;
