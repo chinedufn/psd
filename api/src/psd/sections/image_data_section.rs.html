@@ -164,8 +164,42 @@
 <span id="164">164</span>
 <span id="165">165</span>
 <span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelCompression</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelError</span>::<span class="ident">ChannelNotFound</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">PsdCursor</span>;
 <span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
 
@@ -189,9 +223,9 @@
     <span class="doccomment">/// The red channel of the final image</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="ident">red</span>: <span class="ident">ChannelBytes</span>,
     <span class="doccomment">/// The green channel of the final image</span>
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="ident">green</span>: <span class="ident">ChannelBytes</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="ident">green</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChannelBytes</span><span class="op">&gt;</span>,
     <span class="doccomment">/// the blue channel of the final image</span>
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="ident">blue</span>: <span class="ident">ChannelBytes</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="ident">blue</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChannelBytes</span><span class="op">&gt;</span>,
     <span class="doccomment">/// the alpha channel of the final image.</span>
     <span class="doccomment">/// If there is no alpha channel then it is a fully opaque image.</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="ident">alpha</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChannelBytes</span><span class="op">&gt;</span>,
@@ -202,7 +236,8 @@
     <span class="doccomment">/// (including the length market)</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(
         <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-        <span class="ident">height</span>: <span class="ident">u32</span>,
+        <span class="ident">psd_width</span>: <span class="ident">u32</span>,
+        <span class="ident">psd_height</span>: <span class="ident">u32</span>,
         <span class="ident">channel_count</span>: <span class="ident">u8</span>,
     ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImageDataSection</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">PsdCursor</span>::<span class="ident">new</span>(<span class="ident">bytes</span>);
@@ -213,34 +248,46 @@
 
         <span class="kw">let</span> (<span class="ident">red</span>, <span class="ident">green</span>, <span class="ident">blue</span>, <span class="ident">alpha</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">compression</span> {
             <span class="ident">PsdChannelCompression</span>::<span class="ident">RawData</span> <span class="op">=&gt;</span> {
-                <span class="comment">// First 2 bytes were compression bytes</span>
-                <span class="kw">let</span> <span class="ident">channel_bytes</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">bytes</span>[<span class="number">2</span>..];
-                <span class="kw">let</span> <span class="ident">channel_byte_count</span> <span class="op">=</span> <span class="ident">channel_bytes</span>.<span class="ident">len</span>();
+                <span class="comment">// Found an extra byte at the end of a single channel PSD file, so instead of just</span>
+                <span class="comment">// using all of the remaining bytes and assuming that they are part of the section</span>
+                <span class="comment">// we make sure to use the exact number of remaining bytes that we need.</span>
+                <span class="kw">let</span> <span class="ident">bytes_per_channel</span> <span class="op">=</span> (<span class="ident">psd_width</span> <span class="op">*</span> <span class="ident">psd_height</span>) <span class="kw">as</span> <span class="ident">usize</span>;
+                <span class="kw">let</span> <span class="ident">total_channel_bytes</span> <span class="op">=</span> <span class="ident">bytes_per_channel</span> <span class="op">*</span> <span class="ident">channel_count</span>;
 
-                <span class="kw">let</span> <span class="ident">bytes_per_channel</span> <span class="op">=</span> <span class="ident">channel_byte_count</span> <span class="op">/</span> <span class="ident">channel_count</span>;
+                <span class="comment">// First 2 bytes were compression bytes</span>
+                <span class="kw">let</span> <span class="ident">channel_bytes</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">bytes</span>[<span class="number">2</span>..<span class="number">2</span> <span class="op">+</span> <span class="ident">total_channel_bytes</span>];
 
                 <span class="comment">// First bytes are red</span>
                 <span class="kw">let</span> <span class="ident">red</span> <span class="op">=</span> <span class="ident">channel_bytes</span>[..<span class="ident">bytes_per_channel</span>].<span class="ident">into</span>();
+
                 <span class="comment">// Next bytes are green</span>
-                <span class="kw">let</span> <span class="ident">green</span> <span class="op">=</span> <span class="ident">channel_bytes</span>[<span class="ident">bytes_per_channel</span>..<span class="number">2</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>].<span class="ident">into</span>();
-                <span class="comment">// Then comes blue</span>
-                <span class="kw">let</span> <span class="ident">blue</span> <span class="op">=</span> <span class="ident">channel_bytes</span>[<span class="number">2</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>..<span class="number">3</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>].<span class="ident">into</span>();
-                <span class="comment">// And optionally alpha bytes</span>
-                <span class="kw">let</span> <span class="ident">alpha</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">channel_count</span> {
-                    <span class="number">4</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(
-                        <span class="ident">channel_bytes</span>[<span class="number">3</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>..<span class="number">4</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>].<span class="ident">to_vec</span>(),
-                    )),
-                    <span class="number">3</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
-                    <span class="comment">// This was was handled above by returning an error</span>
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+                <span class="kw">let</span> <span class="ident">green</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">channel_count</span> <span class="op">&gt;=</span> <span class="number">2</span> {
+                    <span class="prelude-val">Some</span>(<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(
+                        <span class="ident">channel_bytes</span>[<span class="ident">bytes_per_channel</span>..<span class="number">2</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>].<span class="ident">into</span>(),
+                    ))
+                } <span class="kw">else</span> {
+                    <span class="prelude-val">None</span>
                 };
 
-                (
-                    <span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">red</span>),
-                    <span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">green</span>),
-                    <span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">blue</span>),
-                    <span class="ident">alpha</span>,
-                )
+                <span class="comment">// Then comes blue</span>
+                <span class="kw">let</span> <span class="ident">blue</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">channel_count</span> <span class="op">&gt;=</span> <span class="number">3</span> {
+                    <span class="prelude-val">Some</span>(<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(
+                        <span class="ident">channel_bytes</span>[<span class="number">2</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>..<span class="number">3</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>].<span class="ident">into</span>(),
+                    ))
+                } <span class="kw">else</span> {
+                    <span class="prelude-val">None</span>
+                };
+
+                <span class="comment">// And optionally alpha bytes</span>
+                <span class="kw">let</span> <span class="ident">alpha</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">channel_count</span> <span class="op">==</span> <span class="number">4</span> {
+                    <span class="prelude-val">Some</span>(<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(
+                        <span class="ident">channel_bytes</span>[<span class="number">3</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>..<span class="number">4</span> <span class="op">*</span> <span class="ident">bytes_per_channel</span>].<span class="ident">to_vec</span>(),
+                    ))
+                } <span class="kw">else</span> {
+                    <span class="prelude-val">None</span>
+                };
+
+                (<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">red</span>), <span class="ident">green</span>, <span class="ident">blue</span>, <span class="ident">alpha</span>)
             }
             <span class="comment">// # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)</span>
             <span class="comment">//</span>
@@ -251,22 +298,28 @@
             <span class="comment">// and the TIFF standard.</span>
             <span class="ident">PsdChannelCompression</span>::<span class="ident">RleCompressed</span> <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">red_byte_count</span> <span class="op">=</span> <span class="number">0</span>;
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">green_byte_count</span> <span class="op">=</span> <span class="number">0</span>;
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">blue_byte_count</span> <span class="op">=</span> <span class="number">0</span>;
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">green_byte_count</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">channel_count</span> <span class="op">&gt;=</span> <span class="number">2</span> { <span class="prelude-val">Some</span>(<span class="number">0</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> };
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">blue_byte_count</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">channel_count</span> <span class="op">&gt;=</span> <span class="number">3</span> { <span class="prelude-val">Some</span>(<span class="number">0</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> };
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alpha_byte_count</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">channel_count</span> <span class="op">==</span> <span class="number">4</span> { <span class="prelude-val">Some</span>(<span class="number">0</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> };
 
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">height</span> {
+                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">psd_height</span> {
                     <span class="ident">red_byte_count</span> <span class="op">+=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
                 }
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">height</span> {
-                    <span class="ident">green_byte_count</span> <span class="op">+=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">green_byte_count</span>) <span class="op">=</span> <span class="ident">green_byte_count</span> {
+                    <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">psd_height</span> {
+                        <span class="kw-2">*</span><span class="ident">green_byte_count</span> <span class="op">+=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+                    }
                 }
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">height</span> {
-                    <span class="ident">blue_byte_count</span> <span class="op">+=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">blue_byte_count</span>) <span class="op">=</span> <span class="ident">blue_byte_count</span> {
+                    <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">psd_height</span> {
+                        <span class="kw-2">*</span><span class="ident">blue_byte_count</span> <span class="op">+=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+                    }
                 }
 
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">alpha_byte_count</span>) <span class="op">=</span> <span class="ident">alpha_byte_count</span> {
-                    <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">height</span> {
+                    <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">psd_height</span> {
                         <span class="kw-2">*</span><span class="ident">alpha_byte_count</span> <span class="op">+=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
                     }
                 }
@@ -276,22 +329,40 @@
                 <span class="comment">// we don&#39;t currently use them. We might re-think this in the future when we</span>
                 <span class="comment">// implement serialization of a Psd back into bytes.. But not a concern at the</span>
                 <span class="comment">// moment.</span>
-                <span class="kw">let</span> <span class="ident">channel_data_start</span> <span class="op">=</span> <span class="number">2</span> <span class="op">+</span> (<span class="ident">channel_count</span> <span class="op">*</span> <span class="ident">height</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">*</span> <span class="number">2</span>);
+                <span class="kw">let</span> <span class="ident">channel_data_start</span> <span class="op">=</span> <span class="number">2</span> <span class="op">+</span> (<span class="ident">channel_count</span> <span class="op">*</span> <span class="ident">psd_height</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">*</span> <span class="number">2</span>);
 
                 <span class="kw">let</span> (<span class="ident">red_start</span>, <span class="ident">red_end</span>) <span class="op">=</span>
                     (<span class="ident">channel_data_start</span>, <span class="ident">channel_data_start</span> <span class="op">+</span> <span class="ident">red_byte_count</span>);
 
-                <span class="kw">let</span> (<span class="ident">green_start</span>, <span class="ident">green_end</span>) <span class="op">=</span> (<span class="ident">red_end</span>, <span class="ident">red_end</span> <span class="op">+</span> <span class="ident">green_byte_count</span>);
-
-                <span class="kw">let</span> (<span class="ident">blue_start</span>, <span class="ident">blue_end</span>) <span class="op">=</span> (<span class="ident">green_end</span>, <span class="ident">green_end</span> <span class="op">+</span> <span class="ident">blue_byte_count</span>);
-
                 <span class="kw">let</span> <span class="ident">red</span> <span class="op">=</span> <span class="ident">bytes</span>[<span class="ident">red_start</span> <span class="kw">as</span> <span class="ident">usize</span>..<span class="ident">red_end</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">into</span>();
-                <span class="kw">let</span> <span class="ident">green</span> <span class="op">=</span> <span class="ident">bytes</span>[<span class="ident">green_start</span> <span class="kw">as</span> <span class="ident">usize</span>..<span class="ident">green_end</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">into</span>();
-                <span class="kw">let</span> <span class="ident">blue</span> <span class="op">=</span> <span class="ident">bytes</span>[<span class="ident">blue_start</span> <span class="kw">as</span> <span class="ident">usize</span>..<span class="ident">blue_end</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">into</span>();
+
+                <span class="kw">let</span> <span class="ident">green</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">green_byte_count</span> {
+                    <span class="prelude-val">Some</span>(<span class="ident">green_byte_count</span>) <span class="op">=&gt;</span> {
+                        <span class="kw">let</span> <span class="ident">green_start</span> <span class="op">=</span> <span class="ident">red_end</span>;
+                        <span class="kw">let</span> <span class="ident">green_end</span> <span class="op">=</span> <span class="ident">green_start</span> <span class="op">+</span> <span class="ident">green_byte_count</span>;
+                        <span class="prelude-val">Some</span>(<span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(
+                            <span class="ident">bytes</span>[<span class="ident">green_start</span>..<span class="ident">green_end</span>].<span class="ident">into</span>(),
+                        ))
+                    }
+                    <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
+                };
+
+                <span class="kw">let</span> <span class="ident">blue</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">blue_byte_count</span> {
+                    <span class="prelude-val">Some</span>(<span class="ident">blue_byte_count</span>) <span class="op">=&gt;</span> {
+                        <span class="kw">let</span> <span class="ident">blue_start</span> <span class="op">=</span> <span class="ident">red_end</span> <span class="op">+</span> <span class="ident">green_byte_count</span>.<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
+                        <span class="kw">let</span> <span class="ident">blue_end</span> <span class="op">=</span> <span class="ident">blue_start</span> <span class="op">+</span> <span class="ident">blue_byte_count</span> <span class="kw">as</span> <span class="ident">usize</span>;
+                        <span class="prelude-val">Some</span>(<span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(
+                            <span class="ident">bytes</span>[<span class="ident">blue_start</span>..<span class="ident">blue_end</span>].<span class="ident">into</span>(),
+                        ))
+                    }
+                    <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
+                };
+
                 <span class="kw">let</span> <span class="ident">alpha</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">alpha_byte_count</span> {
                     <span class="prelude-val">Some</span>(<span class="ident">alpha_byte_count</span>) <span class="op">=&gt;</span> {
-                        <span class="kw">let</span> <span class="ident">alpha_start</span> <span class="op">=</span> <span class="ident">blue_end</span> <span class="kw">as</span> <span class="ident">usize</span>;
-                        <span class="kw">let</span> <span class="ident">alpha_end</span> <span class="op">=</span> <span class="ident">alpha_start</span> <span class="op">+</span> <span class="ident">alpha_byte_count</span> <span class="kw">as</span> <span class="ident">usize</span>;
+                        <span class="kw">let</span> <span class="ident">alpha_start</span> <span class="op">=</span>
+                            <span class="ident">red_end</span> <span class="op">+</span> <span class="ident">green_byte_count</span>.<span class="ident">unwrap</span>() <span class="op">+</span> <span class="ident">blue_byte_count</span>.<span class="ident">unwrap</span>();
+                        <span class="kw">let</span> <span class="ident">alpha_end</span> <span class="op">=</span> <span class="ident">alpha_start</span> <span class="op">+</span> <span class="ident">alpha_byte_count</span>;
                         <span class="prelude-val">Some</span>(<span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(
                             <span class="ident">bytes</span>[<span class="ident">alpha_start</span>..<span class="ident">alpha_end</span>].<span class="ident">into</span>(),
                         ))
@@ -299,12 +370,7 @@
                     <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
                 };
 
-                (
-                    <span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(<span class="ident">red</span>),
-                    <span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(<span class="ident">green</span>),
-                    <span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(<span class="ident">blue</span>),
-                    <span class="ident">alpha</span>,
-                )
+                (<span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(<span class="ident">red</span>), <span class="ident">green</span>, <span class="ident">blue</span>, <span class="ident">alpha</span>)
             }
             <span class="ident">PsdChannelCompression</span>::<span class="ident">ZipWithoutPrediction</span> <span class="op">=&gt;</span> <span class="macro">unimplemented</span><span class="macro">!</span>(
                 <span class="string">r#&quot;Zip without prediction compression is currently unsupported.

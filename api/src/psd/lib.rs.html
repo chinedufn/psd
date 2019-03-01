@@ -337,6 +337,9 @@
 <span id="337">337</span>
 <span id="338">338</span>
 <span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Data structures and methods for working with PSD files.</span>
 <span class="doccomment">//!</span>
@@ -403,8 +406,12 @@
             <span class="ident">psd_height</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">image_data_section</span> <span class="op">=</span>
-            <span class="ident">ImageDataSection</span>::<span class="ident">from_bytes</span>(<span class="ident">major_sections</span>.<span class="ident">image_data</span>, <span class="ident">psd_height</span>, <span class="ident">channel_count</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">image_data_section</span> <span class="op">=</span> <span class="ident">ImageDataSection</span>::<span class="ident">from_bytes</span>(
+            <span class="ident">major_sections</span>.<span class="ident">image_data</span>,
+            <span class="ident">psd_width</span>,
+            <span class="ident">psd_height</span>,
+            <span class="ident">channel_count</span>,
+        )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">Psd</span> {
             <span class="ident">file_header_section</span>,
@@ -475,6 +482,16 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">filter</span>: <span class="kw-2">&amp;</span><span class="ident">Fn</span>((<span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="ident">PsdLayer</span>)) <span class="op">-&gt;</span> <span class="ident">bool</span>,
     ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="comment">// When you create a PSD but don&#39;t create any new layers the bottom layer might not</span>
+        <span class="comment">// show up in the layer and mask information section, so we won&#39;t see any layers.</span>
+        <span class="comment">//</span>
+        <span class="comment">// TODO: We should try and figure out where the layer name is so that we can return</span>
+        <span class="comment">// a completely transparent image if it is filtered out. But this should be a rare</span>
+        <span class="comment">// use case so we can just always return the final image for now.</span>
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">layers</span>().<span class="ident">len</span>() <span class="op">==</span> <span class="number">0</span> {
+            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">rgba</span>());
+        }
+
         <span class="comment">// Filter out layers based on the passed in filter.</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">layers_to_flatten_bottom_to_top</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="ident">PsdLayer</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">layers</span>()
@@ -639,29 +656,18 @@
 <span class="kw">impl</span> <span class="ident">Psd</span> {
     <span class="doccomment">/// Get the RGBA pixels for the PSD</span>
     <span class="doccomment">/// [ R,G,B,A, R,G,B,A, R,G,B,A, ...]</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// FIXME: normalize with layer.rgba()</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rgba</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">rgba_len</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">width</span>() <span class="op">*</span> <span class="self">self</span>.<span class="ident">height</span>() <span class="op">*</span> <span class="number">4</span>) <span class="kw">as</span> <span class="ident">usize</span>;
-
-        <span class="comment">// We use 119 because it&#39;s a weird number so we can easily notice in case</span>
-        <span class="comment">// we&#39;re ever parsing something incorrectly.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rgba</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">119</span>; <span class="ident">rgba_len</span>];
-
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelKind</span>::<span class="kw-2">*</span>;
-
-        <span class="self">self</span>.<span class="ident">insert_channel_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rgba</span>, <span class="kw-2">&amp;</span><span class="ident">Red</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">red</span>);
-        <span class="self">self</span>.<span class="ident">insert_channel_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rgba</span>, <span class="kw-2">&amp;</span><span class="ident">Green</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">green</span>);
-        <span class="self">self</span>.<span class="ident">insert_channel_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rgba</span>, <span class="kw-2">&amp;</span><span class="ident">Blue</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">blue</span>);
-
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">alpha_channel</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">alpha</span> {
-            <span class="self">self</span>.<span class="ident">insert_channel_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rgba</span>, <span class="kw-2">&amp;</span><span class="ident">TransparencyMask</span>, <span class="ident">alpha_channel</span>);
-        } <span class="kw">else</span> {
-            <span class="comment">// If there is no transparency data then the image is opaque</span>
-            <span class="kw">for</span> <span class="ident">idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">rgba_len</span> <span class="op">/</span> <span class="number">4</span> {
-                <span class="ident">rgba</span>[<span class="ident">idx</span> <span class="op">*</span> <span class="number">4</span> <span class="op">+</span> <span class="number">3</span>] <span class="op">=</span> <span class="number">255</span>;
-            }
-        }
-
-        <span class="ident">rgba</span>
+        <span class="self">self</span>.<span class="ident">generate_rgba</span>(
+            <span class="self">self</span>.<span class="ident">width</span>(),
+            <span class="self">self</span>.<span class="ident">height</span>(),
+            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">red</span>,
+            <span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">green</span>.<span class="ident">as_ref</span>(),
+            <span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">blue</span>.<span class="ident">as_ref</span>(),
+            <span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">alpha</span>.<span class="ident">as_ref</span>(),
+        )
+        .<span class="ident">unwrap</span>()
     }
 
     <span class="doccomment">/// Get the compression level for the flattened image data</span>
