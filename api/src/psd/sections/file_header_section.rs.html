@@ -395,6 +395,9 @@
 <span id="395">395</span>
 <span id="396">396</span>
 <span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">PsdCursor</span>;
 <span class="kw">use</span> <span class="ident">failure</span>::{<span class="ident">Error</span>, <span class="ident">Fail</span>};
@@ -494,8 +497,8 @@
         }
 
         <span class="comment">// The next 2 bytes represent the channel count</span>
-        <span class="kw">let</span> <span class="ident">channel</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_2</span>()<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">channel_count</span> <span class="op">=</span> <span class="ident">ChannelCount</span>::<span class="ident">new</span>(<span class="ident">channel</span>[<span class="number">1</span>])<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">channel</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">channel_count</span> <span class="op">=</span> <span class="ident">ChannelCount</span>::<span class="ident">new</span>(<span class="ident">channel</span> <span class="kw">as</span> <span class="ident">u8</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// 4 bytes for the height</span>
         <span class="kw">let</span> <span class="ident">height</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
@@ -623,7 +626,7 @@
 <span class="doccomment">/// Depth: the number of bits per channel. Supported values are 1, 8, 16 and 32.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">missing_docs</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PsdDepth</span> {
     <span class="ident">One</span> <span class="op">=</span> <span class="number">1</span>,
@@ -637,6 +640,9 @@
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PsdDepthError</span> {
     <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Depth {} is invalid. Must be 1, 8, 16 or 32&quot;</span>, <span class="ident">depth</span>)]</span>
     <span class="ident">InvalidDepth</span> { <span class="ident">depth</span>: <span class="ident">u8</span> },
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;Only 8 and 16 bit depths are supported at the moment.
+    If you&#39;d like to see 1 and 32 bit depths supported - please open an issue.&quot;#</span>)]</span>
+    <span class="ident">UnsupportedDepth</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">PsdDepth</span> {

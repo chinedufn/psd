@@ -197,10 +197,27 @@
 <span id="197">197</span>
 <span id="198">198</span>
 <span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelCompression</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelError</span>::<span class="ident">ChannelNotFound</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::<span class="ident">PsdDepthError</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">PsdCursor</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">PsdDepth</span>;
 <span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
 
 <span class="doccomment">/// The ImageDataSection comes from the final section in the PSD that contains the pixel data</span>
@@ -236,7 +253,7 @@
     <span class="doccomment">/// (including the length market)</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(
         <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-        <span class="ident">psd_width</span>: <span class="ident">u32</span>,
+        <span class="ident">depth</span>: <span class="ident">PsdDepth</span>,
         <span class="ident">psd_height</span>: <span class="ident">u32</span>,
         <span class="ident">channel_count</span>: <span class="ident">u8</span>,
     ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImageDataSection</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
@@ -248,17 +265,14 @@
 
         <span class="kw">let</span> (<span class="ident">red</span>, <span class="ident">green</span>, <span class="ident">blue</span>, <span class="ident">alpha</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">compression</span> {
             <span class="ident">PsdChannelCompression</span>::<span class="ident">RawData</span> <span class="op">=&gt;</span> {
-                <span class="comment">// Found an extra byte at the end of a single channel PSD file, so instead of just</span>
-                <span class="comment">// using all of the remaining bytes and assuming that they are part of the section</span>
-                <span class="comment">// we make sure to use the exact number of remaining bytes that we need.</span>
-                <span class="kw">let</span> <span class="ident">bytes_per_channel</span> <span class="op">=</span> (<span class="ident">psd_width</span> <span class="op">*</span> <span class="ident">psd_height</span>) <span class="kw">as</span> <span class="ident">usize</span>;
-                <span class="kw">let</span> <span class="ident">total_channel_bytes</span> <span class="op">=</span> <span class="ident">bytes_per_channel</span> <span class="op">*</span> <span class="ident">channel_count</span>;
-
                 <span class="comment">// First 2 bytes were compression bytes</span>
-                <span class="kw">let</span> <span class="ident">channel_bytes</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">bytes</span>[<span class="number">2</span>..<span class="number">2</span> <span class="op">+</span> <span class="ident">total_channel_bytes</span>];
+                <span class="kw">let</span> <span class="ident">channel_bytes</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">bytes</span>[<span class="number">2</span>..];
+                <span class="kw">let</span> <span class="ident">channel_byte_count</span> <span class="op">=</span> <span class="ident">channel_bytes</span>.<span class="ident">len</span>();
+
+                <span class="kw">let</span> <span class="ident">bytes_per_channel</span> <span class="op">=</span> <span class="ident">channel_byte_count</span> <span class="op">/</span> <span class="ident">channel_count</span>;
 
                 <span class="comment">// First bytes are red</span>
-                <span class="kw">let</span> <span class="ident">red</span> <span class="op">=</span> <span class="ident">channel_bytes</span>[..<span class="ident">bytes_per_channel</span>].<span class="ident">into</span>();
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">red</span> <span class="op">=</span> <span class="ident">channel_bytes</span>[..<span class="ident">bytes_per_channel</span>].<span class="ident">into</span>();
 
                 <span class="comment">// Next bytes are green</span>
                 <span class="kw">let</span> <span class="ident">green</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">channel_count</span> <span class="op">&gt;=</span> <span class="number">2</span> {
@@ -287,7 +301,23 @@
                     <span class="prelude-val">None</span>
                 };
 
-                (<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">red</span>), <span class="ident">green</span>, <span class="ident">blue</span>, <span class="ident">alpha</span>)
+                <span class="kw">match</span> <span class="ident">depth</span> {
+                    <span class="ident">PsdDepth</span>::<span class="ident">Eight</span> <span class="op">=&gt;</span> (<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">red</span>), <span class="ident">green</span>, <span class="ident">blue</span>, <span class="ident">alpha</span>),
+                    <span class="comment">// If this is a 16bit image there will be two bytes per pixel. We</span>
+                    <span class="comment">// currently only support one byte per pixel so we convert the 2 bytes</span>
+                    <span class="comment">// back down into 1 byte by mapping 0-65535 down to 0-255</span>
+                    <span class="ident">PsdDepth</span>::<span class="ident">Sixteen</span> <span class="op">=&gt;</span> {
+                        <span class="kw">for</span> <span class="ident">idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">red</span>.<span class="ident">len</span>() <span class="op">/</span> <span class="number">2</span> {
+                            <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> [<span class="ident">red</span>[<span class="number">2</span> <span class="op">*</span> <span class="ident">idx</span>], <span class="ident">red</span>[<span class="number">2</span> <span class="op">*</span> <span class="ident">idx</span> <span class="op">+</span> <span class="number">1</span>]];
+                            <span class="kw">let</span> <span class="ident">bits16</span> <span class="op">=</span> <span class="ident">u16</span>::<span class="ident">from_be_bytes</span>(<span class="ident">bytes</span>);
+                            <span class="ident">red</span>[<span class="ident">idx</span>] <span class="op">=</span> (<span class="ident">bits16</span> <span class="op">/</span> <span class="number">256</span>) <span class="kw">as</span> <span class="ident">u8</span>;
+                        }
+                        <span class="ident">red</span>.<span class="ident">truncate</span>(<span class="ident">red</span>.<span class="ident">len</span>() <span class="op">/</span> <span class="number">2</span>);
+
+                        (<span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">red</span>), <span class="ident">green</span>, <span class="ident">blue</span>, <span class="ident">alpha</span>)
+                    }
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">PsdDepthError</span>::<span class="ident">UnsupportedDepth</span>)<span class="question-mark">?</span>,
+                }
             }
             <span class="comment">// # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)</span>
             <span class="comment">//</span>

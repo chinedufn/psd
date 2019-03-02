@@ -525,30 +525,6 @@ __exports.__wbindgen_closure_wrapper141 = function(a, b, _ignored) {
 };
 
 __exports.__wbindgen_closure_wrapper143 = function(a, b, _ignored) {
-    const f = wasm.__wbg_function_table.get(45);
-    const d = wasm.__wbg_function_table.get(42);
-    const cb = function() {
-        this.cnt++;
-        let a = this.a;
-        this.a = 0;
-        try {
-            return f(a, b);
-
-        } finally {
-            this.a = a;
-            if (this.cnt-- == 1) d(this.a, b);
-
-        }
-
-    };
-    cb.a = a;
-    cb.cnt = 1;
-    let real = cb.bind(cb);
-    real.original = cb;
-    return addHeapObject(real);
-};
-
-__exports.__wbindgen_closure_wrapper145 = function(a, b, _ignored) {
     const f = wasm.__wbg_function_table.get(41);
     const d = wasm.__wbg_function_table.get(42);
     const cb = function(arg0) {
@@ -572,23 +548,29 @@ __exports.__wbindgen_closure_wrapper145 = function(a, b, _ignored) {
     return addHeapObject(real);
 };
 
-function freeApp(ptr) {
+__exports.__wbindgen_closure_wrapper145 = function(a, b, _ignored) {
+    const f = wasm.__wbg_function_table.get(46);
+    const d = wasm.__wbg_function_table.get(42);
+    const cb = function() {
+        this.cnt++;
+        let a = this.a;
+        this.a = 0;
+        try {
+            return f(a, b);
 
-    wasm.__wbg_app_free(ptr);
-}
-/**
-* Our client side web application
-*/
-class App {
+        } finally {
+            this.a = a;
+            if (this.cnt-- == 1) d(this.a, b);
 
-    free() {
-        const ptr = this.ptr;
-        this.ptr = 0;
-        freeApp(ptr);
-    }
+        }
 
-}
-__exports.App = App;
+    };
+    cb.a = a;
+    cb.cnt = 1;
+    let real = cb.bind(cb);
+    real.original = cb;
+    return addHeapObject(real);
+};
 
 function freeAppWrapper(ptr) {
 
@@ -617,6 +599,24 @@ class AppWrapper {
     }
 }
 __exports.AppWrapper = AppWrapper;
+
+function freeApp(ptr) {
+
+    wasm.__wbg_app_free(ptr);
+}
+/**
+* Our client side web application
+*/
+class App {
+
+    free() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+        freeApp(ptr);
+    }
+
+}
+__exports.App = App;
 
 __exports.__wbindgen_throw = function(ptr, len) {
     throw new Error(getStringFromWasm(ptr, len));
