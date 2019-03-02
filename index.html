@@ -75,7 +75,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="contributing/index.html"><strong aria-hidden="true">1.</strong> Contributing</a></li><li><ol class="section"><li><a href="contributing/internal-design/index.html"><strong aria-hidden="true">1.1.</strong> Internal Design</a></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="contributing/index.html"><strong aria-hidden="true">1.</strong> Contributing</a></li><li><ol class="section"><li><a href="contributing/internal-design/index.html"><strong aria-hidden="true">1.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">1.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -141,7 +141,15 @@
                 <div id="content" class="content">
                     <main>
                         <a class="header" href="#introduction" id="introduction"><h1>Introduction</h1></a>
-<p>Check back later</p>
+<p><code>psd</code> provides a Rust API for parsing and working with the <a href="https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577409_89817">Adobe Photoshop File Format</a>.</p>
+<p><code>psd</code> seeks to make it easy for you to write scripts that work with Photoshop files.</p>
+<p>For example, the original use case that motivated the creationg of the <code>psd</code> crate was to be part of a Rust
+script that iterated over a directory full of PSD's and combined all of them into a texture atlas (using the
+<a href="https://github.com/PistonDevelopers/texture_packer">texture_packer</a> crate).</p>
+<hr />
+<p>The Photoshop specification is large so, while we support the main parts of it, not every little bit
+is supported.</p>
+<p>If there's something that you'd like to get your hands on please feel free to <a href="https://github.com/chinedufn/psd/issues">open an issue</a>.</p>
 
                     </main>
 
