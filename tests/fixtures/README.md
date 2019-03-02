@@ -56,3 +56,13 @@ Originally created to test an error where we were borrowing a RefCell twice whil
 1x1 gray image that only has one channel.
 
 It was getting an index out of range for slice error since we assumed that there were always 3+ channels.
+
+Color mode is grayscale.
+
+## two-channel-8x8.psd
+
+8x8 image with different shades of black/white/grey
+
+It has two channels, red and green.
+
+Color mode is grayscale.

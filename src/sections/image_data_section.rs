@@ -1,6 +1,8 @@
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelError::ChannelNotFound;
+use crate::sections::file_header_section::PsdDepthError;
 use crate::sections::PsdCursor;
+use crate::PsdDepth;
 use failure::Error;
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
@@ -36,7 +38,7 @@ impl ImageDataSection {
     /// (including the length market)
     pub fn from_bytes(
         bytes: &[u8],
-        psd_width: u32,
+        depth: PsdDepth,
         psd_height: u32,
         channel_count: u8,
     ) -> Result<ImageDataSection, Error> {
@@ -48,17 +50,14 @@ impl ImageDataSection {
 
         let (red, green, blue, alpha) = match compression {
             PsdChannelCompression::RawData => {
-                // Found an extra byte at the end of a single channel PSD file, so instead of just
-                // using all of the remaining bytes and assuming that they are part of the section
-                // we make sure to use the exact number of remaining bytes that we need.
-                let bytes_per_channel = (psd_width * psd_height) as usize;
-                let total_channel_bytes = bytes_per_channel * channel_count;
-
                 // First 2 bytes were compression bytes
-                let channel_bytes = &bytes[2..2 + total_channel_bytes];
+                let channel_bytes = &bytes[2..];
+                let channel_byte_count = channel_bytes.len();
+
+                let bytes_per_channel = channel_byte_count / channel_count;
 
                 // First bytes are red
-                let red = channel_bytes[..bytes_per_channel].into();
+                let mut red = channel_bytes[..bytes_per_channel].into();
 
                 // Next bytes are green
                 let green = if channel_count >= 2 {
@@ -87,7 +86,23 @@ impl ImageDataSection {
                     None
                 };
 
-                (ChannelBytes::RawData(red), green, blue, alpha)
+                match depth {
+                    PsdDepth::Eight => (ChannelBytes::RawData(red), green, blue, alpha),
+                    // If this is a 16bit image there will be two bytes per pixel. We
+                    // currently only support one byte per pixel so we convert the 2 bytes
+                    // back down into 1 byte by mapping 0-65535 down to 0-255
+                    PsdDepth::Sixteen => {
+                        for idx in 0..red.len() / 2 {
+                            let bytes = [red[2 * idx], red[2 * idx + 1]];
+                            let bits16 = u16::from_be_bytes(bytes);
+                            red[idx] = (bits16 / 256) as u8;
+                        }
+                        red.truncate(red.len() / 2);
+
+                        (ChannelBytes::RawData(red), green, blue, alpha)
+                    }
+                    _ => Err(PsdDepthError::UnsupportedDepth)?,
+                }
             }
             // # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
             //

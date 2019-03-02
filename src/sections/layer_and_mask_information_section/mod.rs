@@ -118,7 +118,7 @@ impl LayerAndMaskInformationSection {
                         // we don't currently use them. We might re-think this in the future when we
                         // implement serialization of a Psd back into bytes.. But not a concern at the
                         // moment.
-                        // Compressed bytes per scanling are encoded at the beginning as 2 bytes
+                        // Compressed bytes per scanline are encoded at the beginning as 2 bytes
                         // per scanline
                         let channel_data = &channel_data[2 * scanlines..];
 

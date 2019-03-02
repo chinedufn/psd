@@ -96,8 +96,8 @@ impl FileHeaderSection {
         }
 
         // The next 2 bytes represent the channel count
-        let channel = cursor.read_2()?;
-        let channel_count = ChannelCount::new(channel[1])?;
+        let channel = cursor.read_u16()?;
+        let channel_count = ChannelCount::new(channel as u8)?;
 
         // 4 bytes for the height
         let height = cursor.read_u32()?;
@@ -225,7 +225,7 @@ impl PsdWidth {
 /// Depth: the number of bits per channel. Supported values are 1, 8, 16 and 32.
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum PsdDepth {
     One = 1,
@@ -239,6 +239,9 @@ pub enum PsdDepth {
 pub enum PsdDepthError {
     #[fail(display = "Depth {} is invalid. Must be 1, 8, 16 or 32", depth)]
     InvalidDepth { depth: u8 },
+    #[fail(display = r#"Only 8 and 16 bit depths are supported at the moment.
+    If you'd like to see 1 and 32 bit depths supported - please open an issue."#)]
+    UnsupportedDepth,
 }
 
 impl PsdDepth {

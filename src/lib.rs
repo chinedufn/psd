@@ -7,13 +7,15 @@
 
 #![deny(missing_docs)]
 
+pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
 pub use crate::sections::file_header_section::ColorMode;
+pub use crate::sections::file_header_section::PsdDepth;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 
 use self::sections::file_header_section::FileHeaderSection;
-use crate::psd_channel::InsertChannelBytes;
-pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
+use crate::psd_channel::IntoRgba;
+use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
-pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
 use failure::Error;
@@ -65,7 +67,7 @@ impl Psd {
 
         let image_data_section = ImageDataSection::from_bytes(
             major_sections.image_data,
-            psd_width,
+            file_header_section.depth,
             psd_height,
             channel_count,
         )?;
@@ -91,8 +93,8 @@ impl Psd {
     }
 
     /// The number of bits per channel
-    pub fn depth(&self) -> u8 {
-        self.file_header_section.depth as u8
+    pub fn depth(&self) -> PsdDepth {
+        self.file_header_section.depth
     }
 
     /// The color mode of the file
@@ -313,18 +315,8 @@ fn blend_pixels(top: [u8; 4], bottom: [u8; 4], out: &mut [u8; 4]) {
 impl Psd {
     /// Get the RGBA pixels for the PSD
     /// [ R,G,B,A, R,G,B,A, R,G,B,A, ...]
-    ///
-    /// FIXME: normalize with layer.rgba()
     pub fn rgba(&self) -> Vec<u8> {
-        self.generate_rgba(
-            self.width(),
-            self.height(),
-            &self.image_data_section.red,
-            self.image_data_section.green.as_ref(),
-            self.image_data_section.blue.as_ref(),
-            self.image_data_section.alpha.as_ref(),
-        )
-        .unwrap()
+        self.generate_rgba().unwrap()
     }
 
     /// Get the compression level for the flattened image data
@@ -333,10 +325,39 @@ impl Psd {
     }
 }
 
-impl InsertChannelBytes for Psd {
+impl IntoRgba for Psd {
     /// The PSD's final image is always the same size as the PSD so we don't need to transform
     /// indices like we do with layers.
     fn rgba_idx(&self, idx: usize) -> usize {
         idx
+    }
+
+    fn red(&self) -> &ChannelBytes {
+        &self.image_data_section.red
+    }
+
+    fn green(&self) -> Option<&ChannelBytes> {
+        match self.color_mode() {
+            // For 16 bit grayscale images I'm sometimes seeing two channels.
+            // Really not sure what the second channel is so until we know what it is we're ignoring it..
+            ColorMode::Grayscale => None,
+            _ => self.image_data_section.green.as_ref(),
+        }
+    }
+
+    fn blue(&self) -> Option<&ChannelBytes> {
+        self.image_data_section.blue.as_ref()
+    }
+
+    fn alpha(&self) -> Option<&ChannelBytes> {
+        self.image_data_section.alpha.as_ref()
+    }
+
+    fn psd_width(&self) -> u32 {
+        self.width()
+    }
+
+    fn psd_height(&self) -> u32 {
+        self.height()
     }
 }

@@ -1,4 +1,4 @@
-use crate::psd_channel::InsertChannelBytes;
+use crate::psd_channel::IntoRgba;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelError;
 use crate::psd_channel::PsdChannelKind;
@@ -102,17 +102,8 @@ impl PsdLayer {
     /// Create a vector that interleaves the red, green, blue and alpha channels in this PSD
     ///
     /// vec![R, G, B, A, R, G, B, A, ...]
-    ///
-    /// FIXME: Normalize with Psd.rgba()
     pub fn rgba(&self) -> Result<Vec<u8>, Error> {
-        let rgba = self.generate_rgba(
-            self.psd_width,
-            self.psd_height,
-            self.get_channel(PsdChannelKind::Red).unwrap(),
-            self.get_channel(PsdChannelKind::Green),
-            self.get_channel(PsdChannelKind::Blue),
-            self.get_channel(PsdChannelKind::TransparencyMask),
-        )?;
+        let rgba = self.generate_rgba()?;
         Ok(rgba)
     }
 
@@ -155,7 +146,7 @@ impl LayerRecord {
     }
 }
 
-impl InsertChannelBytes for PsdLayer {
+impl IntoRgba for PsdLayer {
     /// A layer might take up only a subsection of a PSD, so if when iterating through
     /// the pixels in a layer we need to transform the pixel's location before placing
     /// it into the RGBA for the entire PSD.
@@ -166,17 +157,9 @@ impl InsertChannelBytes for PsdLayer {
     /// │                                      │
     /// │  Entire Psd                          │
     /// │                                      │
-    /// │                                      │
     /// │         ┌─────────────────────────┐  │
     /// │         │                         │  │
     /// │         │ Layer                   │  │
-    /// │         │                         │  │
-    /// │         │                         │  │
-    /// │         │                         │  │
-    /// │         │                         │  │
-    /// │         │                         │  │
-    /// │         │                         │  │
-    /// │         │                         │  │
     /// │         │                         │  │
     /// │         │                         │  │
     /// │         └─────────────────────────┘  │
@@ -198,5 +181,29 @@ impl InsertChannelBytes for PsdLayer {
         let rgba_idx = (top_in_psd * self.psd_width as usize) + left_in_psd;
 
         rgba_idx
+    }
+
+    fn red(&self) -> &ChannelBytes {
+        self.get_channel(PsdChannelKind::Red).unwrap()
+    }
+
+    fn green(&self) -> Option<&ChannelBytes> {
+        self.get_channel(PsdChannelKind::Green)
+    }
+
+    fn blue(&self) -> Option<&ChannelBytes> {
+        self.get_channel(PsdChannelKind::Blue)
+    }
+
+    fn alpha(&self) -> Option<&ChannelBytes> {
+        self.get_channel(PsdChannelKind::TransparencyMask)
+    }
+
+    fn psd_width(&self) -> u32 {
+        self.psd_width
+    }
+
+    fn psd_height(&self) -> u32 {
+        self.psd_height
     }
 }
