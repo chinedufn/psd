@@ -6,3 +6,4 @@
 
 - [Contributing](./contributing/README.md)
     - [Internal Design](./contributing/internal-design/README.md)
+        - [Major Sections](./contributing/internal-design/major-sections/README.md)

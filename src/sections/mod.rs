@@ -19,8 +19,8 @@ pub struct MajorSections<'a> {
 }
 
 impl<'a> MajorSections<'a> {
-    /// Given the bytes of a PSD file, return the slices that correspond to each of the five
-    /// major sections.
+    /// Given the bytes of a PSD file, return the slices that correspond to each
+    /// of the five major sections.
     ///
     /// ┌──────────────────┐
     /// │   File Header    │
