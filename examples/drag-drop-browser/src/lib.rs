@@ -78,10 +78,7 @@ impl AppWrapper {
 struct App {
     store: Rc<RefCell<Store>>,
     dom_updater: DomUpdater,
-    /// Holds the most recent RAF clos
-    ///
-    /// FIXME: Don't queue up multiple RAF is we already have one... just use a
-    /// is_requesting_animation_frame: bool
+    /// Holds the most recent RAF closure
     raf_closure_holder: Rc<RefCell<Option<Box<dyn AsRef<JsValue>>>>>,
 }
 
