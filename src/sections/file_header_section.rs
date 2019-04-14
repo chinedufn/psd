@@ -115,14 +115,16 @@ impl FileHeaderSection {
         let color_mode = cursor.read_2()?;
         let color_mode = ColorMode::new(color_mode[1])?;
 
-        Ok(FileHeaderSection {
+        let file_header_section = FileHeaderSection {
             version: PsdVersion::One,
             channel_count,
             width,
             height,
             depth,
             color_mode,
-        })
+        };
+
+        Ok(file_header_section)
     }
 }
 

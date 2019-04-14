@@ -224,4 +224,14 @@ impl<'a> PsdCursor<'a> {
 
         Ok(i16::from_be_bytes(array))
     }
+
+    /// Read 4 bytes as a i32
+    pub fn read_i32(&mut self) -> Result<i32, Error> {
+        let bytes = self.read_4()?;
+
+        let mut array = [0; 4];
+        array.copy_from_slice(bytes);
+
+        Ok(i32::from_be_bytes(array))
+    }
 }

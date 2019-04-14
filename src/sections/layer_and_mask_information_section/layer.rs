@@ -24,13 +24,13 @@ pub struct PsdLayer {
     /// Storing the channels separately allows for this flexability.
     pub(super) channels: HashMap<PsdChannelKind, ChannelBytes>,
     /// The position of the top of the image
-    pub(crate) layer_top: u32,
+    pub(crate) layer_top: i32,
     /// The position of the left of the image
-    pub(crate) layer_left: u32,
+    pub(crate) layer_left: i32,
     /// The position of the bottom of the image
-    pub(crate) layer_bottom: u32,
+    pub(crate) layer_bottom: i32,
     /// The position of the right of the image
-    pub(crate) layer_right: u32,
+    pub(crate) layer_right: i32,
     /// The width of the PSD
     pub(crate) psd_width: u32,
     /// The height of the PSD
@@ -52,10 +52,10 @@ impl PsdLayer {
     /// Create a new photoshop layer
     pub fn new(
         name: String,
-        layer_top: u32,
-        layer_left: u32,
-        layer_bottom: u32,
-        layer_right: u32,
+        layer_top: i32,
+        layer_left: i32,
+        layer_bottom: i32,
+        layer_right: i32,
         psd_width: u32,
         psd_height: u32,
     ) -> PsdLayer {
@@ -130,18 +130,18 @@ pub struct LayerRecord {
     /// A 2x2 image would have 4 bytes per channel.
     pub(super) channel_data_lengths: Vec<(PsdChannelKind, u32)>,
     /// The position of the top of the image
-    pub(super) top: u32,
+    pub(super) top: i32,
     /// The position of the left of the image
-    pub(super) left: u32,
+    pub(super) left: i32,
     /// The position of the bottom of the image
-    pub(super) bottom: u32,
+    pub(super) bottom: i32,
     /// The position of the right of the image
-    pub(super) right: u32,
+    pub(super) right: i32,
 }
 
 impl LayerRecord {
     /// The height of this layer record
-    pub fn height(&self) -> u32 {
+    pub fn height(&self) -> i32 {
         (self.bottom - self.top) + 1
     }
 }

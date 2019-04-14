@@ -66,3 +66,10 @@ Color mode is grayscale.
 It has two channels, red and green.
 
 Color mode is grayscale.
+
+## negative-top-left-layer.psd
+
+A PSD file with a single layer that has an X,Y position of (-4px, -4px) and a width and height of
+9x9 even though the PSD's size has been set to 1x1
+
+This happened while resizing a PSD from 1024x1024 down to 1x1.

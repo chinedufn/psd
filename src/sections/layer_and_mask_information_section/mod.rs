@@ -62,10 +62,15 @@ impl LayerAndMaskInformationSection {
         let mut layer_names = HashMap::new();
 
         // The first four bytes of the section is the length marker for the layer and mask
-        // information section, we won't be needing it.
+        // information section.
+        //
+        // We do not currently use it since the number of bytes passed into this function was
+        // the exact number of bytes in the layer and information mask section of the PSD file,
+        // so there's no way for us to accidentally read too many bytes. If we did the program
+        // would panic.
         cursor.read_4()?;
 
-        // Read the next four bytes to get the length of the layer info section
+        // Read the next four bytes to get the length of the layer info section.
         let _layer_info_section_len = cursor.read_u32()?;
 
         // Next 2 bytes is the layer count
@@ -170,16 +175,26 @@ impl LayerAndMaskInformationSection {
 fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     let mut channel_data_lengths = vec![];
 
+    // FIXME:
+    // Ran into a bug where a PSD file had a top and left of over 4billion.
+    // The PSD file was 128x128 yet the single layer in the file was 1024x1024.
+    // Manually changing the layer's dimensions fixed the problem.. but this is something
+    // that we should look into handling automatically since the file opened just fine in
+    // Photoshop.
+
     // Read the rectangle that encloses the layer mask.
-    let top = cursor.read_u32()?;
-    let left = cursor.read_u32()?;
+    let top = cursor.read_i32()?;
+
+    let left = cursor.read_i32()?;
+
     // Subtract one in order to zero index. If a layer is fully transparent it's bottom will
     // already be 0 so we don't subtract
-    let bottom = cursor.read_u32()?;
+    let bottom = cursor.read_i32()?;
     let bottom = if bottom == 0 { 0 } else { bottom - 1 };
+
     // Subtract one in order to zero index. If a layer is fully transparent it's right will
     // already be zero so we don't subtract.
-    let right = cursor.read_u32()?;
+    let right = cursor.read_i32()?;
     let right = if right == 0 { 0 } else { right - 1 };
 
     // Get the number of channels in the layer
@@ -253,12 +268,14 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
         cursor.read(additional_layer_info_len)?;
     }
 
-    Ok(LayerRecord {
+    let layer_record = LayerRecord {
         name,
         channel_data_lengths,
         top,
         left,
         bottom,
         right,
-    })
+    };
+
+    Ok(layer_record)
 }
