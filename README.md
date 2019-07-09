@@ -40,7 +40,7 @@ That said, if there's anything missing that you need [please feel very free to o
 ## Usage
 
 ```rust
-use psd::{ColorMode, Psd, PsdCompressionKind};
+use psd::{ColorMode, Psd, PsdChannelCompression};
 
 fn main () {
     // .. Get a byte slice of PSD file data somehow ..
@@ -51,7 +51,7 @@ fn main () {
     assert_eq!(psd.color_mode(), ColorMode::Rgb);
 
     // For this PSD the final combined image is RleCompressed
-    assert_eq!(psd.compression(), PsdCompressionKind::RleCompressed);
+    assert_eq!(psd.compression(), &PsdChannelCompression::RleCompressed);
 
     assert_eq!(psd.width(), 500);
     assert_eq!(psd.height(), 500);
@@ -59,24 +59,24 @@ fn main () {
     // Get the combined final image for the PSD.
     let final_image: Vec<u8> = psd.rgba();
 
-    for (_layer_name, layer) in psd.layers().iter() {
+    for layer in psd.layers().iter() {
         let name = layer.name();
 
-        let pixels: Vec<u8> = layer.rgba();
+        let pixels: Vec<u8> = layer.rgba().unwrap();
     }
 
     let green_layer = psd.layer_by_name("Green Layer").unwrap();
 
     // In this layer the red channel is uncompressed
-    assert_eq!(green_layer.compression(PsdChannelKind::Red), &PsdCompressionKind::RawData);
+    assert_eq!(green_layer.compression(&PsdChannelKind::Red).unwrap(), PsdChannelCompression::RawData);
 
     // In this layer the green channel is RLE compressed
-    assert_eq!(green_layer.compression(PsdChannelKind::Green), &PsdCompressionKind::RleCompressed);
+    assert_eq!(green_layer.compression(&PsdChannelKind::Green).unwrap(), PsdChannelCompression::RleCompressed);
 
     // Combine the PSD layers top to bottom, ignoring any layers that begin with an `_`
-    let pixels: Vec<u8> = psd.flatten_layers_rgba(|(_idx, layer)| {
+    let pixels: Vec<u8> = psd.flatten_layers_rgba(&|(_idx, layer)| {
         !layer.name().starts_with("_")
-    });
+    }).unwrap();
 }
 ```
 
