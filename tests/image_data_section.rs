@@ -1,4 +1,4 @@
-use psd::{ColorMode, Psd};
+use psd::Psd;
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
 

@@ -74,25 +74,26 @@ impl FileHeaderSection {
         if bytes.len() != 26 {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
-            })?;
+            }
+            .into());
         }
 
         // First four bytes must be '8BPS'
         let signature = cursor.read_4()?;
-        if signature != &EXPECTED_PSD_SIGNATURE {
-            return Err(FileHeaderSectionError::InvalidSignature {})?;
+        if signature != EXPECTED_PSD_SIGNATURE {
+            return Err(FileHeaderSectionError::InvalidSignature {}.into());
         }
 
         // The next 2 bytes represent the version
         let version = cursor.read_2()?;
-        if version != &EXPECTED_VERSION {
-            return Err(FileHeaderSectionError::InvalidVersion {})?;
+        if version != EXPECTED_VERSION {
+            return Err(FileHeaderSectionError::InvalidVersion {}.into());
         }
 
         // The next 6 bytes are reserved and should always be 0
         let reserved = cursor.read_6()?;
-        if reserved != &EXPECTED_RESERVED {
-            return Err(FileHeaderSectionError::InvalidReserved {})?;
+        if reserved != EXPECTED_RESERVED {
+            return Err(FileHeaderSectionError::InvalidReserved {}.into());
         }
 
         // The next 2 bytes represent the channel count
@@ -161,7 +162,7 @@ impl ChannelCount {
     /// Create a new ChannelCount
     pub fn new(channel_count: u8) -> Result<ChannelCount, Error> {
         if channel_count < 1 || channel_count > 56 {
-            return Err(ChannelCountError::OutOfRange { channel_count })?;
+            return Err(ChannelCountError::OutOfRange { channel_count }.into());
         }
 
         Ok(ChannelCount(channel_count))
@@ -195,7 +196,7 @@ impl PsdHeight {
     /// Create a new PsdHeight
     pub fn new(height: u32) -> Result<PsdHeight, Error> {
         if height < 1 || height > 30000 {
-            return Err(PsdSizeError::HeightOutOfRange { height })?;
+            return Err(PsdSizeError::HeightOutOfRange { height }.into());
         }
 
         Ok(PsdHeight(height))
@@ -215,7 +216,7 @@ impl PsdWidth {
     /// Create a new PsdWidth
     pub fn new(width: u32) -> Result<PsdWidth, Error> {
         if width < 1 || width > 30000 {
-            return Err(PsdSizeError::WidthOutOfRange { width })?;
+            return Err(PsdSizeError::WidthOutOfRange { width }.into());
         }
 
         Ok(PsdWidth(width))
@@ -254,7 +255,7 @@ impl PsdDepth {
             8 => Ok(PsdDepth::Eight),
             16 => Ok(PsdDepth::Sixteen),
             32 => Ok(PsdDepth::ThirtyTwo),
-            _ => Err(PsdDepthError::InvalidDepth { depth })?,
+            _ => Err(PsdDepthError::InvalidDepth { depth }.into()),
         }
     }
 }
@@ -303,7 +304,7 @@ impl ColorMode {
             7 => Ok(ColorMode::Multichannel),
             8 => Ok(ColorMode::Duotone),
             9 => Ok(ColorMode::Lab),
-            _ => Err(ColorModeError::InvalidColorMode { color_mode })?,
+            _ => Err(ColorModeError::InvalidColorMode { color_mode }.into()),
         }
     }
 }

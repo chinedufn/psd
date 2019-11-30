@@ -10,7 +10,7 @@ fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<(), failu
     let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    let flattened = psd.flatten_layers_rgba(&|(idx, layer)| {
+    let flattened = psd.flatten_layers_rgba(&|(_, layer)| {
         layer.name() == "Blue Layer" || layer.name() == "Red Layer"
     })?;
 
@@ -27,7 +27,7 @@ fn no_matching_layers() -> Result<(), failure::Error> {
     let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    let flattened = psd.flatten_layers_rgba(&|(idx, layer)| false)?;
+    let flattened = psd.flatten_layers_rgba(&|(_, _)| false)?;
 
     assert_eq!(&flattened[0..8], &[0, 0, 0, 0, 0, 0, 0, 0]);
 

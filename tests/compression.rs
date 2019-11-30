@@ -38,9 +38,9 @@ fn rle_decompress_layer() -> Result<(), Error> {
     Ok(())
 }
 
-fn test_rle_layer(psd: &Psd, layer_name: &str, expected_pixels: &Vec<u8>) {
+fn test_rle_layer(psd: &Psd, layer_name: &str, expected_pixels: &[u8]) {
     let layer = psd.layer_by_name(layer_name).unwrap();
-    assert_eq!(&layer.rgba().unwrap(), expected_pixels);
+    assert_eq!(&layer.rgba().unwrap().as_slice(), &expected_pixels);
 }
 
 // Below are methods to make different expected final pixels so that we can text our generated
@@ -48,10 +48,6 @@ fn test_rle_layer(psd: &Psd, layer_name: &str, expected_pixels: &Vec<u8>) {
 
 fn make_red_8x8_rgba() -> Vec<u8> {
     make_8x8_rgba(RED_PIXEL)
-}
-
-fn make_green_8x8_rgba() -> Vec<u8> {
-    make_8x8_rgba(GREEN_PIXEL)
 }
 
 fn make_blue_8x8_rgba() -> Vec<u8> {
@@ -62,10 +58,6 @@ fn make_green_8x8() -> Vec<u8> {
     make_8x8_rgba(GREEN_PIXEL)
 }
 
-fn make_blue_8x8() -> Vec<u8> {
-    make_8x8_rgba(BLUE_PIXEL)
-}
-
 fn make_8x8_rgba(color: [u8; 4]) -> Vec<u8> {
     let mut pixels = vec![];
 
@@ -74,18 +66,6 @@ fn make_8x8_rgba(color: [u8; 4]) -> Vec<u8> {
         pixels.push(color[1]);
         pixels.push(color[2]);
         pixels.push(color[3]);
-    }
-
-    pixels
-}
-
-fn make_8x8_rgb(color: [u8; 3]) -> Vec<u8> {
-    let mut pixels = vec![];
-
-    for _ in 0..8 * 8 {
-        pixels.push(color[0]);
-        pixels.push(color[1]);
-        pixels.push(color[2]);
     }
 
     pixels
