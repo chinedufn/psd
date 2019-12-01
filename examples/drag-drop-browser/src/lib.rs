@@ -99,13 +99,11 @@ impl App {
         let store = Store { state, on_msg };
         let store = Rc::new(RefCell::new(store));
 
-        let mut app = App {
+        App {
             store,
             dom_updater,
             raf_closure_holder: Rc::new(RefCell::new(None)),
-        };
-
-        app
+        }
     }
 
     /// Start the demo
@@ -168,7 +166,7 @@ impl App {
                        store.borrow_mut().msg(&msg);
                      }
                      >
-                    <span style="cursor: pointer; margin-left: 5px;">{ text!(layer.name()) }</span>
+                    <span style="cursor: pointer; margin-left: 5px;">{ layer.name() }</span>
                   </label>
                 </div>
                 }
@@ -283,7 +281,7 @@ impl App {
 /// along the State. Allowing you to keep State pure.
 struct Store {
     state: State,
-    on_msg: Option<Box<Fn()>>,
+    on_msg: Option<Box<dyn Fn()>>,
 }
 
 /// You'll usually just want the underlying State, so we Deref for convenience.

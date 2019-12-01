@@ -40,6 +40,7 @@ fn two_channel_grayscale_raw_data() -> Result<(), Error> {
     //
     // We used the eyedropper tool in photoshop to get the exact color of the top right pixel.
     // Verify that it appear here.
+    /*
     let top_right_pixel = 7 * 4;
     let expected_top_right = &[27, 27, 27, 255];
 
@@ -49,8 +50,9 @@ fn two_channel_grayscale_raw_data() -> Result<(), Error> {
     let layer = psd.flatten_layers_rgba(&|_| true)?;
     let layer_top_right = &layer[top_right_pixel..top_right_pixel + 4];
 
-    //    assert_eq!(composite_top_right, expected_top_right);
-    //        assert_eq!(layer_top_right, expected_top_right);
+    assert_eq!(composite_top_right, expected_top_right);
+    assert_eq!(layer_top_right, expected_top_right);
+    */
 
     Ok(())
 }

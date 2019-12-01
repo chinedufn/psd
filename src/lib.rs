@@ -139,7 +139,7 @@ impl Psd {
     /// we just use ONE_MINUS_SRC_ALPHA blending regardless of the layer.
     pub fn flatten_layers_rgba(
         &self,
-        filter: &Fn((usize, &PsdLayer)) -> bool,
+        filter: &dyn Fn((usize, &PsdLayer)) -> bool,
     ) -> Result<Vec<u8>, Error> {
         // When you create a PSD but don't create any new layers the bottom layer might not
         // show up in the layer and mask information section, so we won't see any layers.
@@ -147,7 +147,7 @@ impl Psd {
         // TODO: We should try and figure out where the layer name is so that we can return
         // a completely transparent image if it is filtered out. But this should be a rare
         // use case so we can just always return the final image for now.
-        if self.layers().len() == 0 {
+        if self.layers().is_empty() {
             return Ok(self.rgba());
         }
 
@@ -166,7 +166,7 @@ impl Psd {
         let pixel_count = self.width() * self.height();
 
         // If there aren't any layers left after filtering we return a complete transparent image.
-        if layers_to_flatten_top_to_bottom.len() == 0 {
+        if layers_to_flatten_top_to_bottom.is_empty() {
             return Ok(vec![0; pixel_count as usize * 4]);
         }
 
@@ -175,7 +175,7 @@ impl Psd {
         //
         // Anytime we need to calculate the RGBA for a layer we cache it so that we don't need
         // to perform that operation again.
-        let mut cached_layer_rgba = RefCell::new(HashMap::new());
+        let cached_layer_rgba = RefCell::new(HashMap::new());
 
         let mut flattened_pixels = Vec::with_capacity((pixel_count * 4) as usize);
 
@@ -190,7 +190,7 @@ impl Psd {
                 0,
                 pixel_coord,
                 &layers_to_flatten_top_to_bottom,
-                &mut cached_layer_rgba,
+                &cached_layer_rgba,
             );
 
             flattened_pixels.push(blended_pixel[0]);
@@ -212,7 +212,7 @@ impl Psd {
         flattened_layer_top_down_idx: usize,
         // (left, top)
         pixel_coord: (usize, usize),
-        layers_to_flatten_top_down: &Vec<(usize, &PsdLayer)>,
+        layers_to_flatten_top_down: &[(usize, &PsdLayer)],
         cached_layer_rgba: &RefCell<HashMap<usize, Vec<u8>>>,
     ) -> [u8; 4] {
         let layer = layers_to_flatten_top_down[flattened_layer_top_down_idx].1;

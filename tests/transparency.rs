@@ -5,27 +5,24 @@ use psd::PsdChannelKind;
 use std::collections::HashMap;
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
-const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
+// const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
 const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 
 // Transparent pixels in the image data section start [255, 255, 255, 0]
-const TRANSPARENT_PIXEL_IMAGE_DATA: [u8; 4] = [255, 255, 255, 0];
+// const TRANSPARENT_PIXEL_IMAGE_DATA: [u8; 4] = [255, 255, 255, 0];
 
 // In the layer and mask info section we fill in transparent rgba pixels ourselves as [0, 0, 0, 0]
-const TRANSPARENT_PIXEL_LAYER: [u8; 4] = [0, 0, 0, 0];
+// const TRANSPARENT_PIXEL_LAYER: [u8; 4] = [0, 0, 0, 0];
 
 // Test that images that have transparent pixels and don't use compression
 // return the correct RGBA
 #[test]
 fn transparency_raw_data() -> Result<(), failure::Error> {
     let psd = include_bytes!("./fixtures/3x3-opaque-center.psd");
-
     let psd = Psd::from_bytes(psd)?;
-    let pixel_count = psd.width() * psd.height();
 
     let blue_pixels = vec![(1, 1, BLUE_PIXEL), (2, 0, BLUE_PIXEL)];
 
-    let mut expected_image_data = make_image(TRANSPARENT_PIXEL_IMAGE_DATA, pixel_count);
     assert_colors(psd.rgba(), &psd, &blue_pixels);
 
     assert_colors(
@@ -44,8 +41,6 @@ fn transparency_rle_compressed() -> Result<(), failure::Error> {
     let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    let pixel_count = psd.width() * psd.height();
-
     let mut red_block = vec![];
     for left in 0..9 {
         for top in 0..9 {
@@ -59,7 +54,7 @@ fn transparency_rle_compressed() -> Result<(), failure::Error> {
 
     assert_eq!(
         psd.layer_by_name("OpaqueCenter")?
-            .compression(&PsdChannelKind::Red)?,
+            .compression(PsdChannelKind::Red)?,
         PsdChannelCompression::RleCompressed
     );
 
@@ -85,7 +80,7 @@ fn transparent_above_opaque() -> Result<(), Error> {
 // Ensure that the specified, zero-indexed left, top coordinate has the provided pixel color.
 // Otherwise it should be fully transparent.
 // (left, top, pixel)
-fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &Vec<(usize, usize, [u8; 4])>) {
+fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &[(usize, usize, [u8; 4])]) {
     let pixel_count = (psd.width() * psd.height()) as usize;
     let width = psd.width() as usize;
 

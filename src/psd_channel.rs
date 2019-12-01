@@ -49,26 +49,26 @@ pub trait IntoRgba {
 
         use crate::psd_channel::PsdChannelKind::*;
 
-        self.insert_channel_bytes(&mut rgba, &Red, red);
+        self.insert_channel_bytes(&mut rgba, Red, red);
 
         // If there is a green channel we use it, otherwise we use the red channel since this is
         // a single channel grey image (such as a heightmap).
         if let Some(green) = green {
-            self.insert_channel_bytes(&mut rgba, &Green, green);
+            self.insert_channel_bytes(&mut rgba, Green, green);
         } else {
-            self.insert_channel_bytes(&mut rgba, &Green, red);
+            self.insert_channel_bytes(&mut rgba, Green, red);
         }
 
         // If there is a blue channel we use it, otherwise we use the red channel since this is
         // a single channel grey image (such as a heightmap).
         if let Some(blue) = blue {
-            self.insert_channel_bytes(&mut rgba, &Blue, blue);
+            self.insert_channel_bytes(&mut rgba, Blue, blue);
         } else {
-            self.insert_channel_bytes(&mut rgba, &Blue, red);
+            self.insert_channel_bytes(&mut rgba, Blue, red);
         }
 
         if let Some(alpha_channel) = alpha {
-            self.insert_channel_bytes(&mut rgba, &TransparencyMask, alpha_channel);
+            self.insert_channel_bytes(&mut rgba, TransparencyMask, alpha_channel);
         } else {
             // If there is no transparency data then the image is opaque
             for idx in 0..rgba_len / 4 {
@@ -84,10 +84,6 @@ pub trait IntoRgba {
     ///
     /// The 16 bits are stored across the red and green channels (first and second).
     fn generate_16_bit_grayscale_rgba(&self) -> Result<Vec<u8>, Error> {
-        let rgba_len = (self.psd_width() * self.psd_height() * 4) as usize;
-
-        let mut rgba = vec![0; rgba_len];
-
         match self.red() {
             ChannelBytes::RawData(red) => match self.green().unwrap() {
                 ChannelBytes::RawData(green) => Ok(sixteen_to_eight_rgba(red, green)),
@@ -118,7 +114,7 @@ pub trait IntoRgba {
     fn insert_channel_bytes(
         &self,
         rgba: &mut Vec<u8>,
-        channel_kind: &PsdChannelKind,
+        channel_kind: PsdChannelKind,
         channel_bytes: &ChannelBytes,
     ) {
         match channel_bytes {
@@ -132,7 +128,7 @@ pub trait IntoRgba {
             }
             // https://en.wikipedia.org/wiki/PackBits
             ChannelBytes::RleCompressed(channel_bytes) => {
-                self.insert_rle_channel(rgba, &channel_kind, &channel_bytes);
+                self.insert_rle_channel(rgba, channel_kind, &channel_bytes);
             }
         }
     }
@@ -146,8 +142,8 @@ pub trait IntoRgba {
     fn insert_rle_channel(
         &self,
         rgba: &mut Vec<u8>,
-        channel_kind: &PsdChannelKind,
-        channel_bytes: &Vec<u8>,
+        channel_kind: PsdChannelKind,
+        channel_bytes: &[u8],
     ) {
         let mut cursor = PsdCursor::new(&channel_bytes[..]);
 
@@ -182,7 +178,7 @@ pub trait IntoRgba {
 }
 
 /// Rle decompress a channel
-fn rle_decompress(bytes: &Vec<u8>) -> Vec<u8> {
+fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
     let mut cursor = PsdCursor::new(&bytes[..]);
 
     let mut decompressed = vec![];
@@ -213,7 +209,7 @@ fn rle_decompress(bytes: &Vec<u8>) -> Vec<u8> {
 /// into an 8 bit channel.
 ///
 /// We store the final bytes in the first channel (overwriting the old bytes)
-fn sixteen_to_eight_rgba(channel1: &Vec<u8>, channel2: &Vec<u8>) -> Vec<u8> {
+fn sixteen_to_eight_rgba(channel1: &[u8], channel2: &[u8]) -> Vec<u8> {
     let mut eight = Vec::with_capacity(channel1.len());
 
     for idx in 0..channel1.len() {
@@ -273,7 +269,7 @@ impl PsdChannelCompression {
             1 => Ok(PsdChannelCompression::RleCompressed),
             2 => Ok(PsdChannelCompression::ZipWithoutPrediction),
             3 => Ok(PsdChannelCompression::ZipWithPrediction),
-            _ => Err(PsdChannelError::InvalidCompression { compression })?,
+            _ => Err(PsdChannelError::InvalidCompression { compression }.into()),
         }
     }
 }
@@ -317,7 +313,7 @@ impl PsdChannelKind {
             -1 => Ok(PsdChannelKind::TransparencyMask),
             -2 => Ok(PsdChannelKind::UserSuppliedLayerMask),
             -3 => Ok(PsdChannelKind::RealUserSuppliedLayerMask),
-            _ => Err(PsdChannelError::InvalidChannel { channel_id })?,
+            _ => Err(PsdChannelError::InvalidChannel { channel_id }.into()),
         }
     }
 
@@ -325,7 +321,7 @@ impl PsdChannelKind {
     /// G -> 1
     /// B -> 2
     /// A -> 3
-    pub fn rgba_offset(&self) -> Result<usize, Error> {
+    pub fn rgba_offset(self) -> Result<usize, Error> {
         match self {
             PsdChannelKind::Red => Ok(0),
             PsdChannelKind::Green => Ok(1),

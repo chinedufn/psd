@@ -89,13 +89,13 @@ impl PsdLayer {
     }
 
     /// Get the compression level for one of this layer's channels
-    pub fn compression(&self, channel: &PsdChannelKind) -> Result<PsdChannelCompression, Error> {
-        match self.channels.get(channel) {
+    pub fn compression(&self, channel: PsdChannelKind) -> Result<PsdChannelCompression, Error> {
+        match self.channels.get(&channel) {
             Some(channel) => match channel {
                 ChannelBytes::RawData(_) => Ok(PsdChannelCompression::RawData),
                 ChannelBytes::RleCompressed(_) => Ok(PsdChannelCompression::RleCompressed),
             },
-            None => Err(PsdChannelError::ChannelNotFound { channel: *channel })?,
+            None => Err(PsdChannelError::ChannelNotFound { channel }.into()),
         }
     }
 
@@ -178,9 +178,7 @@ impl IntoRgba for PsdLayer {
 
         let top_in_psd = idx / self.width() as usize + self.layer_top as usize;
 
-        let rgba_idx = (top_in_psd * self.psd_width as usize) + left_in_psd;
-
-        rgba_idx
+        (top_in_psd * self.psd_width as usize) + left_in_psd
     }
 
     fn red(&self) -> &ChannelBytes {

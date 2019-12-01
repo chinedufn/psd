@@ -61,7 +61,8 @@ impl<'a> MajorSections<'a> {
         if bytes.len() < FILE_HEADER_SECTION_LEN {
             return Err(NotEnoughBytesError::FileHeader {
                 total_bytes: bytes.len(),
-            })?;
+            }
+            .into());
         }
 
         // File Header Section

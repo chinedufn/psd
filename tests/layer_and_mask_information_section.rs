@@ -1,4 +1,4 @@
-use psd::{ColorMode, Psd};
+use psd::Psd;
 
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
 

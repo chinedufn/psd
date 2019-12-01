@@ -1,4 +1,4 @@
-# virtual-dom-rs Changelog
+# psd Changelog
 
 Types of changes:
 

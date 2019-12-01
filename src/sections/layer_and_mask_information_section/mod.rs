@@ -261,7 +261,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     //
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
-    while cursor.peek_4()? == &SIGNATURE_EIGHT_BIM || cursor.peek_4()? == &SIGNATURE_EIGHT_B64 {
+    while cursor.peek_4()? == SIGNATURE_EIGHT_BIM || cursor.peek_4()? == SIGNATURE_EIGHT_B64 {
         let _signature = cursor.read_4()?;
         let _key = cursor.read_4()?;
         let additional_layer_info_len = cursor.read_u32()?;

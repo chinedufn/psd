@@ -1,5 +1,4 @@
 use crate::psd_channel::PsdChannelCompression;
-use crate::psd_channel::PsdChannelError::ChannelNotFound;
 use crate::sections::file_header_section::PsdDepthError;
 use crate::sections::PsdCursor;
 use crate::PsdDepth;
@@ -101,7 +100,7 @@ impl ImageDataSection {
 
                         (ChannelBytes::RawData(red), green, blue, alpha)
                     }
-                    _ => Err(PsdDepthError::UnsupportedDepth)?,
+                    _ => return Err(PsdDepthError::UnsupportedDepth.into()),
                 }
             }
             // # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
