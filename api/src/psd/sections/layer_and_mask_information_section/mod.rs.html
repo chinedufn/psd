@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/sections/layer_and_mask_information_section/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../psd/index.html'><img src='../../../../rust-logo.png' alt='logo' width='100'></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/sections/layer_and_mask_information_section/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../psd/index.html'><div class='logo-container'><img src='../../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -262,6 +262,23 @@
 <span id="262">262</span>
 <span id="263">263</span>
 <span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelCompression</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelKind</span>;
@@ -320,17 +337,22 @@
         <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">psd_width</span>: <span class="ident">u32</span>,
         <span class="ident">psd_height</span>: <span class="ident">u32</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">LayerAndMaskInformationSection</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">LayerAndMaskInformationSection</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">PsdCursor</span>::<span class="ident">new</span>(<span class="ident">bytes</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">layers</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">layer_names</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">new</span>();
 
         <span class="comment">// The first four bytes of the section is the length marker for the layer and mask</span>
-        <span class="comment">// information section, we won&#39;t be needing it.</span>
+        <span class="comment">// information section.</span>
+        <span class="comment">//</span>
+        <span class="comment">// We do not currently use it since the number of bytes passed into this function was</span>
+        <span class="comment">// the exact number of bytes in the layer and information mask section of the PSD file,</span>
+        <span class="comment">// so there&#39;s no way for us to accidentally read too many bytes. If we did the program</span>
+        <span class="comment">// would panic.</span>
         <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
 
-        <span class="comment">// Read the next four bytes to get the length of the layer info section</span>
+        <span class="comment">// Read the next four bytes to get the length of the layer info section.</span>
         <span class="kw">let</span> <span class="ident">_layer_info_section_len</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
 
         <span class="comment">// Next 2 bytes is the layer count</span>
@@ -377,8 +399,8 @@
                 <span class="kw">let</span> <span class="ident">channel_data</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">channel_length</span>)<span class="question-mark">?</span>;
 
                 <span class="kw">let</span> <span class="ident">channel_bytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">compression</span> {
-                    <span class="ident">PsdChannelCompression</span>::<span class="ident">RawData</span> <span class="op">=&gt;</span> <span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">channel_data</span>.<span class="ident">into</span>()),
-                    <span class="ident">PsdChannelCompression</span>::<span class="ident">RleCompressed</span> <span class="op">=&gt;</span> {
+                    <span class="ident">PsdChannelCompression</span>::<span class="ident">RawData</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ChannelBytes</span>::<span class="ident">RawData</span>(<span class="ident">channel_data</span>.<span class="ident">into</span>()),
+                    <span class="ident">PsdChannelCompression</span>::<span class="ident">RleCompressed</span> <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="comment">// We&#39;re skipping over the bytes that describe the length of each scanline since</span>
                         <span class="comment">// we don&#39;t currently use them. We might re-think this in the future when we</span>
                         <span class="comment">// implement serialization of a Psd back into bytes.. But not a concern at the</span>
@@ -389,7 +411,7 @@
 
                         <span class="ident">ChannelBytes</span>::<span class="ident">RleCompressed</span>(<span class="ident">channel_data</span>.<span class="ident">into</span>())
                     }
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;Zip compression currently unsupported&quot;</span>),
+                    <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;Zip compression currently unsupported&quot;</span>),
                 };
 
                 <span class="ident">psd_layer</span>.<span class="ident">channels</span>.<span class="ident">insert</span>(<span class="ident">channel_kind</span>, <span class="ident">channel_bytes</span>);
@@ -432,20 +454,30 @@
 <span class="doccomment">/// | Variable               | Layer mask data: See See Layer mask / adjustment layer data for structure. Can be 40 bytes, 24 bytes, or 4 bytes if no layer mask.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |</span>
 <span class="doccomment">/// | Variable               | Layer blending ranges: See See Layer blending ranges data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |</span>
 <span class="doccomment">/// | Variable               | Layer name: Pascal string, padded to a multiple of 4 bytes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |</span>
-<span class="kw">fn</span> <span class="ident">read_layer_record</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">LayerRecord</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">read_layer_record</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">LayerRecord</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">channel_data_lengths</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
 
+    <span class="comment">// FIXME:</span>
+    <span class="comment">// Ran into a bug where a PSD file had a top and left of over 4billion.</span>
+    <span class="comment">// The PSD file was 128x128 yet the single layer in the file was 1024x1024.</span>
+    <span class="comment">// Manually changing the layer&#39;s dimensions fixed the problem.. but this is something</span>
+    <span class="comment">// that we should look into handling automatically since the file opened just fine in</span>
+    <span class="comment">// Photoshop.</span>
+
     <span class="comment">// Read the rectangle that encloses the layer mask.</span>
-    <span class="kw">let</span> <span class="ident">top</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">left</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">top</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+
+    <span class="kw">let</span> <span class="ident">left</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+
     <span class="comment">// Subtract one in order to zero index. If a layer is fully transparent it&#39;s bottom will</span>
     <span class="comment">// already be 0 so we don&#39;t subtract</span>
-    <span class="kw">let</span> <span class="ident">bottom</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">bottom</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">bottom</span> <span class="op">==</span> <span class="number">0</span> { <span class="number">0</span> } <span class="kw">else</span> { <span class="ident">bottom</span> <span class="op">-</span> <span class="number">1</span> };
+    <span class="kw">let</span> <span class="ident">bottom</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">bottom</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">bottom</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> { <span class="number">0</span> } <span class="kw">else</span> { <span class="ident">bottom</span> <span class="op">-</span> <span class="number">1</span> };
+
     <span class="comment">// Subtract one in order to zero index. If a layer is fully transparent it&#39;s right will</span>
     <span class="comment">// already be zero so we don&#39;t subtract.</span>
-    <span class="kw">let</span> <span class="ident">right</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">right</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">right</span> <span class="op">==</span> <span class="number">0</span> { <span class="number">0</span> } <span class="kw">else</span> { <span class="ident">right</span> <span class="op">-</span> <span class="number">1</span> };
+    <span class="kw">let</span> <span class="ident">right</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">right</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">right</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> { <span class="number">0</span> } <span class="kw">else</span> { <span class="ident">right</span> <span class="op">-</span> <span class="number">1</span> };
 
     <span class="comment">// Get the number of channels in the layer</span>
     <span class="kw">let</span> <span class="ident">channel_count</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u16</span>()<span class="question-mark">?</span>;
@@ -511,21 +543,23 @@
     <span class="comment">//</span>
     <span class="comment">// There can be multiple additional layer information sections so we&#39;ll loop</span>
     <span class="comment">// until we stop seeing them.</span>
-    <span class="kw">while</span> <span class="ident">cursor</span>.<span class="ident">peek_4</span>()<span class="question-mark">?</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">SIGNATURE_EIGHT_BIM</span> <span class="op">||</span> <span class="ident">cursor</span>.<span class="ident">peek_4</span>()<span class="question-mark">?</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">SIGNATURE_EIGHT_B64</span> {
+    <span class="kw">while</span> <span class="ident">cursor</span>.<span class="ident">peek_4</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">SIGNATURE_EIGHT_BIM</span> <span class="op">|</span><span class="op">|</span> <span class="ident">cursor</span>.<span class="ident">peek_4</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">SIGNATURE_EIGHT_B64</span> {
         <span class="kw">let</span> <span class="ident">_signature</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">_key</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">additional_layer_info_len</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
         <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">additional_layer_info_len</span>)<span class="question-mark">?</span>;
     }
 
-    <span class="prelude-val">Ok</span>(<span class="ident">LayerRecord</span> {
+    <span class="kw">let</span> <span class="ident">layer_record</span> <span class="op">=</span> <span class="ident">LayerRecord</span> {
         <span class="ident">name</span>,
         <span class="ident">channel_data_lengths</span>,
         <span class="ident">top</span>,
         <span class="ident">left</span>,
         <span class="ident">bottom</span>,
         <span class="ident">right</span>,
-    })
+    };
+
+    <span class="prelude-val">Ok</span>(<span class="ident">layer_record</span>)
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g., <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g., <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g., <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../../../";window.currentCrate = "psd";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "psd";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>
