@@ -109,6 +109,11 @@ pub enum NotEnoughBytesError {
         total_bytes
     )]
     FileHeader { total_bytes: usize },
+    #[fail(
+        display = "Could not read the PsdCursor range, {}..{}",
+        start, end
+    )]
+    InvalidRange { start: usize, end: usize },
 }
 
 /// A Cursor wrapping bytes from a PSD file.
@@ -140,7 +145,11 @@ impl<'a> PsdCursor<'a> {
     pub fn read(&mut self, count: u32) -> Result<&[u8], Error> {
         let start = self.cursor.position() as usize;
         let end = start + count as usize;
-        let bytes = &self.cursor.get_ref()[start..end];
+        let bytes = &self
+            .cursor
+            .get_ref()
+            .get(start..end)
+            .ok_or_else(|| NotEnoughBytesError::InvalidRange { start, end })?;
 
         self.cursor.set_position(end as u64);
 
@@ -156,7 +165,11 @@ impl<'a> PsdCursor<'a> {
     fn peek(&mut self, n: u8) -> Result<&[u8], Error> {
         let start = self.cursor.position() as usize;
         let end = start + n as usize;
-        let bytes = &self.cursor.get_ref()[start..end];
+        let bytes = &self
+            .cursor
+            .get_ref()
+            .get(start..end)
+            .ok_or_else(|| NotEnoughBytesError::InvalidRange { start, end })?;
 
         Ok(&bytes)
     }
