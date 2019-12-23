@@ -1,3 +1,4 @@
+use crate::sections::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};
 use failure::{Error, Fail};
 use std::io::Cursor;
 
@@ -55,14 +56,20 @@ impl<'a> MajorSections<'a> {
     ///
     /// The string of Unicode values, two bytes per character.
     pub fn from_bytes(bytes: &[u8]) -> Result<MajorSections, Error> {
-        let mut cursor = PsdCursor::new(bytes);
-
         // File header section must be 26 bytes long.
         if bytes.len() < FILE_HEADER_SECTION_LEN {
             return Err(NotEnoughBytesError::FileHeader {
                 total_bytes: bytes.len(),
             }
             .into());
+        }
+
+        let mut cursor = PsdCursor::new(bytes);
+
+        // First four bytes must be '8BPS'
+        let signature = cursor.peek_4()?;
+        if signature != EXPECTED_PSD_SIGNATURE {
+            return Err(FileHeaderSectionError::InvalidSignature {}.into());
         }
 
         // File Header Section

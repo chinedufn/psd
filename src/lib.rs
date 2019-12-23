@@ -8,8 +8,7 @@
 #![deny(missing_docs)]
 
 pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
-pub use crate::sections::file_header_section::ColorMode;
-pub use crate::sections::file_header_section::PsdDepth;
+pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 
 use self::sections::file_header_section::FileHeaderSection;
@@ -359,5 +358,22 @@ impl IntoRgba for Psd {
 
     fn psd_height(&self) -> u32 {
         self.height()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sections::file_header_section::FileHeaderSectionError;
+
+    // Makes sure non PSD files get caught right away before getting a chance to create problems
+    #[test]
+    fn psd_signature_fail() {
+        let psd = include_bytes!("../tests/fixtures/green-1x1.png");
+
+        let err = Psd::from_bytes(psd).expect_err("Psd::from_bytes() didn't catch the PNG file");
+        let err = err.downcast_ref::<FileHeaderSectionError>();
+
+        assert_eq!(err, Some(&FileHeaderSectionError::InvalidSignature {}));
     }
 }
