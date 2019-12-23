@@ -406,7 +406,7 @@
 <span class="kw">use</span> <span class="ident">failure</span>::{<span class="ident">Error</span>, <span class="ident">Fail</span>};
 
 <span class="doccomment">/// Bytes representing the string &quot;8BPS&quot;.</span>
-<span class="kw">const</span> <span class="ident">EXPECTED_PSD_SIGNATURE</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">56</span>, <span class="number">66</span>, <span class="number">80</span>, <span class="number">83</span>];
+<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">EXPECTED_PSD_SIGNATURE</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">56</span>, <span class="number">66</span>, <span class="number">80</span>, <span class="number">83</span>];
 <span class="doccomment">/// Bytes representing the number 1</span>
 <span class="kw">const</span> <span class="ident">EXPECTED_VERSION</span>: [<span class="ident">u8</span>; <span class="number">2</span>] <span class="op">=</span> [<span class="number">0</span>, <span class="number">1</span>];
 <span class="doccomment">/// Bytes representing the Reserved section of the header</span>
@@ -445,7 +445,7 @@
 }
 
 <span class="doccomment">/// Represents an malformed file section header</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Fail</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">FileHeaderSectionError</span> {
     <span class="attribute">#[<span class="ident">fail</span>(
         <span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;A file section header is comprised of 26 bytes, you provided {} bytes.&quot;</span>,

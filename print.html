@@ -171,6 +171,7 @@ to dive into the codebase.</p>
 #fn main() {
 // Imported into the book from `src/sections/mod.rs`
 
+
 /// References to the different major sections of a PSD file
 #[derive(Debug)]
 pub struct MajorSections&lt;'a&gt; {
@@ -195,7 +196,6 @@ impl&lt;'a&gt; MajorSections&lt;'a&gt; {
     /// │  Layer and Mask  │
     /// ├──────────────────┤
     /// │    Image Data    │
-    /// └──────────────────┘
 #}</code></pre></pre>
 <p>Our parsing comes down to reading through the bytes in this byte slice and
 using them to create these five major sections.</p>
