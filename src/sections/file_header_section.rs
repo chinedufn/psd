@@ -2,7 +2,7 @@ use crate::sections::PsdCursor;
 use failure::{Error, Fail};
 
 /// Bytes representing the string "8BPS".
-const EXPECTED_PSD_SIGNATURE: [u8; 4] = [56, 66, 80, 83];
+pub const EXPECTED_PSD_SIGNATURE: [u8; 4] = [56, 66, 80, 83];
 /// Bytes representing the number 1
 const EXPECTED_VERSION: [u8; 2] = [0, 1];
 /// Bytes representing the Reserved section of the header
@@ -41,7 +41,7 @@ pub struct FileHeaderSection {
 }
 
 /// Represents an malformed file section header
-#[derive(Debug, Fail)]
+#[derive(Debug, PartialEq, Fail)]
 pub enum FileHeaderSectionError {
     #[fail(
         display = "A file section header is comprised of 26 bytes, you provided {} bytes.",
