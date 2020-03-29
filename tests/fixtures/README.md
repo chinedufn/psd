@@ -73,3 +73,15 @@ A PSD file with a single layer that has an X,Y position of (-4px, -4px) and a wi
 9x9 even though the PSD's size has been set to 1x1
 
 This happened while resizing a PSD from 1024x1024 down to 1x1.
+
+## green-chinese-layer-name-1x1.psd 
+
+Support for unicode encoded layer names
+
+https://github.com/chinedufn/psd/issues/4
+
+## green-cyrillic-layer-name-1x1.psd
+
+Support for unicode layer names
+
+https://github.com/chinedufn/psd/issues/4
