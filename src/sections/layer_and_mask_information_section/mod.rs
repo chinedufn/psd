@@ -271,22 +271,27 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // until we stop seeing them.
     while cursor.peek_4()? == SIGNATURE_EIGHT_BIM || cursor.peek_4()? == SIGNATURE_EIGHT_B64 {
         let _signature = cursor.read_4()?;
-        let _key = Vec::from(cursor.read_4()?);
+        let mut key = [0; 4];
+        key.copy_from_slice(cursor.read_4()?);
         let additional_layer_info_len = cursor.read_u32()?;
 
-        if _key.as_slice() == KEY_UNICODE_LAYER_NAME {
-            let length = cursor.read_u32()?;
-            let label_name = cursor.read(additional_layer_info_len - 4)?;
+        match key {
+            KEY_UNICODE_LAYER_NAME => {
+                let length = cursor.read_u32()?;
+                let label_name = cursor.read(additional_layer_info_len - 4)?;
 
-            name = String::from_utf16(
-                &u8_slice_to_u16(label_name).as_slice()[..length as usize]
-            )?;
-        } else {
-            cursor.read(additional_layer_info_len)?; // just skip all data
+                name = String::from_utf16(
+                    &u8_slice_to_u16(label_name).as_slice()[..length as usize]
+                )?;
+            }
+
+            // TODO: Skipping other keys until we implement parsing for them
+            _ => {
+                cursor.read(additional_layer_info_len)?;
+            }
         }
     }
 
-    println!("name: {:?}", name);
     let layer_record = LayerRecord {
         name,
         channel_data_lengths,
@@ -303,6 +308,6 @@ fn u8_slice_to_u16(bytes: &[u8]) -> Vec<u16> {
     return Vec::from(bytes)
         .chunks_exact(2)
         .into_iter()
-        .map(|a| u16::from_ne_bytes([a[1], a[0]]))
+        .map(|a| u16::from_be_bytes([a[0], a[1]]))
         .collect();
 }
