@@ -279,20 +279,60 @@
 <span id="279">279</span>
 <span id="280">280</span>
 <span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Cow</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">FromIterator</span>;
+
+<span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
+
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelCompression</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelKind</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ChannelBytes</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">LayerRecord</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdLayer</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">PsdCursor</span>;
-<span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 
 <span class="doccomment">/// One of the possible additional layer block signatures</span>
 <span class="kw">const</span> <span class="ident">SIGNATURE_EIGHT_BIM</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">56</span>, <span class="number">66</span>, <span class="number">73</span>, <span class="number">77</span>];
 <span class="doccomment">/// One of the possible additional layer block signatures</span>
 <span class="kw">const</span> <span class="ident">SIGNATURE_EIGHT_B64</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">56</span>, <span class="number">66</span>, <span class="number">54</span>, <span class="number">52</span>];
+
+<span class="doccomment">/// Additional Layer Information constants.</span>
+<span class="doccomment">/// Key of `Unicode layer name (Photoshop 5.0)`, &quot;luni&quot;</span>
+<span class="kw">const</span> <span class="ident">KEY_UNICODE_LAYER_NAME</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">108</span>, <span class="number">117</span>, <span class="number">110</span>, <span class="number">105</span>];
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">layer</span>;
 
@@ -528,7 +568,7 @@
     <span class="kw">let</span> <span class="ident">name_len</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u8</span>()<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">name_len</span> <span class="kw">as</span> <span class="ident">u32</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="ident">name</span>);
-    <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">name</span>.<span class="ident">to_string</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">name</span>.<span class="ident">to_string</span>();
 
     <span class="comment">// Layer name is padded to the next multiple of 4 bytes.</span>
     <span class="comment">// So if the name length is 9, there will be three throwaway bytes</span>
@@ -545,9 +585,25 @@
     <span class="comment">// until we stop seeing them.</span>
     <span class="kw">while</span> <span class="ident">cursor</span>.<span class="ident">peek_4</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">SIGNATURE_EIGHT_BIM</span> <span class="op">|</span><span class="op">|</span> <span class="ident">cursor</span>.<span class="ident">peek_4</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">SIGNATURE_EIGHT_B64</span> {
         <span class="kw">let</span> <span class="ident">_signature</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">_key</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">key</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">4</span>];
+        <span class="ident">key</span>.<span class="ident">copy_from_slice</span>(<span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>);
         <span class="kw">let</span> <span class="ident">additional_layer_info_len</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
-        <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">additional_layer_info_len</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">match</span> <span class="ident">key</span> {
+            <span class="ident">KEY_UNICODE_LAYER_NAME</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">label_name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">additional_layer_info_len</span> <span class="op">-</span> <span class="number">4</span>)<span class="question-mark">?</span>;
+
+                <span class="ident">name</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">from_utf16</span>(
+                    <span class="kw-2">&amp;</span><span class="ident">u8_slice_to_u16</span>(<span class="ident">label_name</span>).<span class="ident">as_slice</span>()[..<span class="ident">length</span> <span class="kw">as</span> <span class="ident">usize</span>]
+                )<span class="question-mark">?</span>;
+            }
+
+            <span class="comment">// TODO: Skipping other keys until we implement parsing for them</span>
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">additional_layer_info_len</span>)<span class="question-mark">?</span>;
+            }
+        }
     }
 
     <span class="kw">let</span> <span class="ident">layer_record</span> <span class="op">=</span> <span class="ident">LayerRecord</span> {
@@ -561,5 +617,12 @@
 
     <span class="prelude-val">Ok</span>(<span class="ident">layer_record</span>)
 }
-</pre></div>
+
+<span class="kw">fn</span> <span class="ident">u8_slice_to_u16</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span> {
+    <span class="kw">return</span> <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">bytes</span>)
+        .<span class="ident">chunks_exact</span>(<span class="number">2</span>)
+        .<span class="ident">into_iter</span>()
+        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">u16</span>::<span class="ident">from_be_bytes</span>([<span class="ident">a</span>[<span class="number">0</span>], <span class="ident">a</span>[<span class="number">1</span>]]))
+        .<span class="ident">collect</span>();
+}</pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "psd";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>
