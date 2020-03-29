@@ -10,7 +10,7 @@
         <script src='/drag_drop_browser.js'></script>
         <script>
             wasm_bindgen(`/drag_drop_browser_bg.wasm`).then(() => {
-                const { AppWrapper: App } = window.wasm_bindgen
+                const { AppWrapper: App } = wasm_bindgen
                 new App()
             })
         </script>
