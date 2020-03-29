@@ -9,7 +9,7 @@
     <body style='margin: 0; padding: 0; display: flex; justify-content: center;'>
         <script src='/drag_drop_browser.js'></script>
         <script>
-            window.wasm_bindgen(`/drag_drop_browser_bg.wasm`).then(() => {
+            wasm_bindgen(`/drag_drop_browser_bg.wasm`).then(() => {
                 const { AppWrapper: App } = window.wasm_bindgen
                 new App()
             })
