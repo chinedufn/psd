@@ -22,7 +22,7 @@ fn layer_with_cyrillic_name() {
     let psd = Psd::from_bytes(psd).unwrap();
 
     assert_eq!(psd.layers().len(), 1);
-    
+
     let layer = psd.layer_by_name("привет").unwrap();
 
     assert_eq!(&layer.rgba().unwrap()[..], &GREEN_PIXEL);
