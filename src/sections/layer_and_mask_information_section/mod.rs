@@ -1,16 +1,24 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::iter::FromIterator;
+
+use failure::Error;
+
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::layer_and_mask_information_section::layer::LayerRecord;
 use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::PsdCursor;
-use failure::Error;
-use std::collections::HashMap;
 
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_BIM: [u8; 4] = [56, 66, 73, 77];
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_B64: [u8; 4] = [56, 66, 54, 52];
+
+/// Additional Layer Information constants.
+/// Key of `Unicode layer name (Photoshop 5.0)`, "luni"
+const KEY_UNICODE_LAYER_NAME: [u8; 4] = [108, 117, 110, 105];
 
 pub mod layer;
 
@@ -246,7 +254,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     let name_len = cursor.read_u8()?;
     let name = cursor.read(name_len as u32)?;
     let name = String::from_utf8_lossy(name);
-    let name = name.to_string();
+    let mut name = name.to_string();
 
     // Layer name is padded to the next multiple of 4 bytes.
     // So if the name length is 9, there will be three throwaway bytes
@@ -263,9 +271,25 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // until we stop seeing them.
     while cursor.peek_4()? == SIGNATURE_EIGHT_BIM || cursor.peek_4()? == SIGNATURE_EIGHT_B64 {
         let _signature = cursor.read_4()?;
-        let _key = cursor.read_4()?;
+        let mut key = [0; 4];
+        key.copy_from_slice(cursor.read_4()?);
         let additional_layer_info_len = cursor.read_u32()?;
-        cursor.read(additional_layer_info_len)?;
+
+        match key {
+            KEY_UNICODE_LAYER_NAME => {
+                let length = cursor.read_u32()?;
+                let label_name = cursor.read(additional_layer_info_len - 4)?;
+
+                name = String::from_utf16(
+                    &u8_slice_to_u16(label_name).as_slice()[..length as usize]
+                )?;
+            }
+
+            // TODO: Skipping other keys until we implement parsing for them
+            _ => {
+                cursor.read(additional_layer_info_len)?;
+            }
+        }
     }
 
     let layer_record = LayerRecord {
@@ -278,4 +302,12 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     };
 
     Ok(layer_record)
+}
+
+fn u8_slice_to_u16(bytes: &[u8]) -> Vec<u16> {
+    return Vec::from(bytes)
+        .chunks_exact(2)
+        .into_iter()
+        .map(|a| u16::from_be_bytes([a[0], a[1]]))
+        .collect();
 }
