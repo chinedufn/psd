@@ -14,6 +14,7 @@ pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use self::sections::file_header_section::FileHeaderSection;
 use crate::psd_channel::IntoRgba;
 use crate::sections::image_data_section::ChannelBytes;
+use crate::sections::image_resources_section::ImageResourcesSection;
 use crate::sections::image_data_section::ImageDataSection;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
@@ -33,6 +34,7 @@ mod sections;
 #[derive(Debug)]
 pub struct Psd {
     file_header_section: FileHeaderSection,
+    image_resources_section: ImageResourcesSection,
     layer_and_mask_information_section: LayerAndMaskInformationSection,
     image_data_section: ImageDataSection,
 }
@@ -71,8 +73,14 @@ impl Psd {
             channel_count,
         )?;
 
+
+        let image_resources_section = ImageResourcesSection::from_bytes(
+            major_sections.image_resources
+        )?;
+
         Ok(Psd {
             file_header_section,
+            image_resources_section,
             layer_and_mask_information_section,
             image_data_section,
         })

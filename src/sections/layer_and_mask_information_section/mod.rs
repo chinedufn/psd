@@ -277,12 +277,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
 
         match key {
             KEY_UNICODE_LAYER_NAME => {
-                let length = cursor.read_u32()?;
-                let label_name = cursor.read(additional_layer_info_len - 4)?;
-
-                name = String::from_utf16(
-                    &u8_slice_to_u16(label_name).as_slice()[..length as usize]
-                )?;
+                name = cursor.read_unicode_string()?;
             }
 
             // TODO: Skipping other keys until we implement parsing for them
@@ -304,10 +299,3 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     Ok(layer_record)
 }
 
-fn u8_slice_to_u16(bytes: &[u8]) -> Vec<u16> {
-    return Vec::from(bytes)
-        .chunks_exact(2)
-        .into_iter()
-        .map(|a| u16::from_be_bytes([a[0], a[1]]))
-        .collect();
-}
