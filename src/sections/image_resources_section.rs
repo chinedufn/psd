@@ -265,30 +265,50 @@ pub struct DescriptorStructure {
     pub class_id: Vec<u8>,
 }
 
+/// One of
 #[derive(Debug)]
 pub enum DescriptorField {
+    /// Descriptor as field
     Descriptor(DescriptorStructure),
+    /// A list of special fields
+    /// There are can be Property, Identifier, Index, Name fields
     Reference(Vec<DescriptorField>),
+    /// Float field with unit
     UnitFloat(UnitFloatStructure),
+    /// Double-precision floating-point number
     Double(f64),
+    ///
     Class(ClassStructure),
+    /// Text
     String(String),
+    ///
     EnumeratedReference(EnumeratedReference),
+    ///
     Offset(OffsetStructure),
+    /// Boolean value
     Boolean(bool),
+    ///
     Alias(AliasStructure),
+    /// A list of fields
     List(Vec<DescriptorField>),
+    /// 64bit integer number
     LargeInteger(i64),
+    /// 32bit integer number
     Integer(i32),
+    ///
     EnumeratedDescriptor(EnumeratedDescriptor),
+    /// Raw bytes data
     RawData(Vec<u8>),
 
     /// Only Reference fields
     ///
     ///
     Property(PropertyStructure),
+    ///
     Identifier(i32),
+    ///
     Index(i32),
+    ///
     Name(NameStructure),
 }
 
@@ -321,11 +341,17 @@ pub struct PropertyStructure {
 /// +------------------------------------+--------------------------------------------------------+
 #[derive(Debug)]
 pub enum UnitFloatStructure {
+    /// Base degrees
     Angle(f64),
+    /// Base per inch
     Density(f64),
+    /// Base 72ppi
     Distance(f64),
+    /// Base coerced
     None,
+    /// Unit value
     Percent(f64),
+    /// Tagged unit value
     Pixels(f64),
 }
 

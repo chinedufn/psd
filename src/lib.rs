@@ -10,11 +10,12 @@
 pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
 pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
+pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
 
 use self::sections::file_header_section::FileHeaderSection;
 use crate::psd_channel::IntoRgba;
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::image_resources_section::ImageResourcesSection;
+use crate::sections::image_resources_section::{ImageResourcesSection, DescriptorStructure};
 use crate::sections::image_data_section::ImageDataSection;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
@@ -329,6 +330,15 @@ impl Psd {
     /// Get the compression level for the flattened image data
     pub fn compression(&self) -> &PsdChannelCompression {
         &self.image_data_section.compression
+    }
+}
+
+
+// Methods for working with the image resources section
+impl Psd {
+    /// Get the metadata descriptors of the PSD
+    pub fn descriptors(&self) -> Option<&Vec<DescriptorStructure>> {
+        self.image_resources_section.descriptors.as_ref()
     }
 }
 
