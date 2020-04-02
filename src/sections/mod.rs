@@ -141,6 +141,10 @@ impl<'a> PsdCursor<'a> {
         self.cursor.position()
     }
 
+    pub fn seek(&mut self, pos: u64) {
+        self.cursor.set_position(pos);
+    }
+
     /// Get the underlying bytes in the cursor
     pub fn get_ref(&self) -> &[u8] {
         self.cursor.get_ref()
@@ -189,6 +193,11 @@ impl<'a> PsdCursor<'a> {
     /// Read 6 bytes
     pub fn read_6(&mut self) -> Result<&[u8], Error> {
         self.read(6)
+    }
+
+    /// Read 8 bytes
+    pub fn read_8(&mut self) -> Result<&[u8], Error> {
+        self.read(8)
     }
 
     /// Read 1 byte as a u8
@@ -242,30 +251,81 @@ impl<'a> PsdCursor<'a> {
 
         let mut array = [0; 4];
         array.copy_from_slice(bytes);
-
         Ok(i32::from_be_bytes(array))
     }
 
-    /// Read 'Unicode string' using specified length
-    pub fn read_unicode_string_len(&mut self, length: u32) -> Result<String, Error> {
+    /// Read 8 bytes as a f64
+    pub fn read_f64(&mut self) -> Result<f64, Error> {
+        let bytes = self.read_8()?;
+
+        let mut array = [0; 8];
+        array.copy_from_slice(bytes);
+
+        Ok(f64::from_be_bytes(array))
+    }
+
+    /// Read 8 bytes as a i64
+    pub fn read_i64(&mut self) -> Result<i64, Error> {
+        let bytes = self.read_8()?;
+
+        let mut array = [0; 8];
+        array.copy_from_slice(bytes);
+
+        Ok(i64::from_be_bytes(array))
+    }
+
+    /// Reads 'Unicode string'
+    ///
+    /// Unicode string is
+    /// A 4-byte length field, representing the number of UTF-16 code units in the string (not bytes).
+    /// The string of Unicode values, two bytes per character and a two byte null for the end of the string.
+    pub fn read_unicode_string(&mut self) -> Result<String, Error> {
+        let length = self.read_u32()?;
         // UTF-16 encoding - two bytes per character
         let length_bytes = length * 2;
         // Note: data length is padded to 4.
         let length_bytes = length_bytes + length_bytes % 4;
 
-        let data = self.read(length_bytes)?;
+        let data = self.read(length_bytes as u32)?;
         Ok(String::from_utf16(
             &u8_slice_to_u16(data).as_slice()[..length as usize]
         )?)
     }
 
-    /// Read 'Unicode string'
-    pub fn read_unicode_string(&mut self) -> Result<String, Error> {
-        let length = self.read_u32()?;
-        self.read_unicode_string_len(length)
+    /// Reads 'Unicode string' using specified padding
+    ///
+    /// Unicode string is
+    /// A 4-byte length field, representing the number of UTF-16 code units in the string (not bytes).
+    /// The string of Unicode values, two bytes per character and a two byte null for the end of the string.
+    pub fn read_unicode_string_padding(&mut self, padding: usize) -> Result<String, Error> {
+        let length = self.read_u32()? as usize;
+        // UTF-16 encoding - two bytes per character
+        let length_bytes = length * 2;
+
+        let data = self.read(length_bytes as u32)?;
+        let result = String::from_utf16(
+            &u8_slice_to_u16(data).as_slice()[..length as usize]
+        )?;
+
+        self.read_padding(4 + length_bytes, padding)?;
+
+        Ok(result)
     }
 
-    /// Read 'Pascal string'
+    fn read_padding(&mut self, size: usize, divisor: usize) -> Result<&[u8], Error> {
+        let reminder = size % divisor;
+        if reminder > 0 {
+            let to_read = divisor - reminder;
+            self.read(to_read as u32)
+        } else {
+            Ok(&[] as &[u8])
+        }
+    }
+
+    /// Reads 'Pascal string'
+    ///
+    /// Pascal string is UTF-8 string, padded to make the size even
+    /// (a null name consists of two bytes of 0)
     pub fn read_pascal_string(&mut self) -> Result<String, Error> {
         let len = self.read_u8()?;
         let data = self.read(len as u32)?;

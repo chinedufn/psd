@@ -74,9 +74,9 @@ impl Psd {
         )?;
 
 
-        let image_resources_section = ImageResourcesSection::from_bytes(
+       let image_resources_section = ImageResourcesSection::from_bytes(
             major_sections.image_resources
-        )?;
+       )?;
 
         Ok(Psd {
             file_header_section,
