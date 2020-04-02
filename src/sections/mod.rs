@@ -280,16 +280,7 @@ impl<'a> PsdCursor<'a> {
     /// A 4-byte length field, representing the number of UTF-16 code units in the string (not bytes).
     /// The string of Unicode values, two bytes per character and a two byte null for the end of the string.
     pub fn read_unicode_string(&mut self) -> Result<String, Error> {
-        let length = self.read_u32()?;
-        // UTF-16 encoding - two bytes per character
-        let length_bytes = length * 2;
-        // Note: data length is padded to 4.
-        let length_bytes = length_bytes + length_bytes % 4;
-
-        let data = self.read(length_bytes as u32)?;
-        Ok(String::from_utf16(
-            &u8_slice_to_u16(data).as_slice()[..length as usize]
-        )?)
+        self.read_unicode_string_padding(4)
     }
 
     /// Reads 'Unicode string' using specified padding
