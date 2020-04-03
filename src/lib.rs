@@ -7,21 +7,23 @@
 
 #![deny(missing_docs)]
 
-pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
-pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
-pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
-pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
-
-use self::sections::file_header_section::FileHeaderSection;
-use crate::psd_channel::IntoRgba;
-use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::image_resources_section::{ImageResourcesSection, DescriptorStructure};
-use crate::sections::image_data_section::ImageDataSection;
-use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
-use crate::sections::MajorSections;
-use failure::Error;
 use std::cell::RefCell;
 use std::collections::HashMap;
+
+use failure::Error;
+
+pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
+use crate::psd_channel::IntoRgba;
+pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
+use crate::sections::image_data_section::ChannelBytes;
+use crate::sections::image_data_section::ImageDataSection;
+pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
+use crate::sections::image_resources_section::{DescriptorStructure, ImageResourcesSection};
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
+use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
+use crate::sections::MajorSections;
+
+use self::sections::file_header_section::FileHeaderSection;
 
 mod psd_channel;
 mod sections;
@@ -75,9 +77,9 @@ impl Psd {
         )?;
 
 
-       let image_resources_section = ImageResourcesSection::from_bytes(
+        let image_resources_section = ImageResourcesSection::from_bytes(
             major_sections.image_resources
-       )?;
+        )?;
 
         Ok(Psd {
             file_header_section,
@@ -381,8 +383,9 @@ impl IntoRgba for Psd {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::sections::file_header_section::FileHeaderSectionError;
+
+    use super::*;
 
     // Makes sure non PSD files get caught right away before getting a chance to create problems
     #[test]

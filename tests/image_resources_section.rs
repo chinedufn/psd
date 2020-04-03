@@ -1,7 +1,10 @@
 use psd::{DescriptorField, Psd};
 
+
+// In this test we check that root descriptor's `bounds` field is equal to 1
+// So, then fields parsed correctly
 #[test]
-fn image_resources_section() {
+fn image_check_1x1p_bound_field() {
     let psd = include_bytes!("./fixtures/two-layers-red-green-1x1.psd");
 
     let psd = Psd::from_bytes(psd).unwrap();
@@ -25,8 +28,10 @@ fn image_resources_section() {
     }
 }
 
+// In this test we check that root descriptor's `bounds` field is equal to 16
+// So, then fields parsed correctly
 #[test]
-fn image_resources_section2() {
+fn image_check_16x16p_bound_field() {
     let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
 
     let psd = Psd::from_bytes(psd).unwrap();

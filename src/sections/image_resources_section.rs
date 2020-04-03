@@ -4,10 +4,10 @@ use std::ops::Range;
 
 use failure::{Error, Fail};
 
-use crate::sections::image_resources_section::UnitFloatStructure::Angle;
 use crate::sections::PsdCursor;
 
 const EXPECTED_RESOURCE_BLOCK_SIGNATURE: [u8; 4] = [56, 66, 73, 77];
+const EXPECTED_DESCRIPTOR_VERSION: [u8; 4] = [0, 0, 0, 16];
 const RESOURCE_SLICES_INFO: i16 = 1050;
 
 struct ImageResourcesBlock {
@@ -98,7 +98,6 @@ impl ImageResourcesSection {
         ))
     }
 
-
     /// Slice header for version 6
     ///
     /// +----------+--------------------------------------------------------------------------------------+
@@ -109,37 +108,6 @@ impl ImageResourcesSection {
     /// | Variable | Name of group of slices: Unicode string                                              |
     /// | 4        | Number of slices to follow. See Slices resource block in the next table              |
     /// +----------+--------------------------------------------------------------------------------------+
-    /// 
-
-    /// Slices resource block
-    ///
-    /// +------------------------------------------------------+-----------------------------------------------+
-    /// |                        Length                        |                  Description                  |
-    /// +------------------------------------------------------+-----------------------------------------------+
-    /// | 4                                                    | ID                                            |
-    /// | 4                                                    | Group ID                                      |
-    /// | 4                                                    | Origin                                        |
-    /// | 4                                                    | Associated Layer ID                           |
-    /// | Only present if Origin = 1                           |                                               |
-    /// | Variable                                             | Name: Unicode string                          |
-    /// | 4                                                    | Type                                          |
-    /// | 4 * 4                                                | Left, top, right, bottom positions            |
-    /// | Variable                                             | URL: Unicode string                           |
-    /// | Variable                                             | Target: Unicode string                        |
-    /// | Variable                                             | Message: Unicode string                       |
-    /// | Variable                                             | Alt Tag: Unicode string                       |
-    /// | 1                                                    | Cell text is HTML: Boolean                    |
-    /// | Variable                                             | Cell text: Unicode string                     |
-    /// | 4                                                    | Horizontal alignment                          |
-    /// | 4                                                    | Vertical alignment                            |
-    /// | 1                                                    | Alpha color                                   |
-    /// | 1                                                    | Red                                           |
-    /// | 1                                                    | Green                                         |
-    /// | 1                                                    | Blue                                          |
-    /// | Additional data as length allows. See comment above. |                                               |
-    /// | 4                                                    | Descriptor version ( = 16 for Photoshop 6.0). |
-    /// | Variable                                             | Descriptor (see See Descriptor structure)     |
-    /// +------------------------------------------------------+-----------------------------------------------+
     fn read_slice_block(bytes: &[u8]) -> Result<Vec<DescriptorStructure>, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
@@ -172,6 +140,35 @@ impl ImageResourcesSection {
         Ok(vec)
     }
 
+    /// Slices resource block
+    ///
+    /// +------------------------------------------------------+-----------------------------------------------+
+    /// |                        Length                        |                  Description                  |
+    /// +------------------------------------------------------+-----------------------------------------------+
+    /// | 4                                                    | ID                                            |
+    /// | 4                                                    | Group ID                                      |
+    /// | 4                                                    | Origin                                        |
+    /// | 4                                                    | Associated Layer ID                           |
+    /// | Only present if Origin = 1                           |                                               |
+    /// | Variable                                             | Name: Unicode string                          |
+    /// | 4                                                    | Type                                          |
+    /// | 4 * 4                                                | Left, top, right, bottom positions            |
+    /// | Variable                                             | URL: Unicode string                           |
+    /// | Variable                                             | Target: Unicode string                        |
+    /// | Variable                                             | Message: Unicode string                       |
+    /// | Variable                                             | Alt Tag: Unicode string                       |
+    /// | 1                                                    | Cell text is HTML: Boolean                    |
+    /// | Variable                                             | Cell text: Unicode string                     |
+    /// | 4                                                    | Horizontal alignment                          |
+    /// | 4                                                    | Vertical alignment                            |
+    /// | 1                                                    | Alpha color                                   |
+    /// | 1                                                    | Red                                           |
+    /// | 1                                                    | Green                                         |
+    /// | 1                                                    | Blue                                          |
+    /// | Additional data as length allows. See comment above. |                                               |
+    /// | 4                                                    | Descriptor version ( = 16 for Photoshop 6.0). |
+    /// | Variable                                             | Descriptor (see See Descriptor structure)     |
+    /// +------------------------------------------------------+-----------------------------------------------+
     fn read_slice_body(cursor: &mut PsdCursor) -> Result<Option<DescriptorStructure>, Error> {
         let slice_id = cursor.read_i32()?;
         let group_id = cursor.read_i32()?;
@@ -217,7 +214,7 @@ impl ImageResourcesSection {
         let pos = cursor.position();
         let descriptor_version = cursor.peek_4()?;
 
-        Ok(if descriptor_version == [0, 0, 0, 16] {
+        Ok(if descriptor_version == EXPECTED_DESCRIPTOR_VERSION {
             cursor.read_4()?;
 
             let descriptor = DescriptorStructure::read_descriptor_structure(cursor)?;
@@ -735,6 +732,8 @@ impl DescriptorStructure {
     }
 }
 
+
+/// There are some tests to make sure that descriptors and slices are decoding correctly
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -743,19 +742,23 @@ mod tests {
     fn check_descriptor() {
         let bytes = include_bytes!("../../tests/fixtures/descriptors/0.dat");
         let mut cursor = PsdCursor::new(bytes);
-        DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
+
+        let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
+        println!("{:?}", descriptor);
     }
 
     #[test]
     fn check_descriptor2() {
         let bytes = include_bytes!("../../tests/fixtures/descriptors/1.dat");
         let mut cursor = PsdCursor::new(bytes);
-        DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
+
+        let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
+        println!("{:?}", descriptor);
     }
 
     #[test]
     fn check_slices() {
-        let bytes = include_bytes!("../../tests/fixtures/slices/slices_0.dat");
+        let bytes = include_bytes!("../../tests/fixtures/slices/0.dat");
         ImageResourcesSection::read_slice_block(bytes).unwrap();
     }
 }

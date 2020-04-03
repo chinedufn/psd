@@ -304,9 +304,9 @@ impl<'a> PsdCursor<'a> {
     }
 
     fn read_padding(&mut self, size: usize, divisor: usize) -> Result<&[u8], Error> {
-        let reminder = size % divisor;
-        if reminder > 0 {
-            let to_read = divisor - reminder;
+        let remainder = size % divisor;
+        if remainder > 0 {
+            let to_read = divisor - remainder;
             self.read(to_read as u32)
         } else {
             Ok(&[] as &[u8])
