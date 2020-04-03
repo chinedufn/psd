@@ -740,7 +740,7 @@ mod tests {
 
     #[test]
     fn check_descriptor() {
-        let bytes = include_bytes!("../../tests/fixtures/descriptors/0.dat");
+        let bytes = include_bytes!("../../tests/fixtures/descriptors/descriptor_block.dat");
         let mut cursor = PsdCursor::new(bytes);
 
         let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
@@ -749,7 +749,7 @@ mod tests {
 
     #[test]
     fn check_descriptor2() {
-        let bytes = include_bytes!("../../tests/fixtures/descriptors/1.dat");
+        let bytes = include_bytes!("../../tests/fixtures/descriptors/descriptor_block2.dat");
         let mut cursor = PsdCursor::new(bytes);
 
         let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
