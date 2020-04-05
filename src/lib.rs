@@ -7,19 +7,23 @@
 
 #![deny(missing_docs)]
 
-pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
-pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
-pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
-
-use self::sections::file_header_section::FileHeaderSection;
-use crate::psd_channel::IntoRgba;
-use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::image_data_section::ImageDataSection;
-use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
-use crate::sections::MajorSections;
-use failure::Error;
 use std::cell::RefCell;
 use std::collections::HashMap;
+
+use failure::Error;
+
+pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
+use crate::psd_channel::IntoRgba;
+pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
+use crate::sections::image_data_section::ChannelBytes;
+use crate::sections::image_data_section::ImageDataSection;
+pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
+use crate::sections::image_resources_section::{DescriptorStructure, ImageResourcesSection};
+pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
+use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
+use crate::sections::MajorSections;
+
+use self::sections::file_header_section::FileHeaderSection;
 
 mod psd_channel;
 mod sections;
@@ -33,6 +37,7 @@ mod sections;
 #[derive(Debug)]
 pub struct Psd {
     file_header_section: FileHeaderSection,
+    image_resources_section: ImageResourcesSection,
     layer_and_mask_information_section: LayerAndMaskInformationSection,
     image_data_section: ImageDataSection,
 }
@@ -71,8 +76,14 @@ impl Psd {
             channel_count,
         )?;
 
+
+        let image_resources_section = ImageResourcesSection::from_bytes(
+            major_sections.image_resources
+        )?;
+
         Ok(Psd {
             file_header_section,
+            image_resources_section,
             layer_and_mask_information_section,
             image_data_section,
         })
@@ -324,6 +335,15 @@ impl Psd {
     }
 }
 
+
+// Methods for working with the image resources section
+impl Psd {
+    /// Get the metadata descriptors of the PSD
+    pub fn descriptors(&self) -> Option<&Vec<DescriptorStructure>> {
+        self.image_resources_section.descriptors.as_ref()
+    }
+}
+
 impl IntoRgba for Psd {
     /// The PSD's final image is always the same size as the PSD so we don't need to transform
     /// indices like we do with layers.
@@ -363,8 +383,9 @@ impl IntoRgba for Psd {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::sections::file_header_section::FileHeaderSectionError;
+
+    use super::*;
 
     // Makes sure non PSD files get caught right away before getting a chance to create problems
     #[test]

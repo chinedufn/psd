@@ -23,7 +23,7 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 /// | Length | Description                                                                                                                                          |
 /// |--------|------------------------------------------------------------------------------------------------------------------------------------------------------|
 /// | 4      | Signature: always equal to '8BPS' . Do not try to read the file if the signature does not match this value.                                          |
-/// | 2      | Version: always equal to 1. Do not try to read the file if the version does not match this value.<br> (**PSB** version is 2.)                            |
+/// | 2      | Version: always equal to 1. Do not try to read the file if the version does not match this value.<br> (**PSB** version is 2.)                        |
 /// | 6      | Reserved: must be zero.                                                                                                                              |
 /// | 2      | The number of channels in the image, including any alpha channels. Supported range is 1 to 56.                                                       |
 /// | 4      | The height of the image in pixels. Supported range is 1 to 30,000.<br> (**PSB** max of 300,000.)                                                     |

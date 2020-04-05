@@ -1,11 +1,14 @@
-use crate::sections::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};
-use failure::{Error, Fail};
 use std::io::Cursor;
+
+use failure::{Error, Fail};
+
+use crate::sections::file_header_section::{EXPECTED_PSD_SIGNATURE, FileHeaderSectionError};
 
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
 
 pub mod file_header_section;
+pub mod image_resources_section;
 pub mod image_data_section;
 pub mod layer_and_mask_information_section;
 
@@ -61,7 +64,7 @@ impl<'a> MajorSections<'a> {
             return Err(NotEnoughBytesError::FileHeader {
                 total_bytes: bytes.len(),
             }
-            .into());
+                .into());
         }
 
         let mut cursor = PsdCursor::new(bytes);
@@ -110,10 +113,10 @@ fn read_major_section_start_end(cursor: &mut PsdCursor) -> Result<(usize, usize)
 #[derive(Debug, Fail)]
 pub enum NotEnoughBytesError {
     #[fail(
-        display = r#"Could not parse the file header section.
+    display = r#"Could not parse the file header section.
     The file header section is comprised of the first 26 bytes (indices 0-25)
     of a PSD file, but only {} total bytes were provided."#,
-        total_bytes
+    total_bytes
     )]
     FileHeader { total_bytes: usize },
 }
@@ -136,6 +139,10 @@ impl<'a> PsdCursor<'a> {
     /// Get the cursor's position
     pub fn position(&self) -> u64 {
         self.cursor.position()
+    }
+
+    pub fn seek(&mut self, pos: u64) {
+        self.cursor.set_position(pos);
     }
 
     /// Get the underlying bytes in the cursor
@@ -186,6 +193,11 @@ impl<'a> PsdCursor<'a> {
     /// Read 6 bytes
     pub fn read_6(&mut self) -> Result<&[u8], Error> {
         self.read(6)
+    }
+
+    /// Read 8 bytes
+    pub fn read_8(&mut self) -> Result<&[u8], Error> {
+        self.read(8)
     }
 
     /// Read 1 byte as a u8
@@ -239,7 +251,87 @@ impl<'a> PsdCursor<'a> {
 
         let mut array = [0; 4];
         array.copy_from_slice(bytes);
-
         Ok(i32::from_be_bytes(array))
     }
+
+    /// Read 8 bytes as a f64
+    pub fn read_f64(&mut self) -> Result<f64, Error> {
+        let bytes = self.read_8()?;
+
+        let mut array = [0; 8];
+        array.copy_from_slice(bytes);
+
+        Ok(f64::from_be_bytes(array))
+    }
+
+    /// Read 8 bytes as a i64
+    pub fn read_i64(&mut self) -> Result<i64, Error> {
+        let bytes = self.read_8()?;
+
+        let mut array = [0; 8];
+        array.copy_from_slice(bytes);
+
+        Ok(i64::from_be_bytes(array))
+    }
+
+    /// Reads 'Unicode string'
+    ///
+    /// Unicode string is
+    /// A 4-byte length field, representing the number of UTF-16 code units in the string (not bytes).
+    /// The string of Unicode values, two bytes per character and a two byte null for the end of the string.
+    pub fn read_unicode_string(&mut self) -> Result<String, Error> {
+        self.read_unicode_string_padding(4)
+    }
+
+    /// Reads 'Unicode string' using specified padding
+    ///
+    /// Unicode string is
+    /// A 4-byte length field, representing the number of UTF-16 code units in the string (not bytes).
+    /// The string of Unicode values, two bytes per character and a two byte null for the end of the string.
+    pub fn read_unicode_string_padding(&mut self, padding: usize) -> Result<String, Error> {
+        let length = self.read_u32()? as usize;
+        // UTF-16 encoding - two bytes per character
+        let length_bytes = length * 2;
+
+        let data = self.read(length_bytes as u32)?;
+        let result = String::from_utf16(
+            &u8_slice_to_u16(data).as_slice()[..length as usize]
+        )?;
+
+        self.read_padding(4 + length_bytes, padding)?;
+
+        Ok(result)
+    }
+
+    fn read_padding(&mut self, size: usize, divisor: usize) -> Result<&[u8], Error> {
+        let remainder = size % divisor;
+        if remainder > 0 {
+            let to_read = divisor - remainder;
+            self.read(to_read as u32)
+        } else {
+            Ok(&[] as &[u8])
+        }
+    }
+
+    /// Reads 'Pascal string'
+    ///
+    /// Pascal string is UTF-8 string, padded to make the size even
+    /// (a null name consists of two bytes of 0)
+    pub fn read_pascal_string(&mut self) -> Result<String, Error> {
+        let len = self.read_u8()?;
+        let data = self.read(len as u32)?;
+        let result = Ok(String::from_utf8(data.to_vec())?);
+
+        // read null byte
+        self.read_u8()?;
+        result
+    }
+}
+
+fn u8_slice_to_u16(bytes: &[u8]) -> Vec<u16> {
+    return Vec::from(bytes)
+        .chunks_exact(2)
+        .into_iter()
+        .map(|a| u16::from_be_bytes([a[0], a[1]]))
+        .collect();
 }
