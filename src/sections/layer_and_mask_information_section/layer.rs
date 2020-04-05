@@ -1,17 +1,64 @@
+use std::collections::HashMap;
+
+use failure::{Error, Fail};
+
 use crate::psd_channel::IntoRgba;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelError;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
-use failure::{Error, Fail};
-use std::collections::HashMap;
+
+/// PsdLayerGroup represents a group of layers
+#[derive(Debug, Clone)]
+pub struct PsdLayerGroup {
+    pub(in crate) layers: Vec<PsdLayer>,
+    /// A map of layer name to index within our layers vector
+    pub(in crate) layer_names: HashMap<String, usize>,
+    idx: usize,
+}
+
+impl PsdLayerGroup {
+    pub fn new() -> Self {
+        PsdLayerGroup { layers: vec![], layer_names: HashMap::new(), idx: 0 }
+    }
+}
+
+impl PsdLayerGroup {
+    /// Get all of the layers in the PSD
+    pub fn layers(&self) -> &Vec<PsdLayer> {
+        &self.layers
+    }
+
+    /// Get a layer by name
+    pub fn layer_by_name(&self, name: &str) -> Result<&PsdLayer, Error> {
+        let layer_idx = self
+            .layer_names
+            .get(name)
+            .unwrap();
+        Ok(&self.layers[*layer_idx])
+    }
+
+    /// Get a layer by index.
+    ///
+    /// index 0 is the bottom layer, index 1 is the layer above that, etc
+    pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer, Error> {
+        Ok(&self.layers[idx])
+    }
+
+    /// Adds layer to the group
+    pub(crate) fn push(&mut self, name: String, layer: PsdLayer) {
+        self.layers.push(layer);
+        self.layer_names.insert(name, self.idx);
+        self.idx = self.idx + 1;
+    }
+}
 
 /// Information about a layer in a PSD file.
 ///
 /// TODO: I set all of these pub during a late evening of getting to get things working.
 /// Replace with private and accessor methods so that this crate is as locked down as possible
 /// (to allow us to be strict).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PsdLayer {
     /// The name of this layer
     pub(super) name: String,
@@ -35,15 +82,17 @@ pub struct PsdLayer {
     pub(crate) psd_width: u32,
     /// The height of the PSD
     pub(crate) psd_height: u32,
+    /// If layer represents a group, contains sub layers.
+    pub(crate) sub_layers: Option<PsdLayerGroup>,
 }
 
 /// An error when working with a PsdLayer
 #[derive(Debug, Fail)]
 pub enum PsdLayerError {
     #[fail(
-        display = r#"Could not combine Red, Green, Blue and Alpha.
+    display = r#"Could not combine Red, Green, Blue and Alpha.
         This layer is missing channel: {:#?}"#,
-        channel
+    channel
     )]
     MissingChannels { channel: PsdChannelKind },
 }
@@ -58,6 +107,7 @@ impl PsdLayer {
         layer_right: i32,
         psd_width: u32,
         psd_height: u32,
+        sub_layers: Option<PsdLayerGroup>,
     ) -> PsdLayer {
         PsdLayer {
             name,
@@ -68,6 +118,7 @@ impl PsdLayer {
             layer_right,
             psd_width,
             psd_height,
+            sub_layers,
         }
     }
 
@@ -107,9 +158,58 @@ impl PsdLayer {
         Ok(rgba)
     }
 
+    /// If layer represents a group, returns true
+    pub fn is_group(&self) -> bool {
+        self.sub_layers.is_some()
+    }
+
+    /// If layer represents a group, returns a vector with sub layers
+    pub fn layers(&self) -> Option<&PsdLayerGroup> {
+        self.sub_layers.as_ref()
+    }
+
     // Get one of the PsdLayerChannels of this PsdLayer
     fn get_channel(&self, channel: PsdChannelKind) -> Option<&ChannelBytes> {
         self.channels.get(&channel)
+    }
+}
+
+/// Section divider constants.
+/// There are 4 possible values:
+///
+/// 0 = any other type of layer
+const DIVIDER_ANY_OTHER_TYPE: i32 = 0;
+/// 1 = open "folder"
+const DIVIDER_OPEN_FOLDER: i32 = 1;
+/// 2 = closed "folder"
+const DIVIDER_CLOSED_FOLDER: i32 = 2;
+/// 3 = bounding section divider, hidden in the Photoshop UI
+const DIVIDER_BOUNDING_SECTION: i32 = 3;
+
+/// GroupDivider represents tag type of Section divider.
+#[derive(Debug)]
+pub(super) enum GroupDivider {
+    /// Any other type divider
+    Other,
+    /// Open folder divider
+    OpenFolder,
+    /// Close folder divider
+    CloseFolder,
+    /// Bounding section divider
+    BoundingSection,
+    /// Not a divider at all
+    NotDivider,
+}
+
+impl GroupDivider {
+    pub(super) fn match_divider(divider: i32) -> GroupDivider {
+        match divider {
+            DIVIDER_ANY_OTHER_TYPE => GroupDivider::Other,
+            DIVIDER_OPEN_FOLDER => GroupDivider::OpenFolder,
+            DIVIDER_CLOSED_FOLDER => GroupDivider::CloseFolder,
+            DIVIDER_BOUNDING_SECTION => GroupDivider::BoundingSection,
+            _ => GroupDivider::NotDivider
+        }
     }
 }
 
@@ -137,6 +237,8 @@ pub struct LayerRecord {
     pub(super) bottom: i32,
     /// The position of the right of the image
     pub(super) right: i32,
+    /// Group divider tag, `GroupDivider::NotDivider` for not divider layers
+    pub(super) divider_type: GroupDivider,
 }
 
 impl LayerRecord {

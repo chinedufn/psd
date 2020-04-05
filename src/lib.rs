@@ -117,24 +117,19 @@ impl Psd {
 impl Psd {
     /// Get all of the layers in the PSD
     pub fn layers(&self) -> &Vec<PsdLayer> {
-        &self.layer_and_mask_information_section.layers
+        self.layer_and_mask_information_section.group.layers()
     }
 
     /// Get a layer by name
     pub fn layer_by_name(&self, name: &str) -> Result<&PsdLayer, Error> {
-        let layer_idx = self
-            .layer_and_mask_information_section
-            .layer_names
-            .get(name)
-            .unwrap();
-        Ok(&self.layer_and_mask_information_section.layers[*layer_idx])
+        self.layer_and_mask_information_section.group.layer_by_name(name)
     }
 
     /// Get a layer by index.
     ///
     /// index 0 is the bottom layer, index 1 is the layer above that, etc
     pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer, Error> {
-        Ok(&self.layer_and_mask_information_section.layers[idx])
+        self.layer_and_mask_information_section.group.layer_by_idx(idx)
     }
 
     /// Given a filter, combine all layers in the PSD that pass the filter into a vector

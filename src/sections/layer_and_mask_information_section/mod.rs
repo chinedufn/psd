@@ -7,7 +7,7 @@ use failure::Error;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::layer_and_mask_information_section::layer::LayerRecord;
+use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerRecord, PsdLayerGroup};
 use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::PsdCursor;
 
@@ -18,7 +18,9 @@ const SIGNATURE_EIGHT_B64: [u8; 4] = [56, 66, 54, 52];
 
 /// Additional Layer Information constants.
 /// Key of `Unicode layer name (Photoshop 5.0)`, "luni"
-const KEY_UNICODE_LAYER_NAME: [u8; 4] = [108, 117, 110, 105];
+const KEY_UNICODE_LAYER_NAME: &[u8; 4] = b"luni";
+/// Key of `Section divider setting (Photoshop 6.0)`, "lsct"
+const KEY_SECTION_DIVIDER_SETTING: &[u8; 4] = b"lsct";
 
 pub mod layer;
 
@@ -51,9 +53,7 @@ pub mod layer;
 /// | Variable | (Photoshop 4.0 and later) <br> Series of tagged blocks containing various types of data. See See Additional Layer Information for the list of the types of data that can be included here. |
 #[derive(Debug)]
 pub struct LayerAndMaskInformationSection {
-    pub(in crate) layers: Vec<PsdLayer>,
-    /// A map of layer name to index within our layers vector
-    pub(in crate) layer_names: HashMap<String, usize>,
+    pub(crate) group: PsdLayerGroup,
 }
 
 impl LayerAndMaskInformationSection {
@@ -66,8 +66,7 @@ impl LayerAndMaskInformationSection {
     ) -> Result<LayerAndMaskInformationSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
-        let mut layers = vec![];
-        let mut layer_names = HashMap::new();
+        let mut layers = PsdLayerGroup::new();
 
         // The first four bytes of the section is the length marker for the layer and mask
         // information section.
@@ -104,6 +103,9 @@ impl LayerAndMaskInformationSection {
             layer_records.push(read_layer_record(&mut cursor)?);
         }
 
+        let mut sub_layers = PsdLayerGroup::new();
+
+        let mut parse_group_now = false;
         // Read each layer's channel image data
         for (idx, layer_record) in layer_records.into_iter().enumerate() {
             let mut psd_layer = PsdLayer::new(
@@ -114,6 +116,7 @@ impl LayerAndMaskInformationSection {
                 layer_record.right,
                 psd_width,
                 psd_height,
+                None,
             );
 
             let scanlines = layer_record.height() as usize;
@@ -143,13 +146,29 @@ impl LayerAndMaskInformationSection {
                 psd_layer.channels.insert(channel_kind, channel_bytes);
             }
 
-            layer_names.insert(layer_record.name, idx);
-            layers.push(psd_layer);
+            // print!("{}, {:?}:", layer_record.name, layer_record.divider_type);
+            match layer_record.divider_type {
+                GroupDivider::CloseFolder | GroupDivider::BoundingSection => {
+                    parse_group_now = true;
+                    sub_layers = PsdLayerGroup::new();
+                }
+                GroupDivider::OpenFolder => {
+                    parse_group_now = false;
+                    psd_layer.sub_layers = Some(sub_layers.clone());
+                    layers.push(layer_record.name, psd_layer);
+                }
+                _ => {
+                    if parse_group_now {
+                        sub_layers.push(layer_record.name, psd_layer);
+                    } else {
+                        layers.push(layer_record.name, psd_layer);
+                    }
+                }
+            };
         }
 
         Ok(LayerAndMaskInformationSection {
-            layers,
-            layer_names,
+            group: layers,
         })
     }
 }
@@ -265,8 +284,8 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     let padding = (4 - bytes_mod_4) % 4;
     cursor.read(padding as u32)?;
 
-    // We do not currently handle additional layer information, so we skip it.
-    //
+
+    let mut divider_type = GroupDivider::NotDivider;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
     while cursor.peek_4()? == SIGNATURE_EIGHT_BIM || cursor.peek_4()? == SIGNATURE_EIGHT_B64 {
@@ -275,9 +294,23 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
         key.copy_from_slice(cursor.read_4()?);
         let additional_layer_info_len = cursor.read_u32()?;
 
-        match key {
+        match &key {
             KEY_UNICODE_LAYER_NAME => {
                 name = cursor.read_unicode_string()?;
+            }
+            KEY_SECTION_DIVIDER_SETTING => {
+                divider_type = GroupDivider::match_divider(cursor.read_i32()?);
+
+                // data present only if length >= 12
+                if additional_layer_info_len >= 12 {
+                    let _signature = cursor.read_4()?;
+                    let _key = cursor.read_4()?;
+                }
+
+                // data present only if length >= 16
+                if additional_layer_info_len >= 16 {
+                    cursor.read_4()?;
+                }
             }
 
             // TODO: Skipping other keys until we implement parsing for them
@@ -294,6 +327,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
         left,
         bottom,
         right,
+        divider_type,
     };
 
     Ok(layer_record)
