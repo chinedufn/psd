@@ -243,15 +243,110 @@
 <span id="243">243</span>
 <span id="244">244</span>
 <span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::{<span class="ident">FileHeaderSectionError</span>, <span class="ident">EXPECTED_PSD_SIGNATURE</span>};
-<span class="kw">use</span> <span class="ident">failure</span>::{<span class="ident">Error</span>, <span class="ident">Fail</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Cursor</span>;
+
+<span class="kw">use</span> <span class="ident">failure</span>::{<span class="ident">Error</span>, <span class="ident">Fail</span>};
+
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::{<span class="ident">EXPECTED_PSD_SIGNATURE</span>, <span class="ident">FileHeaderSectionError</span>};
 
 <span class="doccomment">/// The length of the entire file header section</span>
 <span class="kw">const</span> <span class="ident">FILE_HEADER_SECTION_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">26</span>;
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">file_header_section</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">image_resources_section</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">image_data_section</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">layer_and_mask_information_section</span>;
 
@@ -307,7 +402,7 @@
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">NotEnoughBytesError</span>::<span class="ident">FileHeader</span> {
                 <span class="ident">total_bytes</span>: <span class="ident">bytes</span>.<span class="ident">len</span>(),
             }
-            .<span class="ident">into</span>());
+                .<span class="ident">into</span>());
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">PsdCursor</span>::<span class="ident">new</span>(<span class="ident">bytes</span>);
@@ -356,10 +451,10 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">NotEnoughBytesError</span> {
     <span class="attribute">#[<span class="ident">fail</span>(
-        <span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;Could not parse the file header section.
+    <span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;Could not parse the file header section.
     The file header section is comprised of the first 26 bytes (indices 0-25)
     of a PSD file, but only {} total bytes were provided.&quot;#</span>,
-        <span class="ident">total_bytes</span>
+    <span class="ident">total_bytes</span>
     )]</span>
     <span class="ident">FileHeader</span> { <span class="ident">total_bytes</span>: <span class="ident">usize</span> },
 }
@@ -382,6 +477,10 @@
     <span class="doccomment">/// Get the cursor&#39;s position</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">position</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> {
         <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">position</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">seek</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">pos</span>: <span class="ident">u64</span>) {
+        <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">set_position</span>(<span class="ident">pos</span>);
     }
 
     <span class="doccomment">/// Get the underlying bytes in the cursor</span>
@@ -432,6 +531,11 @@
     <span class="doccomment">/// Read 6 bytes</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_6</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">read</span>(<span class="number">6</span>)
+    }
+
+    <span class="doccomment">/// Read 8 bytes</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_8</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">read</span>(<span class="number">8</span>)
     }
 
     <span class="doccomment">/// Read 1 byte as a u8</span>
@@ -485,9 +589,88 @@
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">array</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">4</span>];
         <span class="ident">array</span>.<span class="ident">copy_from_slice</span>(<span class="ident">bytes</span>);
-
         <span class="prelude-val">Ok</span>(<span class="ident">i32</span>::<span class="ident">from_be_bytes</span>(<span class="ident">array</span>))
     }
+
+    <span class="doccomment">/// Read 8 bytes as a f64</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_f64</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">f64</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_8</span>()<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">array</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">8</span>];
+        <span class="ident">array</span>.<span class="ident">copy_from_slice</span>(<span class="ident">bytes</span>);
+
+        <span class="prelude-val">Ok</span>(<span class="ident">f64</span>::<span class="ident">from_be_bytes</span>(<span class="ident">array</span>))
+    }
+
+    <span class="doccomment">/// Read 8 bytes as a i64</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_i64</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">i64</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_8</span>()<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">array</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">8</span>];
+        <span class="ident">array</span>.<span class="ident">copy_from_slice</span>(<span class="ident">bytes</span>);
+
+        <span class="prelude-val">Ok</span>(<span class="ident">i64</span>::<span class="ident">from_be_bytes</span>(<span class="ident">array</span>))
+    }
+
+    <span class="doccomment">/// Reads &#39;Unicode string&#39;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Unicode string is</span>
+    <span class="doccomment">/// A 4-byte length field, representing the number of UTF-16 code units in the string (not bytes).</span>
+    <span class="doccomment">/// The string of Unicode values, two bytes per character and a two byte null for the end of the string.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_unicode_string</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">4</span>)
+    }
+
+    <span class="doccomment">/// Reads &#39;Unicode string&#39; using specified padding</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Unicode string is</span>
+    <span class="doccomment">/// A 4-byte length field, representing the number of UTF-16 code units in the string (not bytes).</span>
+    <span class="doccomment">/// The string of Unicode values, two bytes per character and a two byte null for the end of the string.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_unicode_string_padding</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">padding</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+        <span class="comment">// UTF-16 encoding - two bytes per character</span>
+        <span class="kw">let</span> <span class="ident">length_bytes</span> <span class="op">=</span> <span class="ident">length</span> <span class="op">*</span> <span class="number">2</span>;
+
+        <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read</span>(<span class="ident">length_bytes</span> <span class="kw">as</span> <span class="ident">u32</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">from_utf16</span>(
+            <span class="kw-2">&amp;</span><span class="ident">u8_slice_to_u16</span>(<span class="ident">data</span>).<span class="ident">as_slice</span>()[..<span class="ident">length</span> <span class="kw">as</span> <span class="ident">usize</span>]
+        )<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.<span class="ident">read_padding</span>(<span class="number">4</span> <span class="op">+</span> <span class="ident">length_bytes</span>, <span class="ident">padding</span>)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">read_padding</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">divisor</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">remainder</span> <span class="op">=</span> <span class="ident">size</span> <span class="op">%</span> <span class="ident">divisor</span>;
+        <span class="kw">if</span> <span class="ident">remainder</span> <span class="op">&gt;</span> <span class="number">0</span> {
+            <span class="kw">let</span> <span class="ident">to_read</span> <span class="op">=</span> <span class="ident">divisor</span> <span class="op">-</span> <span class="ident">remainder</span>;
+            <span class="self">self</span>.<span class="ident">read</span>(<span class="ident">to_read</span> <span class="kw">as</span> <span class="ident">u32</span>)
+        } <span class="kw">else</span> {
+            <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span>[] <span class="kw">as</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>])
+        }
+    }
+
+    <span class="doccomment">/// Reads &#39;Pascal string&#39;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Pascal string is UTF-8 string, padded to make the size even</span>
+    <span class="doccomment">/// (a null name consists of two bytes of 0)</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_pascal_string</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_u8</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read</span>(<span class="ident">len</span> <span class="kw">as</span> <span class="ident">u32</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="prelude-val">Ok</span>(<span class="ident">String</span>::<span class="ident">from_utf8</span>(<span class="ident">data</span>.<span class="ident">to_vec</span>())<span class="question-mark">?</span>);
+
+        <span class="comment">// read null byte</span>
+        <span class="self">self</span>.<span class="ident">read_u8</span>()<span class="question-mark">?</span>;
+        <span class="ident">result</span>
+    }
 }
-</pre></div>
+
+<span class="kw">fn</span> <span class="ident">u8_slice_to_u16</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span> {
+    <span class="kw">return</span> <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">bytes</span>)
+        .<span class="ident">chunks_exact</span>(<span class="number">2</span>)
+        .<span class="ident">into_iter</span>()
+        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">u16</span>::<span class="ident">from_be_bytes</span>([<span class="ident">a</span>[<span class="number">0</span>], <span class="ident">a</span>[<span class="number">1</span>]]))
+        .<span class="ident">collect</span>();
+}</pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "psd";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>

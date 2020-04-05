@@ -149,6 +149,9 @@
 #fn main() {
 // Imported into the book from `src/sections/mod.rs`
 
+pub mod image_resources_section;
+pub mod image_data_section;
+pub mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file
 #[derive(Debug)]
@@ -171,9 +174,6 @@ impl&lt;'a&gt; MajorSections&lt;'a&gt; {
     /// ├──────────────────┤
     /// │ Image Resources  │
     /// ├──────────────────┤
-    /// │  Layer and Mask  │
-    /// ├──────────────────┤
-    /// │    Image Data    │
 #}</code></pre></pre>
 <p>Our parsing comes down to reading through the bytes in this byte slice and
 using them to create these five major sections.</p>

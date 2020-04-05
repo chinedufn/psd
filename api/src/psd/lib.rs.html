@@ -377,6 +377,27 @@
 <span id="377">377</span>
 <span id="378">378</span>
 <span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Data structures and methods for working with PSD files.</span>
 <span class="doccomment">//!</span>
@@ -387,19 +408,23 @@
 
 <span class="attribute">#![<span class="ident">deny</span>(<span class="ident">missing_docs</span>)]</span>
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::{<span class="ident">PsdChannelCompression</span>, <span class="ident">PsdChannelKind</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::{<span class="ident">ColorMode</span>, <span class="ident">PsdDepth</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdLayer</span>;
-
-<span class="kw">use</span> <span class="self">self</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::<span class="ident">FileHeaderSection</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">IntoRgba</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ChannelBytes</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ImageDataSection</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">LayerAndMaskInformationSection</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">MajorSections</span>;
-<span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
+
+<span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
+
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::{<span class="ident">PsdChannelCompression</span>, <span class="ident">PsdChannelKind</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">IntoRgba</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::{<span class="ident">ColorMode</span>, <span class="ident">PsdDepth</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ChannelBytes</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ImageDataSection</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::{<span class="ident">DescriptorField</span>, <span class="ident">UnitFloatStructure</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::{<span class="ident">DescriptorStructure</span>, <span class="ident">ImageResourcesSection</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdLayer</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">LayerAndMaskInformationSection</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">MajorSections</span>;
+
+<span class="kw">use</span> <span class="self">self</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::<span class="ident">FileHeaderSection</span>;
 
 <span class="kw">mod</span> <span class="ident">psd_channel</span>;
 <span class="kw">mod</span> <span class="ident">sections</span>;
@@ -413,6 +438,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Psd</span> {
     <span class="ident">file_header_section</span>: <span class="ident">FileHeaderSection</span>,
+    <span class="ident">image_resources_section</span>: <span class="ident">ImageResourcesSection</span>,
     <span class="ident">layer_and_mask_information_section</span>: <span class="ident">LayerAndMaskInformationSection</span>,
     <span class="ident">image_data_section</span>: <span class="ident">ImageDataSection</span>,
 }
@@ -451,8 +477,14 @@
             <span class="ident">channel_count</span>,
         )<span class="question-mark">?</span>;
 
+
+        <span class="kw">let</span> <span class="ident">image_resources_section</span> <span class="op">=</span> <span class="ident">ImageResourcesSection</span>::<span class="ident">from_bytes</span>(
+            <span class="ident">major_sections</span>.<span class="ident">image_resources</span>
+        )<span class="question-mark">?</span>;
+
         <span class="prelude-val">Ok</span>(<span class="ident">Psd</span> {
             <span class="ident">file_header_section</span>,
+            <span class="ident">image_resources_section</span>,
             <span class="ident">layer_and_mask_information_section</span>,
             <span class="ident">image_data_section</span>,
         })
@@ -704,6 +736,15 @@
     }
 }
 
+
+<span class="comment">// Methods for working with the image resources section</span>
+<span class="kw">impl</span> <span class="ident">Psd</span> {
+    <span class="doccomment">/// Get the metadata descriptors of the PSD</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">descriptors</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DescriptorStructure</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">image_resources_section</span>.<span class="ident">descriptors</span>.<span class="ident">as_ref</span>()
+    }
+}
+
 <span class="kw">impl</span> <span class="ident">IntoRgba</span> <span class="kw">for</span> <span class="ident">Psd</span> {
     <span class="doccomment">/// The PSD&#39;s final image is always the same size as the PSD so we don&#39;t need to transform</span>
     <span class="doccomment">/// indices like we do with layers.</span>
@@ -743,8 +784,9 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::<span class="ident">FileHeaderSectionError</span>;
+
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="comment">// Makes sure non PSD files get caught right away before getting a chance to create problems</span>
     <span class="attribute">#[<span class="ident">test</span>]</span>

@@ -299,18 +299,6 @@
 <span id="299">299</span>
 <span id="300">300</span>
 <span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Cow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
@@ -591,12 +579,7 @@
 
         <span class="kw">match</span> <span class="ident">key</span> {
             <span class="ident">KEY_UNICODE_LAYER_NAME</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
-                <span class="kw">let</span> <span class="ident">label_name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">additional_layer_info_len</span> <span class="op">-</span> <span class="number">4</span>)<span class="question-mark">?</span>;
-
-                <span class="ident">name</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">from_utf16</span>(
-                    <span class="kw-2">&amp;</span><span class="ident">u8_slice_to_u16</span>(<span class="ident">label_name</span>).<span class="ident">as_slice</span>()[..<span class="ident">length</span> <span class="kw">as</span> <span class="ident">usize</span>]
-                )<span class="question-mark">?</span>;
+                <span class="ident">name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string</span>()<span class="question-mark">?</span>;
             }
 
             <span class="comment">// TODO: Skipping other keys until we implement parsing for them</span>
@@ -618,11 +601,5 @@
     <span class="prelude-val">Ok</span>(<span class="ident">layer_record</span>)
 }
 
-<span class="kw">fn</span> <span class="ident">u8_slice_to_u16</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span> {
-    <span class="kw">return</span> <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">bytes</span>)
-        .<span class="ident">chunks_exact</span>(<span class="number">2</span>)
-        .<span class="ident">into_iter</span>()
-        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">u16</span>::<span class="ident">from_be_bytes</span>([<span class="ident">a</span>[<span class="number">0</span>], <span class="ident">a</span>[<span class="number">1</span>]]))
-        .<span class="ident">collect</span>();
-}</pre></div>
+</pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "psd";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>
