@@ -107,6 +107,10 @@ impl PsdGroup {
         PsdGroup { id, contained_layers, layer_properties }
     }
 
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
     /// Get the name of the layer
     pub fn name(&self) -> &str {
         &self.layer_properties.name
@@ -125,7 +129,7 @@ impl PsdGroup {
     }
 
     /// If layer is nested, returns parent group ID, otherwise `None`
-    pub fn group_id(&self) -> Option<u32> {
+    pub fn parent_id(&self) -> Option<u32> {
         self.layer_properties.group_id
     }
 }

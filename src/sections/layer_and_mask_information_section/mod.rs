@@ -97,20 +97,30 @@ impl LayerAndMaskInformationSection {
         // PSD and make sure that we're handling this case properly.
         let layer_count: u16 = layer_count.abs() as u16;
         let mut layers = KeyIDContainer::with_capacity(layer_count as usize);
-        let mut groups = KeyIDContainer::new();
 
+        let mut groups_count = 0;
         let mut layer_records = vec![];
         // Read each layer record
         for _layer_num in 0..layer_count {
-            layer_records.push(read_layer_record(&mut cursor)?);
+            let layer_record = read_layer_record(&mut cursor)?;
+
+            match layer_record.divider_type {
+                Some(GroupDivider::CloseFolder) | Some(GroupDivider::BoundingSection) => {
+                    groups_count = groups_count + 1;
+                }
+                _ => {},
+            }
+
+            layer_records.push(layer_record);
         }
+        let mut groups = KeyIDContainer::with_capacity(groups_count);
 
         let mut range_stack = vec![];
         let mut nested_level = 0;
         // Read each layer's channel image data
         for (idx, layer_record) in layer_records.into_iter().enumerate() {
             let group_id = if nested_level > 0 {
-                Some(groups.len() as u32)
+                Some((groups_count - groups.len() - 1) as u32)
             } else {
                 None
             };
@@ -152,7 +162,6 @@ impl LayerAndMaskInformationSection {
             match layer_record.divider_type {
                 // open the folder
                 Some(GroupDivider::CloseFolder) | Some(GroupDivider::BoundingSection) => {
-                    println!("open group: {}, nested level: {}", layer_record.name, nested_level);
                     nested_level = nested_level + 1;
                     range_stack.push(idx);
                 }
@@ -166,21 +175,19 @@ impl LayerAndMaskInformationSection {
                     };
 
                     let group_id = group_id.unwrap();
-                    let parent_group_id = if group_id > 1 {
+                    let parent_group_id = if nested_level > 0 {
                         Some(group_id - 1)
                     } else {
                         // top-level group
                         None
                     };
-
-                    println!("close group: {}, nested level: {}", layer_record.name, nested_level);
+                    
                     groups.push(layer_record.name.clone(), PsdGroup::new(
                         group_id,
                         range,
                         layer_record,
                         psd_width,
                         psd_height,
-                        // parent group
                         parent_group_id,
                     ));
                 }

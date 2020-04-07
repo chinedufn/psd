@@ -41,8 +41,17 @@ fn one_group_one_layer_inside() {
     assert_eq!(psd.layers().len(), 1);
     assert_eq!(psd.groups().len(), 1);
 
-    // Check layer
-    psd.group_by_name("group").unwrap();
+    // Check group
+    let group = psd.group_by_name("group").unwrap();
+    assert_eq!(group.id(), 0);
+
+    let layer_parent_id = psd.layers().
+        get(0).
+        unwrap().
+        group_id().
+        unwrap();
+
+    assert_eq!(layer_parent_id, group.id());
 }
 
 #[test]
@@ -55,9 +64,16 @@ fn one_group_one_layer_inside_one_outside() {
     assert_eq!(psd.groups().len(), 1);
 
     // Check layer outside group
-    psd.layer_by_name("Second Layer").unwrap();
+    let layer = psd.layer_by_name("Second Layer").unwrap();
+    assert!(layer.group_id().is_none());
+
+    // Check group
+    let group = psd.group_by_name("group").unwrap();
+    assert_eq!(group.id(), 0);
+
     // Check layer inside group
-    psd.group_by_name("group").unwrap();
+    let layer = psd.layer_by_name("First Layer").unwrap();
+    assert_eq!(layer.group_id().unwrap(), group.id());
 }
 
 #[test]
@@ -69,11 +85,33 @@ fn two_groups_two_layers_inside() {
     assert_eq!(psd.groups().len(), 2);
 
     // Check first group
-    psd.group_by_name("group").unwrap();
+    let group = psd.group_by_name("group").unwrap();
+    assert_eq!(group.id(), 0);
+
+    // Check layer inside group
+    let layer = psd.layer_by_name("First Layer").unwrap();
+    assert_eq!(layer.group_id().unwrap(), group.id());
+
     // Check second group
-    psd.group_by_name("group2").unwrap();
+    let group = psd.group_by_name("group2").unwrap();
+    assert_eq!(group.id(), 1);
 }
 
+///
+/// group structure
+/// +---------------+----------+---------+
+/// | name          | group_id | parent  |
+/// +---------------+----------+---------+
+/// | group inside  | 1        | Some(0) | refers to 'group outside'
+/// | group outside | 0        | None    |
+/// +------------------------------------+
+///
+/// layer structure
+/// +-------------+-----+---------+
+/// | name        | idx | parent  |
+/// +-------------+-----+---------+
+/// | First Layer | 0   | Some(1) |  refers to 'group inside'
+/// +-------------+-----+---------+
 #[test]
 fn one_group_inside_another() {
     let psd = include_bytes!("fixtures/green-1x1-one-group-inside-another.psd");
@@ -85,8 +123,12 @@ fn one_group_inside_another() {
 
     // Check group
     let group = psd.group_by_name("group outside").unwrap();
-    println!("group: {:?}", group.name());
+    assert_eq!(group.id(), 0);
+
     // Check subgroup
-    let group = psd.group_by_name("group inside").unwrap();
-    println!("group: {:?}", group.name());
+    let children_group = psd.group_by_name("group inside").unwrap();
+    assert_eq!(children_group.parent_id().unwrap(), group.id());
+
+    let layer = psd.layer_by_name("First Layer").unwrap();
+    assert_eq!(children_group.id(), layer.group_id().unwrap());
 }
