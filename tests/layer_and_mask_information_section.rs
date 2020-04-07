@@ -48,7 +48,7 @@ fn one_group_one_layer_inside() {
     let layer_parent_id = psd.layers().
         get(0).
         unwrap().
-        group_id().
+        parent_id().
         unwrap();
 
     assert_eq!(layer_parent_id, group.id());
@@ -65,7 +65,7 @@ fn one_group_one_layer_inside_one_outside() {
 
     // Check layer outside group
     let layer = psd.layer_by_name("Second Layer").unwrap();
-    assert!(layer.group_id().is_none());
+    assert!(layer.parent_id().is_none());
 
     // Check group
     let group = psd.group_by_name("group").unwrap();
@@ -73,7 +73,7 @@ fn one_group_one_layer_inside_one_outside() {
 
     // Check layer inside group
     let layer = psd.layer_by_name("First Layer").unwrap();
-    assert_eq!(layer.group_id().unwrap(), group.id());
+    assert_eq!(layer.parent_id().unwrap(), group.id());
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn two_groups_two_layers_inside() {
 
     // Check layer inside group
     let layer = psd.layer_by_name("First Layer").unwrap();
-    assert_eq!(layer.group_id().unwrap(), group.id());
+    assert_eq!(layer.parent_id().unwrap(), group.id());
 
     // Check second group
     let group = psd.group_by_name("group2").unwrap();
@@ -125,10 +125,11 @@ fn one_group_inside_another() {
     let group = psd.group_by_name("group outside").unwrap();
     assert_eq!(group.id(), 0);
 
+
     // Check subgroup
     let children_group = psd.group_by_name("group inside").unwrap();
     assert_eq!(children_group.parent_id().unwrap(), group.id());
 
     let layer = psd.layer_by_name("First Layer").unwrap();
-    assert_eq!(children_group.id(), layer.group_id().unwrap());
+    assert_eq!(children_group.id(), layer.parent_id().unwrap());
 }

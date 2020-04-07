@@ -1,35 +1,37 @@
 use std::collections::HashMap;
 use std::ops::{Index, Range};
 
+/// `NamedItems` is immutable container for storing items with order-preservation
+/// and indexing by id and name
 #[derive(Debug)]
-pub(crate) struct KeyIDContainer<T> {
+pub(crate) struct NamedItems<T> {
     items: Vec<T>,
     item_indices: HashMap<String, usize>,
 }
 
-impl<T> KeyIDContainer<T> {
-    /// Creates a new `KeyIDContainer`
+impl<T> NamedItems<T> {
+    /// Creates a new `NamedItems`
     pub fn new() -> Self {
-        KeyIDContainer {
+        NamedItems {
             items: vec![],
             item_indices: HashMap::new(),
         }
     }
 
-    /// Creates a new `KeyIDContainer` with the specified capacity
+    /// Creates a new `NamedItems` with the specified capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        KeyIDContainer {
+        NamedItems {
             items: Vec::with_capacity(capacity),
             item_indices: HashMap::with_capacity(capacity),
         }
     }
 
-    /// Get all of the items in the container
+    #[allow(missing_docs)]
     pub fn items(&self) -> &Vec<T> {
         &self.items
     }
 
-    /// Get a item by name
+    #[allow(missing_docs)]
     pub fn item_by_name(&self, name: &str) -> Option<&T> {
         match self.item_indices.get(name) {
             Some(item_idx) => self.items.get(*item_idx),
@@ -37,29 +39,29 @@ impl<T> KeyIDContainer<T> {
         }
     }
 
-    /// Get a item by index
+    #[allow(missing_docs)]
     pub fn item_by_idx(&self, idx: usize) -> Option<&T> {
         self.items.get(idx)
     }
 
-    /// Get a range of items
+    #[allow(missing_docs)]
     pub fn range(&self, start: usize, end: usize) -> &[T] {
         &self.items[start..end]
     }
 
-    /// Returns number of items in container
+    #[allow(missing_docs)]
     pub fn len(&self) -> usize {
         self.items.len()
     }
 
-    /// Adds new item to container
-    pub fn push(&mut self, name: String, item: T) {
+    #[allow(missing_docs)]
+    pub(in crate) fn push(&mut self, name: String, item: T) {
         self.items.push(item);
         self.item_indices.insert(name, self.items.len() - 1);
     }
 }
 
-impl<T> Index<usize> for KeyIDContainer<T> {
+impl<T> Index<usize> for NamedItems<T> {
     type Output = T;
 
     fn index(&self, idx: usize) -> &Self::Output {
@@ -67,7 +69,7 @@ impl<T> Index<usize> for KeyIDContainer<T> {
     }
 }
 
-impl<T> Index<&str> for KeyIDContainer<T> {
+impl<T> Index<&str> for NamedItems<T> {
     type Output = T;
 
     fn index(&self, name: &str) -> &Self::Output {
@@ -75,7 +77,7 @@ impl<T> Index<&str> for KeyIDContainer<T> {
     }
 }
 
-impl<T> Index<&Range<usize>> for KeyIDContainer<T> {
+impl<T> Index<&Range<usize>> for NamedItems<T> {
     type Output = [T];
 
     fn index(&self, range: &Range<usize>) -> &Self::Output {

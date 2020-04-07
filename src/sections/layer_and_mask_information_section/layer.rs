@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::ops::Range;
+use std::ops::{Range, Deref};
 
 use failure::{Error, Fail};
 
@@ -74,6 +74,28 @@ impl LayerProperties {
             group_id,
         )
     }
+
+    /// Get the name of the layer
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The width of the layer
+    pub fn width(&self) -> u16 {
+        // If left is at 0 and right is at 4, the width is 5
+        (self.layer_right - self.layer_left) as u16 + 1
+    }
+
+    /// The height of the layer
+    pub fn height(&self) -> u16 {
+        // If top is at 0 and bottom is at 3, the height is 4
+        (self.layer_bottom - self.layer_top) as u16 + 1
+    }
+
+    /// If layer is nested, returns parent group ID, otherwise `None`
+    pub fn parent_id(&self) -> Option<u32> {
+        self.group_id
+    }
 }
 
 /// PsdGroup represents a group of layers
@@ -110,27 +132,13 @@ impl PsdGroup {
     pub fn id(&self) -> u32 {
         self.id
     }
+}
 
-    /// Get the name of the layer
-    pub fn name(&self) -> &str {
-        &self.layer_properties.name
-    }
+impl Deref for PsdGroup {
+    type Target = LayerProperties;
 
-    /// The width of the layer
-    pub fn width(&self) -> u16 {
-        // If left is at 0 and right is at 4, the width is 5
-        (self.layer_properties.layer_right - self.layer_properties.layer_left) as u16 + 1
-    }
-
-    /// The height of the layer
-    pub fn height(&self) -> u16 {
-        // If top is at 0 and bottom is at 3, the height is 4
-        (self.layer_properties.layer_bottom - self.layer_properties.layer_top) as u16 + 1
-    }
-
-    /// If layer is nested, returns parent group ID, otherwise `None`
-    pub fn parent_id(&self) -> Option<u32> {
-        self.layer_properties.group_id
+    fn deref(&self) -> &Self::Target {
+        &self.layer_properties
     }
 }
 
@@ -179,23 +187,6 @@ impl PsdLayer {
         }
     }
 
-    /// Get the name of the layer
-    pub fn name(&self) -> &str {
-        &self.layer_properties.name
-    }
-
-    /// The width of the layer
-    pub fn width(&self) -> u16 {
-        // If left is at 0 and right is at 4, the width is 5
-        (self.layer_properties.layer_right - self.layer_properties.layer_left) as u16 + 1
-    }
-
-    /// The height of the layer
-    pub fn height(&self) -> u16 {
-        // If top is at 0 and bottom is at 3, the height is 4
-        (self.layer_properties.layer_bottom - self.layer_properties.layer_top) as u16 + 1
-    }
-
     /// Get the compression level for one of this layer's channels
     pub fn compression(&self, channel: PsdChannelKind) -> Result<PsdChannelCompression, Error> {
         match self.channels.get(&channel) {
@@ -215,14 +206,17 @@ impl PsdLayer {
         Ok(rgba)
     }
 
-    /// If layer is nested, returns parent group ID, otherwise `None`
-    pub fn group_id(&self) -> Option<u32> {
-        self.layer_properties.group_id
-    }
-
     // Get one of the PsdLayerChannels of this PsdLayer
     fn get_channel(&self, channel: PsdChannelKind) -> Option<&ChannelBytes> {
         self.channels.get(&channel)
+    }
+}
+
+impl Deref for PsdLayer {
+    type Target = LayerProperties;
+
+    fn deref(&self) -> &Self::Target {
+        &self.layer_properties
     }
 }
 
@@ -275,7 +269,7 @@ pub struct LayerRecord {
     pub(super) bottom: i32,
     /// The position of the right of the image
     pub(super) right: i32,
-    /// Group divider tag, `GroupDivider::NotDivider` for not divider layers
+    /// Group divider tag
     pub(super) divider_type: Option<GroupDivider>,
 }
 

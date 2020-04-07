@@ -8,7 +8,7 @@ use failure::Error;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::layer_and_mask_information_section::container::KeyIDContainer;
+use crate::sections::layer_and_mask_information_section::container::NamedItems;
 use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerRecord, PsdGroup, PsdLayer};
 use crate::sections::PsdCursor;
 
@@ -55,8 +55,8 @@ pub mod container;
 /// | Variable | (Photoshop 4.0 and later) <br> Series of tagged blocks containing various types of data. See See Additional Layer Information for the list of the types of data that can be included here. |
 #[derive(Debug)]
 pub struct LayerAndMaskInformationSection {
-    pub(crate) layers: KeyIDContainer<PsdLayer>,
-    pub(crate) groups: KeyIDContainer<PsdGroup>,
+    pub(crate) layers: NamedItems<PsdLayer>,
+    pub(crate) groups: NamedItems<PsdGroup>,
 }
 
 impl LayerAndMaskInformationSection {
@@ -96,7 +96,7 @@ impl LayerAndMaskInformationSection {
         // channel as transparency data for the merged result.. So add a new test with a transparent
         // PSD and make sure that we're handling this case properly.
         let layer_count: u16 = layer_count.abs() as u16;
-        let mut layers = KeyIDContainer::with_capacity(layer_count as usize);
+        let mut layers = NamedItems::with_capacity(layer_count as usize);
 
         let mut groups_count = 0;
         let mut layer_records = vec![];
@@ -113,13 +113,12 @@ impl LayerAndMaskInformationSection {
 
             layer_records.push(layer_record);
         }
-        let mut groups = KeyIDContainer::with_capacity(groups_count);
+        let mut groups = NamedItems::with_capacity(groups_count);
 
-        let mut range_stack = vec![];
-        let mut nested_level = 0;
+        let mut group_start_stack = vec![];
         // Read each layer's channel image data
         for (idx, layer_record) in layer_records.into_iter().enumerate() {
-            let group_id = if nested_level > 0 {
+            let group_id = if group_start_stack.len() > 0 {
                 Some((groups_count - groups.len() - 1) as u32)
             } else {
                 None
@@ -134,11 +133,11 @@ impl LayerAndMaskInformationSection {
 
             let scanlines = layer_record.height() as usize;
 
-            for (channel_kind, channel_length) in layer_record.clone().channel_data_lengths {
+            for (channel_kind, channel_length) in layer_record.channel_data_lengths.iter() {
                 let compression = cursor.read_u16()?;
                 let compression = PsdChannelCompression::new(compression)?;
 
-                let channel_data = cursor.read(channel_length)?;
+                let channel_data = cursor.read(*channel_length)?;
 
                 let channel_bytes = match compression {
                     PsdChannelCompression::RawData => ChannelBytes::RawData(channel_data.into()),
@@ -156,26 +155,24 @@ impl LayerAndMaskInformationSection {
                     _ => unimplemented!("Zip compression currently unsupported"),
                 };
 
-                psd_layer.channels.insert(channel_kind, channel_bytes);
+                psd_layer.channels.insert(*channel_kind, channel_bytes);
             }
 
             match layer_record.divider_type {
                 // open the folder
                 Some(GroupDivider::CloseFolder) | Some(GroupDivider::BoundingSection) => {
-                    nested_level = nested_level + 1;
-                    range_stack.push(idx);
+                    group_start_stack.push(idx);
                 }
 
                 // close the folder
                 Some(GroupDivider::OpenFolder) => {
-                    nested_level = nested_level - 1;
                     let range = Range {
-                        start: range_stack.pop().unwrap(),
+                        start: group_start_stack.pop().unwrap(),
                         end: idx,
                     };
 
                     let group_id = group_id.unwrap();
-                    let parent_group_id = if nested_level > 0 {
+                    let parent_group_id = if group_start_stack.len() > 0 {
                         Some(group_id - 1)
                     } else {
                         // top-level group
