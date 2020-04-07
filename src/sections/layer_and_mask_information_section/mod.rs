@@ -1,14 +1,15 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::ops::Range;
 
 use failure::Error;
 
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerRecord, PsdLayerGroup};
-use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
+use crate::sections::layer_and_mask_information_section::container::KeyIDContainer;
+use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerRecord, PsdGroup, PsdLayer};
 use crate::sections::PsdCursor;
 
 /// One of the possible additional layer block signatures
@@ -23,6 +24,7 @@ const KEY_UNICODE_LAYER_NAME: &[u8; 4] = b"luni";
 const KEY_SECTION_DIVIDER_SETTING: &[u8; 4] = b"lsct";
 
 pub mod layer;
+pub mod container;
 
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
@@ -53,7 +55,8 @@ pub mod layer;
 /// | Variable | (Photoshop 4.0 and later) <br> Series of tagged blocks containing various types of data. See See Additional Layer Information for the list of the types of data that can be included here. |
 #[derive(Debug)]
 pub struct LayerAndMaskInformationSection {
-    pub(crate) group: PsdLayerGroup,
+    pub(crate) layers: KeyIDContainer<PsdLayer>,
+    pub(crate) groups: KeyIDContainer<PsdGroup>,
 }
 
 impl LayerAndMaskInformationSection {
@@ -65,8 +68,6 @@ impl LayerAndMaskInformationSection {
         psd_height: u32,
     ) -> Result<LayerAndMaskInformationSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
-
-        let mut layers = PsdLayerGroup::new();
 
         // The first four bytes of the section is the length marker for the layer and mask
         // information section.
@@ -95,33 +96,35 @@ impl LayerAndMaskInformationSection {
         // channel as transparency data for the merged result.. So add a new test with a transparent
         // PSD and make sure that we're handling this case properly.
         let layer_count: u16 = layer_count.abs() as u16;
+        let mut layers = KeyIDContainer::with_capacity(layer_count as usize);
+        let mut groups = KeyIDContainer::new();
 
         let mut layer_records = vec![];
-
         // Read each layer record
         for _layer_num in 0..layer_count {
             layer_records.push(read_layer_record(&mut cursor)?);
         }
 
-        let mut sub_layers = PsdLayerGroup::new();
-
-        let mut parse_group_now = false;
+        let mut range_stack = vec![];
+        let mut nested_level = 0;
         // Read each layer's channel image data
         for (idx, layer_record) in layer_records.into_iter().enumerate() {
+            let group_id = if nested_level > 0 {
+                Some(groups.len() as u32)
+            } else {
+                None
+            };
+
             let mut psd_layer = PsdLayer::new(
-                layer_record.name.clone(),
-                layer_record.top,
-                layer_record.left,
-                layer_record.bottom,
-                layer_record.right,
+                layer_record.clone(),
                 psd_width,
                 psd_height,
-                None,
+                group_id,
             );
 
             let scanlines = layer_record.height() as usize;
 
-            for (channel_kind, channel_length) in layer_record.channel_data_lengths {
+            for (channel_kind, channel_length) in layer_record.clone().channel_data_lengths {
                 let compression = cursor.read_u16()?;
                 let compression = PsdChannelCompression::new(compression)?;
 
@@ -146,29 +149,51 @@ impl LayerAndMaskInformationSection {
                 psd_layer.channels.insert(channel_kind, channel_bytes);
             }
 
-            // print!("{}, {:?}:", layer_record.name, layer_record.divider_type);
             match layer_record.divider_type {
-                GroupDivider::CloseFolder | GroupDivider::BoundingSection => {
-                    parse_group_now = true;
-                    sub_layers = PsdLayerGroup::new();
+                // open the folder
+                Some(GroupDivider::CloseFolder) | Some(GroupDivider::BoundingSection) => {
+                    println!("open group: {}, nested level: {}", layer_record.name, nested_level);
+                    nested_level = nested_level + 1;
+                    range_stack.push(idx);
                 }
-                GroupDivider::OpenFolder => {
-                    parse_group_now = false;
-                    psd_layer.sub_layers = Some(sub_layers.clone());
-                    layers.push(layer_record.name, psd_layer);
-                }
-                _ => {
-                    if parse_group_now {
-                        sub_layers.push(layer_record.name, psd_layer);
+
+                // close the folder
+                Some(GroupDivider::OpenFolder) => {
+                    nested_level = nested_level - 1;
+                    let range = Range {
+                        start: range_stack.pop().unwrap(),
+                        end: idx,
+                    };
+
+                    let group_id = group_id.unwrap();
+                    let parent_group_id = if group_id > 1 {
+                        Some(group_id - 1)
                     } else {
-                        layers.push(layer_record.name, psd_layer);
-                    }
+                        // top-level group
+                        None
+                    };
+
+                    println!("close group: {}, nested level: {}", layer_record.name, nested_level);
+                    groups.push(layer_record.name.clone(), PsdGroup::new(
+                        group_id,
+                        range,
+                        layer_record,
+                        psd_width,
+                        psd_height,
+                        // parent group
+                        parent_group_id,
+                    ));
+                }
+
+                _ => {
+                    layers.push(layer_record.name.clone(), psd_layer);
                 }
             };
         }
 
         Ok(LayerAndMaskInformationSection {
-            group: layers,
+            layers,
+            groups,
         })
     }
 }
@@ -285,7 +310,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     cursor.read(padding as u32)?;
 
 
-    let mut divider_type = GroupDivider::NotDivider;
+    let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
     while cursor.peek_4()? == SIGNATURE_EIGHT_BIM || cursor.peek_4()? == SIGNATURE_EIGHT_B64 {

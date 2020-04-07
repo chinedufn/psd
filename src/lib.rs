@@ -19,6 +19,7 @@ use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
 pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
 use crate::sections::image_resources_section::{DescriptorStructure, ImageResourcesSection};
+use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
@@ -117,19 +118,56 @@ impl Psd {
 impl Psd {
     /// Get all of the layers in the PSD
     pub fn layers(&self) -> &Vec<PsdLayer> {
-        self.layer_and_mask_information_section.group.layers()
+        &self.layer_and_mask_information_section.layers.items()
     }
 
     /// Get a layer by name
     pub fn layer_by_name(&self, name: &str) -> Result<&PsdLayer, Error> {
-        self.layer_and_mask_information_section.group.layer_by_name(name)
+        let item = self
+            .layer_and_mask_information_section
+            .layers
+            .item_by_name(name)
+            .unwrap();
+        Ok(item)
     }
 
     /// Get a layer by index.
     ///
     /// index 0 is the bottom layer, index 1 is the layer above that, etc
     pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer, Error> {
-        self.layer_and_mask_information_section.group.layer_by_idx(idx)
+        let item = self
+            .layer_and_mask_information_section
+            .layers
+            .item_by_idx(idx)
+            .unwrap();
+        Ok(item)
+    }
+
+    /// Get a group by id.
+    pub fn group_by_id(&self, id: usize) -> Option<&PsdGroup> {
+        self.layer_and_mask_information_section
+            .groups
+            .item_by_idx(id)
+    }
+
+    /// Get a group by name
+    pub fn group_by_name(&self, name: &str) -> Option<&PsdGroup> {
+        self.layer_and_mask_information_section.groups.item_by_name(name)
+    }
+
+    /// Get all of the groups in the PSD
+    pub fn groups(&self) -> &Vec<PsdGroup> {
+        &self.layer_and_mask_information_section.groups.items()
+    }
+
+    /// Returns sub layers of group by group id
+    pub fn get_sub_layers(&self, id: usize) -> Option<&[PsdLayer]> {
+        match self.group_by_id(id) {
+            Some(group) => {
+                Some(&self.layer_and_mask_information_section.layers[&group.contained_layers])
+            }
+            None => None,
+        }
     }
 
     /// Given a filter, combine all layers in the PSD that pass the filter into a vector
@@ -226,10 +264,10 @@ impl Psd {
 
         // If this pixel is out of bounds of this layer we return the pixel below it.
         // If there is no pixel below it we return a transparent pixel
-        if pixel_left < layer.layer_left as usize
-            || pixel_left > layer.layer_right as usize
-            || pixel_top < layer.layer_top as usize
-            || pixel_top > layer.layer_bottom as usize
+        if pixel_left < layer.layer_properties.layer_left as usize
+            || pixel_left > layer.layer_properties.layer_right as usize
+            || pixel_top < layer.layer_properties.layer_top as usize
+            || pixel_top > layer.layer_properties.layer_bottom as usize
         {
             if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
                 return self.flattened_pixel(
