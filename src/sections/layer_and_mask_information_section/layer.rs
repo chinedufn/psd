@@ -58,13 +58,14 @@ impl LayerProperties {
     }
 
     pub fn from_layer_record(
-        layer_record: LayerRecord,
+        name: String,
+        layer_record: &LayerRecord,
         psd_width: u32,
         psd_height: u32,
         group_id: Option<u32>,
     ) -> Self {
         Self::new(
-            layer_record.name.clone(),
+            name,
             layer_record.top,
             layer_record.left,
             layer_record.bottom,
@@ -112,6 +113,7 @@ pub struct PsdGroup {
 impl PsdGroup {
     /// Create a new photoshop group layer
     pub fn new(
+        name: String,
         id: u32,
         contained_layers: Range<usize>,
         layer_record: LayerRecord,
@@ -120,7 +122,8 @@ impl PsdGroup {
         group_id: Option<u32>,
     ) -> Self {
         let layer_properties = LayerProperties::from_layer_record(
-            layer_record,
+            name,
+            &layer_record,
             psd_width,
             psd_height,
             group_id,
@@ -142,6 +145,9 @@ impl Deref for PsdGroup {
     }
 }
 
+/// Channels represents channels of the layer, stored separately.
+pub type LayerChannels = HashMap<PsdChannelKind, ChannelBytes>;
+
 /// PsdLayer represents a pixel layer
 #[derive(Debug, Clone)]
 pub struct PsdLayer {
@@ -152,7 +158,7 @@ pub struct PsdLayer {
     /// channel, or you might make use of the layer masks.
     ///
     /// Storing the channels separately allows for this flexability.
-    pub(super) channels: HashMap<PsdChannelKind, ChannelBytes>,
+    pub(super) channels: LayerChannels,
     /// Common layer properties
     pub(in crate) layer_properties: LayerProperties,
 }
@@ -175,15 +181,17 @@ impl PsdLayer {
         psd_width: u32,
         psd_height: u32,
         group_id: Option<u32>,
+        channels: LayerChannels,
     ) -> PsdLayer {
         PsdLayer {
-            channels: HashMap::new(),
             layer_properties: LayerProperties::from_layer_record(
-                layer_record,
+                layer_record.name.clone(),
+                &layer_record,
                 psd_width,
                 psd_height,
                 group_id,
             ),
+            channels
         }
     }
 

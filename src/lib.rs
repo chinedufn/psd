@@ -198,6 +198,7 @@ impl Psd {
         let mut layers_to_flatten_bottom_to_top: Vec<(usize, &PsdLayer)> = self
             .layers()
             .iter()
+            .rev()
             .enumerate()
             .filter(|(idx, layer)| filter((*idx, layer)))
             .collect();

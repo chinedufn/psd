@@ -9,7 +9,7 @@ use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::layer_and_mask_information_section::container::NamedItems;
-use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerRecord, PsdGroup, PsdLayer};
+use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerChannels, LayerRecord, PsdGroup, PsdLayer};
 use crate::sections::PsdCursor;
 
 /// One of the possible additional layer block signatures
@@ -59,6 +59,14 @@ pub struct LayerAndMaskInformationSection {
     pub(crate) groups: NamedItems<PsdGroup>,
 }
 
+#[derive(Debug)]
+struct Frame {
+    start_idx: usize,
+    name: String,
+    group_id: u32,
+    parent_group_id: u32,
+}
+
 impl LayerAndMaskInformationSection {
     /// Create a LayerAndMaskInformationSection from the bytes in the corresponding section in a
     /// PSD file (including the length marker).
@@ -96,101 +104,105 @@ impl LayerAndMaskInformationSection {
         // channel as transparency data for the merged result.. So add a new test with a transparent
         // PSD and make sure that we're handling this case properly.
         let layer_count: u16 = layer_count.abs() as u16;
-        let mut layers = NamedItems::with_capacity(layer_count as usize);
+        let (
+            group_count,
+            layer_records
+        ) = LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
 
-        let mut groups_count = 0;
-        let mut layer_records = vec![];
-        // Read each layer record
-        for _layer_num in 0..layer_count {
-            let layer_record = read_layer_record(&mut cursor)?;
+        LayerAndMaskInformationSection::decode_layers(
+            &mut cursor,
+            layer_records,
+            layer_count as usize,
+            group_count,
+            (psd_width, psd_height),
+        )
+    }
 
-            match layer_record.divider_type {
-                Some(GroupDivider::CloseFolder) | Some(GroupDivider::BoundingSection) => {
-                    groups_count = groups_count + 1;
-                }
-                _ => {},
-            }
+    fn decode_layers(
+        cursor: &mut PsdCursor,
+        layer_records: Vec<(LayerRecord, LayerChannels)>,
+        layer_count: usize,
+        group_count: usize,
+        psd_size: (u32, u32),
+    ) -> Result<LayerAndMaskInformationSection, Error> {
+        let mut layers = NamedItems::with_capacity(layer_count);
+        let mut groups: NamedItems<PsdGroup> = NamedItems::with_capacity(group_count);
 
-            layer_records.push(layer_record);
-        }
-        let mut groups = NamedItems::with_capacity(groups_count);
-
-        let mut group_start_stack = vec![];
+        let mut levels: Vec<Vec<Frame>> = vec![];
+        levels.push(vec![Frame {
+            start_idx: 0,
+            name: String::from("root"),
+            group_id: 0,
+            parent_group_id: 0,
+        }]);
+        let mut already_viewed = 0;
+        let mut nested_level = 0;
         // Read each layer's channel image data
-        for (idx, layer_record) in layer_records.into_iter().enumerate() {
-            let group_id = if group_start_stack.len() > 0 {
-                Some((groups_count - groups.len() - 1) as u32)
-            } else {
-                None
-            };
+        for (idx, item) in layer_records.into_iter().enumerate() {
+            let layer_record = item.0;
+            let channels = item.1;
 
-            let mut psd_layer = PsdLayer::new(
-                layer_record.clone(),
-                psd_width,
-                psd_height,
-                group_id,
-            );
-
-            let scanlines = layer_record.height() as usize;
-
-            for (channel_kind, channel_length) in layer_record.channel_data_lengths.iter() {
-                let compression = cursor.read_u16()?;
-                let compression = PsdChannelCompression::new(compression)?;
-
-                let channel_data = cursor.read(*channel_length)?;
-
-                let channel_bytes = match compression {
-                    PsdChannelCompression::RawData => ChannelBytes::RawData(channel_data.into()),
-                    PsdChannelCompression::RleCompressed => {
-                        // We're skipping over the bytes that describe the length of each scanline since
-                        // we don't currently use them. We might re-think this in the future when we
-                        // implement serialization of a Psd back into bytes.. But not a concern at the
-                        // moment.
-                        // Compressed bytes per scanline are encoded at the beginning as 2 bytes
-                        // per scanline
-                        let channel_data = &channel_data[2 * scanlines..];
-
-                        ChannelBytes::RleCompressed(channel_data.into())
-                    }
-                    _ => unimplemented!("Zip compression currently unsupported"),
-                };
-
-                psd_layer.channels.insert(*channel_kind, channel_bytes);
-            }
+            let frame = levels.get_mut(nested_level).unwrap();
+            let parent_group_id = frame.last().unwrap().group_id;
 
             match layer_record.divider_type {
                 // open the folder
-                Some(GroupDivider::CloseFolder) | Some(GroupDivider::BoundingSection) => {
-                    group_start_stack.push(idx);
+                Some(GroupDivider::CloseFolder) | Some(GroupDivider::OpenFolder) => {
+                    nested_level = nested_level + 1;
+                    already_viewed = already_viewed + 1;
+
+                    let frame = Frame {
+                        start_idx: layers.len(),
+                        name: layer_record.name,
+                        group_id: already_viewed,
+                        parent_group_id,
+                    };
+
+                    match levels.get_mut((nested_level) as usize) {
+                        Some(v) => {
+                            v.push(frame);
+                        }
+                        None => {
+                            levels.push(vec![frame]);
+                        }
+                    }
                 }
 
                 // close the folder
-                Some(GroupDivider::OpenFolder) => {
+                Some(GroupDivider::BoundingSection) => {
+                    let frame = frame.pop().unwrap();
+
                     let range = Range {
-                        start: group_start_stack.pop().unwrap(),
-                        end: idx,
+                        start: frame.start_idx,
+                        end: layers.len(),
                     };
 
-                    let group_id = group_id.unwrap();
-                    let parent_group_id = if group_start_stack.len() > 0 {
-                        Some(group_id - 1)
-                    } else {
-                        // top-level group
-                        None
-                    };
-                    
-                    groups.push(layer_record.name.clone(), PsdGroup::new(
-                        group_id,
+                    groups.push(frame.name.clone(), PsdGroup::new(
+                        frame.name,
+                        frame.group_id,
                         range,
                         layer_record,
-                        psd_width,
-                        psd_height,
-                        parent_group_id,
+                        psd_size.0,
+                        psd_size.1,
+                        if frame.parent_group_id > 0 {
+                            Some(frame.parent_group_id)
+                        } else {
+                            None
+                        },
                     ));
+
+                    nested_level = nested_level - 1;
                 }
 
                 _ => {
-                    layers.push(layer_record.name.clone(), psd_layer);
+                    let psd_layer = LayerAndMaskInformationSection::read_layer(
+                        layer_record.clone(),
+                        parent_group_id,
+                        psd_size,
+                        channels,
+                    )?;
+
+                    layers.push(psd_layer.name.clone(), psd_layer);
                 }
             };
         }
@@ -200,6 +212,95 @@ impl LayerAndMaskInformationSection {
             groups,
         })
     }
+
+    fn read_layer_records(cursor: &mut PsdCursor, layer_count: u16) -> Result<(usize, Vec<(LayerRecord, LayerChannels)>), Error> {
+        let mut groups_count = 0;
+
+        let mut layer_records = vec![];
+        // Read each layer record
+        for _layer_num in 0..layer_count {
+            let layer_record = read_layer_record(cursor)?;
+
+            match layer_record.divider_type {
+                Some(GroupDivider::BoundingSection) => {
+                    groups_count = groups_count + 1;
+                }
+                _ => {}
+            }
+
+            layer_records.push(layer_record);
+        }
+
+        let mut result = vec![];
+        for layer_record in layer_records {
+            let channels = read_layer_channels(
+                cursor,
+                &layer_record.channel_data_lengths,
+                layer_record.height() as usize,
+            )?;
+
+            result.push((layer_record, channels));
+        }
+
+        // Photoshop stores layers in reverse order
+        result.reverse();
+        Ok((groups_count, result))
+    }
+
+    fn read_layer(
+        layer_record: LayerRecord,
+        parent_id: u32,
+        psd_size: (u32, u32),
+        channels: LayerChannels,
+    ) -> Result<PsdLayer, Error> {
+        Ok(PsdLayer::new(
+            layer_record,
+            psd_size.0,
+            psd_size.1,
+            if parent_id > 0 {
+                Some(parent_id)
+            } else {
+                None
+            },
+            channels,
+        ))
+    }
+}
+
+/// Reads layer channels
+fn read_layer_channels(
+    cursor: &mut PsdCursor,
+    channel_data_lengths: &Vec<(PsdChannelKind, u32)>,
+    scanlines: usize,
+) -> Result<LayerChannels, Error> {
+    let capacity = channel_data_lengths.len();
+    let mut channels = HashMap::with_capacity(capacity);
+
+    for (channel_kind, channel_length) in channel_data_lengths.iter() {
+        let compression = cursor.read_u16()?;
+        let compression = PsdChannelCompression::new(compression)?;
+
+        let channel_data = cursor.read(*channel_length)?;
+        let channel_bytes = match compression {
+            PsdChannelCompression::RawData => ChannelBytes::RawData(channel_data.into()),
+            PsdChannelCompression::RleCompressed => {
+                // We're skipping over the bytes that describe the length of each scanline since
+                // we don't currently use them. We might re-think this in the future when we
+                // implement serialization of a Psd back into bytes.. But not a concern at the
+                // moment.
+                // Compressed bytes per scanline are encoded at the beginning as 2 bytes
+                // per scanline
+                let channel_data = &channel_data[2 * scanlines..];
+
+                ChannelBytes::RleCompressed(channel_data.into())
+            }
+            _ => unimplemented!("Zip compression currently unsupported"),
+        };
+
+        channels.insert(*channel_kind, channel_bytes);
+    }
+
+    Ok(channels)
 }
 
 /// Read bytes, starting from the cursor, until we've processed all of the data for a layer in
@@ -349,7 +450,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
         }
     }
 
-    let layer_record = LayerRecord {
+    Ok(LayerRecord {
         name,
         channel_data_lengths,
         top,
@@ -357,8 +458,6 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
         bottom,
         right,
         divider_type,
-    };
-
-    Ok(layer_record)
+    })
 }
 
