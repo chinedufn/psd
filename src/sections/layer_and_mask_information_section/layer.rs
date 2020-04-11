@@ -116,14 +116,14 @@ impl PsdGroup {
         name: String,
         id: u32,
         contained_layers: Range<usize>,
-        layer_record: LayerRecord,
+        layer_record: &LayerRecord,
         psd_width: u32,
         psd_height: u32,
         group_id: Option<u32>,
     ) -> Self {
         let layer_properties = LayerProperties::from_layer_record(
             name,
-            &layer_record,
+            layer_record,
             psd_width,
             psd_height,
             group_id,
@@ -177,7 +177,7 @@ pub enum PsdLayerError {
 impl PsdLayer {
     /// Create a new photoshop layer
     pub fn new(
-        layer_record: LayerRecord,
+        layer_record: &LayerRecord,
         psd_width: u32,
         psd_height: u32,
         group_id: Option<u32>,
@@ -186,7 +186,7 @@ impl PsdLayer {
         PsdLayer {
             layer_properties: LayerProperties::from_layer_record(
                 layer_record.name.clone(),
-                &layer_record,
+                layer_record,
                 psd_width,
                 psd_height,
                 group_id,

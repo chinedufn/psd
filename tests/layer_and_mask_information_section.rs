@@ -11,8 +11,7 @@ fn layer_and_mask_information_section() {
     assert_eq!(psd.layers().len(), 1);
 
     let layer = psd.layer_by_name("First Layer").unwrap();
-
-    println!("{:?}", layer);
+    
     assert_eq!(&layer.rgba().unwrap()[..], &GREEN_PIXEL);
 }
 
@@ -166,7 +165,7 @@ fn one_group_with_two_subgroups() {
     assert_eq!(6, psd.layers().len());
     assert_eq!(6, psd.groups().len());
 
-    // Check group
+    // Check first top-level group
     let outside_group = psd.group_by_name("outside group").unwrap();
     assert_eq!(outside_group.id(), 1);
 
@@ -200,5 +199,12 @@ fn one_group_with_two_subgroups() {
 
     // Check top-level Firth Group
     let layer = psd.layer_by_name("Firth Layer").unwrap();
-    assert_eq!(None, layer.parent_id());
+    assert_eq!(layer.parent_id(), None);
+
+    // Check second top-level group
+    let outside_group = psd.group_by_name("outside group 2").unwrap();
+    assert_eq!(outside_group.id(), 6);
+
+    let layer = psd.layer_by_name("Sixth Layer").unwrap();
+    assert_eq!(layer.parent_id().unwrap(), outside_group.id());
 }

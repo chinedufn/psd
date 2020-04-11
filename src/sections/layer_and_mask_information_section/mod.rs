@@ -59,6 +59,7 @@ pub struct LayerAndMaskInformationSection {
     pub(crate) groups: NamedItems<PsdGroup>,
 }
 
+/// Frame represents a group stack frame
 #[derive(Debug)]
 struct Frame {
     start_idx: usize,
@@ -110,67 +111,54 @@ impl LayerAndMaskInformationSection {
         ) = LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
 
         LayerAndMaskInformationSection::decode_layers(
-            &mut cursor,
             layer_records,
-            layer_count as usize,
             group_count,
             (psd_width, psd_height),
         )
     }
 
     fn decode_layers(
-        cursor: &mut PsdCursor,
         layer_records: Vec<(LayerRecord, LayerChannels)>,
-        layer_count: usize,
         group_count: usize,
         psd_size: (u32, u32),
     ) -> Result<LayerAndMaskInformationSection, Error> {
-        let mut layers = NamedItems::with_capacity(layer_count);
+        let mut layers = NamedItems::with_capacity(layer_records.len());
         let mut groups: NamedItems<PsdGroup> = NamedItems::with_capacity(group_count);
 
-        let mut levels: Vec<Vec<Frame>> = vec![];
-        levels.push(vec![Frame {
+        // Create stack with root-level
+        let mut stack: Vec<Frame> = vec![Frame {
             start_idx: 0,
             name: String::from("root"),
             group_id: 0,
             parent_group_id: 0,
-        }]);
-        let mut already_viewed = 0;
-        let mut nested_level = 0;
-        // Read each layer's channel image data
-        for (idx, item) in layer_records.into_iter().enumerate() {
-            let layer_record = item.0;
-            let channels = item.1;
+        }];
 
-            let frame = levels.get_mut(nested_level).unwrap();
-            let parent_group_id = frame.last().unwrap().group_id;
+        // Viewed group counter
+        let mut already_viewed = 0;
+
+        // Read each layer's channel image data
+        for (layer_record, channels) in layer_records.into_iter() {
+            // get current group from stack
+            let current_group_id = stack.last().unwrap().group_id;
 
             match layer_record.divider_type {
                 // open the folder
                 Some(GroupDivider::CloseFolder) | Some(GroupDivider::OpenFolder) => {
-                    nested_level = nested_level + 1;
                     already_viewed = already_viewed + 1;
 
                     let frame = Frame {
                         start_idx: layers.len(),
                         name: layer_record.name,
                         group_id: already_viewed,
-                        parent_group_id,
+                        parent_group_id: current_group_id,
                     };
 
-                    match levels.get_mut((nested_level) as usize) {
-                        Some(v) => {
-                            v.push(frame);
-                        }
-                        None => {
-                            levels.push(vec![frame]);
-                        }
-                    }
+                    stack.push(frame);
                 }
 
                 // close the folder
                 Some(GroupDivider::BoundingSection) => {
-                    let frame = frame.pop().unwrap();
+                    let frame = stack.pop().unwrap();
 
                     let range = Range {
                         start: frame.start_idx,
@@ -181,7 +169,7 @@ impl LayerAndMaskInformationSection {
                         frame.name,
                         frame.group_id,
                         range,
-                        layer_record,
+                        &layer_record,
                         psd_size.0,
                         psd_size.1,
                         if frame.parent_group_id > 0 {
@@ -190,14 +178,12 @@ impl LayerAndMaskInformationSection {
                             None
                         },
                     ));
-
-                    nested_level = nested_level - 1;
                 }
 
                 _ => {
                     let psd_layer = LayerAndMaskInformationSection::read_layer(
-                        layer_record.clone(),
-                        parent_group_id,
+                        &layer_record,
+                        current_group_id,
                         psd_size,
                         channels,
                     )?;
@@ -248,13 +234,13 @@ impl LayerAndMaskInformationSection {
     }
 
     fn read_layer(
-        layer_record: LayerRecord,
+        layer_record: &LayerRecord,
         parent_id: u32,
         psd_size: (u32, u32),
         channels: LayerChannels,
     ) -> Result<PsdLayer, Error> {
         Ok(PsdLayer::new(
-            layer_record,
+            &layer_record,
             psd_size.0,
             psd_size.1,
             if parent_id > 0 {
