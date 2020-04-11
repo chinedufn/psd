@@ -1,55 +1,40 @@
+use std::collections::HashMap;
+use std::ops::{Range, Deref};
+
+use failure::{Error, Fail};
+
 use crate::psd_channel::IntoRgba;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelError;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
-use failure::{Error, Fail};
-use std::collections::HashMap;
 
 /// Information about a layer in a PSD file.
 ///
 /// TODO: I set all of these pub during a late evening of getting to get things working.
 /// Replace with private and accessor methods so that this crate is as locked down as possible
 /// (to allow us to be strict).
-#[derive(Debug)]
-pub struct PsdLayer {
+#[derive(Debug, Clone)]
+pub struct LayerProperties {
     /// The name of this layer
     pub(super) name: String,
-    /// The channels of the layer, stored separately.
-    ///
-    /// You can combine these channels into a final image. For example, you might combine
-    /// the Red, Green and Blue channels, or you might also combine the TransparencyMask (alpha)
-    /// channel, or you might make use of the layer masks.
-    ///
-    /// Storing the channels separately allows for this flexability.
-    pub(super) channels: HashMap<PsdChannelKind, ChannelBytes>,
-    /// The position of the top of the image
+    /// The position of the top of the layer
     pub(crate) layer_top: i32,
-    /// The position of the left of the image
+    /// The position of the left of the layer
     pub(crate) layer_left: i32,
-    /// The position of the bottom of the image
+    /// The position of the bottom of the layer
     pub(crate) layer_bottom: i32,
-    /// The position of the right of the image
+    /// The position of the right of the layer
     pub(crate) layer_right: i32,
     /// The width of the PSD
     pub(crate) psd_width: u32,
     /// The height of the PSD
     pub(crate) psd_height: u32,
+    /// If layer is nested, contains parent group ID, otherwise `None`
+    pub(crate) group_id: Option<u32>,
 }
 
-/// An error when working with a PsdLayer
-#[derive(Debug, Fail)]
-pub enum PsdLayerError {
-    #[fail(
-        display = r#"Could not combine Red, Green, Blue and Alpha.
-        This layer is missing channel: {:#?}"#,
-        channel
-    )]
-    MissingChannels { channel: PsdChannelKind },
-}
-
-impl PsdLayer {
-    /// Create a new photoshop layer
+impl LayerProperties {
     pub fn new(
         name: String,
         layer_top: i32,
@@ -58,17 +43,37 @@ impl PsdLayer {
         layer_right: i32,
         psd_width: u32,
         psd_height: u32,
-    ) -> PsdLayer {
-        PsdLayer {
+        group_id: Option<u32>,
+    ) -> Self {
+        LayerProperties {
             name,
-            channels: HashMap::new(),
             layer_top,
             layer_left,
             layer_bottom,
             layer_right,
             psd_width,
             psd_height,
+            group_id,
         }
+    }
+
+    pub fn from_layer_record(
+        name: String,
+        layer_record: &LayerRecord,
+        psd_width: u32,
+        psd_height: u32,
+        group_id: Option<u32>,
+    ) -> Self {
+        Self::new(
+            name,
+            layer_record.top,
+            layer_record.left,
+            layer_record.bottom,
+            layer_record.right,
+            psd_width,
+            psd_height,
+            group_id,
+        )
     }
 
     /// Get the name of the layer
@@ -86,6 +91,108 @@ impl PsdLayer {
     pub fn height(&self) -> u16 {
         // If top is at 0 and bottom is at 3, the height is 4
         (self.layer_bottom - self.layer_top) as u16 + 1
+    }
+
+    /// If layer is nested, returns parent group ID, otherwise `None`
+    pub fn parent_id(&self) -> Option<u32> {
+        self.group_id
+    }
+}
+
+/// PsdGroup represents a group of layers
+#[derive(Debug, Clone)]
+pub struct PsdGroup {
+    /// Group unique identifier
+    pub(in crate) id: u32,
+    /// Idx range of contained layers
+    pub(in crate) contained_layers: Range<usize>,
+    /// Common layer properties
+    pub(in crate) layer_properties: LayerProperties,
+}
+
+impl PsdGroup {
+    /// Create a new photoshop group layer
+    pub fn new(
+        name: String,
+        id: u32,
+        contained_layers: Range<usize>,
+        layer_record: &LayerRecord,
+        psd_width: u32,
+        psd_height: u32,
+        group_id: Option<u32>,
+    ) -> Self {
+        let layer_properties = LayerProperties::from_layer_record(
+            name,
+            layer_record,
+            psd_width,
+            psd_height,
+            group_id,
+        );
+
+        PsdGroup { id, contained_layers, layer_properties }
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+}
+
+impl Deref for PsdGroup {
+    type Target = LayerProperties;
+
+    fn deref(&self) -> &Self::Target {
+        &self.layer_properties
+    }
+}
+
+/// Channels represents channels of the layer, stored separately.
+pub type LayerChannels = HashMap<PsdChannelKind, ChannelBytes>;
+
+/// PsdLayer represents a pixel layer
+#[derive(Debug, Clone)]
+pub struct PsdLayer {
+    /// The channels of the layer, stored separately.
+    ///
+    /// You can combine these channels into a final image. For example, you might combine
+    /// the Red, Green and Blue channels, or you might also combine the TransparencyMask (alpha)
+    /// channel, or you might make use of the layer masks.
+    ///
+    /// Storing the channels separately allows for this flexability.
+    pub(super) channels: LayerChannels,
+    /// Common layer properties
+    pub(in crate) layer_properties: LayerProperties,
+}
+
+/// An error when working with a PsdLayer
+#[derive(Debug, Fail)]
+pub enum PsdLayerError {
+    #[fail(
+    display = r#"Could not combine Red, Green, Blue and Alpha.
+        This layer is missing channel: {:#?}"#,
+    channel
+    )]
+    MissingChannels { channel: PsdChannelKind },
+}
+
+impl PsdLayer {
+    /// Create a new photoshop layer
+    pub fn new(
+        layer_record: &LayerRecord,
+        psd_width: u32,
+        psd_height: u32,
+        group_id: Option<u32>,
+        channels: LayerChannels,
+    ) -> PsdLayer {
+        PsdLayer {
+            layer_properties: LayerProperties::from_layer_record(
+                layer_record.name.clone(),
+                layer_record,
+                psd_width,
+                psd_height,
+                group_id,
+            ),
+            channels
+        }
     }
 
     /// Get the compression level for one of this layer's channels
@@ -113,11 +220,44 @@ impl PsdLayer {
     }
 }
 
+impl Deref for PsdLayer {
+    type Target = LayerProperties;
+
+    fn deref(&self) -> &Self::Target {
+        &self.layer_properties
+    }
+}
+
+/// GroupDivider represents tag type of Section divider.
+#[derive(Debug, Clone)]
+pub(super) enum GroupDivider {
+    /// 0 = any other type of layer
+    Other = 0,
+    /// 1 = open "folder"
+    OpenFolder = 1,
+    /// 2 = closed "folder"
+    CloseFolder = 2,
+    ///  3 = bounding section divider, hidden in the Photoshop UI
+    BoundingSection = 3,
+}
+
+impl GroupDivider {
+    pub(super) fn match_divider(divider: i32) -> Option<GroupDivider> {
+        match divider {
+            0 => Some(GroupDivider::Other),
+            1 => Some(GroupDivider::OpenFolder),
+            2 => Some(GroupDivider::CloseFolder),
+            3 => Some(GroupDivider::BoundingSection),
+            _ => None
+        }
+    }
+}
+
 /// A layer record within the layer info section
 ///
 /// TODO: Set all ofo these pubs to get things working. Replace with private
 /// and accessor methods
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LayerRecord {
     /// The name of the layer
     pub(super) name: String,
@@ -137,6 +277,8 @@ pub struct LayerRecord {
     pub(super) bottom: i32,
     /// The position of the right of the image
     pub(super) right: i32,
+    /// Group divider tag
+    pub(super) divider_type: Option<GroupDivider>,
 }
 
 impl LayerRecord {
@@ -174,11 +316,11 @@ impl IntoRgba for PsdLayer {
     /// position within the PSD.
     fn rgba_idx(&self, idx: usize) -> usize {
         let left_in_layer = idx % self.width() as usize;
-        let left_in_psd = self.layer_left as usize + left_in_layer;
+        let left_in_psd = self.layer_properties.layer_left as usize + left_in_layer;
 
-        let top_in_psd = idx / self.width() as usize + self.layer_top as usize;
+        let top_in_psd = idx / self.width() as usize + self.layer_properties.layer_top as usize;
 
-        (top_in_psd * self.psd_width as usize) + left_in_psd
+        (top_in_psd * self.layer_properties.psd_width as usize) + left_in_psd
     }
 
     fn red(&self) -> &ChannelBytes {
@@ -198,10 +340,10 @@ impl IntoRgba for PsdLayer {
     }
 
     fn psd_width(&self) -> u32 {
-        self.psd_width
+        self.layer_properties.psd_width
     }
 
     fn psd_height(&self) -> u32 {
-        self.psd_height
+        self.layer_properties.psd_height
     }
 }

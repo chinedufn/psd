@@ -206,7 +206,7 @@ impl ImageDataSection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ChannelBytes {
     RawData(Vec<u8>),
     RleCompressed(Vec<u8>),
