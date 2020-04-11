@@ -398,6 +398,40 @@
 <span id="398">398</span>
 <span id="399">399</span>
 <span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Data structures and methods for working with PSD files.</span>
 <span class="doccomment">//!</span>
@@ -420,6 +454,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ImageDataSection</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::{<span class="ident">DescriptorField</span>, <span class="ident">UnitFloatStructure</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::{<span class="ident">DescriptorStructure</span>, <span class="ident">ImageResourcesSection</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdGroup</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdLayer</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">LayerAndMaskInformationSection</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">MajorSections</span>;
@@ -518,24 +553,56 @@
 <span class="kw">impl</span> <span class="ident">Psd</span> {
     <span class="doccomment">/// Get all of the layers in the PSD</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">layers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PsdLayer</span><span class="op">&gt;</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">layers</span>
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">layers</span>.<span class="ident">items</span>()
     }
 
     <span class="doccomment">/// Get a layer by name</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">layer_by_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PsdLayer</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">layer_idx</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">item</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">layer_and_mask_information_section</span>
-            .<span class="ident">layer_names</span>
-            .<span class="ident">get</span>(<span class="ident">name</span>)
+            .<span class="ident">layers</span>
+            .<span class="ident">item_by_name</span>(<span class="ident">name</span>)
             .<span class="ident">unwrap</span>();
-        <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">layers</span>[<span class="kw-2">*</span><span class="ident">layer_idx</span>])
+        <span class="prelude-val">Ok</span>(<span class="ident">item</span>)
     }
 
     <span class="doccomment">/// Get a layer by index.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// index 0 is the bottom layer, index 1 is the layer above that, etc</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">layer_by_idx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PsdLayer</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">layers</span>[<span class="ident">idx</span>])
+        <span class="kw">let</span> <span class="ident">item</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">layer_and_mask_information_section</span>
+            .<span class="ident">layers</span>
+            .<span class="ident">item_by_idx</span>(<span class="ident">idx</span>)
+            .<span class="ident">unwrap</span>();
+        <span class="prelude-val">Ok</span>(<span class="ident">item</span>)
+    }
+
+    <span class="doccomment">/// Get a group by id.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">group_by_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PsdGroup</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>
+            .<span class="ident">groups</span>
+            .<span class="ident">item_by_idx</span>(<span class="ident">id</span>)
+    }
+
+    <span class="doccomment">/// Get a group by name</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">group_by_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PsdGroup</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">groups</span>.<span class="ident">item_by_name</span>(<span class="ident">name</span>)
+    }
+
+    <span class="doccomment">/// Get all of the groups in the PSD</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">groups</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PsdGroup</span><span class="op">&gt;</span> {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">groups</span>.<span class="ident">items</span>()
+    }
+
+    <span class="doccomment">/// Returns sub layers of group by group id</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sub_layers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">PsdLayer</span>]<span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">group_by_id</span>(<span class="ident">id</span>) {
+            <span class="prelude-val">Some</span>(<span class="ident">group</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">layers</span>[<span class="kw-2">&amp;</span><span class="ident">group</span>.<span class="ident">contained_layers</span>])
+            }
+            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
+        }
     }
 
     <span class="doccomment">/// Given a filter, combine all layers in the PSD that pass the filter into a vector</span>
@@ -566,6 +633,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">layers_to_flatten_bottom_to_top</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="ident">PsdLayer</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">layers</span>()
             .<span class="ident">iter</span>()
+            .<span class="ident">rev</span>()
             .<span class="ident">enumerate</span>()
             .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">idx</span>, <span class="ident">layer</span>)<span class="op">|</span> <span class="ident">filter</span>((<span class="kw-2">*</span><span class="ident">idx</span>, <span class="ident">layer</span>)))
             .<span class="ident">collect</span>();
@@ -632,10 +700,10 @@
 
         <span class="comment">// If this pixel is out of bounds of this layer we return the pixel below it.</span>
         <span class="comment">// If there is no pixel below it we return a transparent pixel</span>
-        <span class="kw">if</span> <span class="ident">pixel_left</span> <span class="op">&lt;</span> <span class="ident">layer</span>.<span class="ident">layer_left</span> <span class="kw">as</span> <span class="ident">usize</span>
-            <span class="op">|</span><span class="op">|</span> <span class="ident">pixel_left</span> <span class="op">&gt;</span> <span class="ident">layer</span>.<span class="ident">layer_right</span> <span class="kw">as</span> <span class="ident">usize</span>
-            <span class="op">|</span><span class="op">|</span> <span class="ident">pixel_top</span> <span class="op">&lt;</span> <span class="ident">layer</span>.<span class="ident">layer_top</span> <span class="kw">as</span> <span class="ident">usize</span>
-            <span class="op">|</span><span class="op">|</span> <span class="ident">pixel_top</span> <span class="op">&gt;</span> <span class="ident">layer</span>.<span class="ident">layer_bottom</span> <span class="kw">as</span> <span class="ident">usize</span>
+        <span class="kw">if</span> <span class="ident">pixel_left</span> <span class="op">&lt;</span> <span class="ident">layer</span>.<span class="ident">layer_properties</span>.<span class="ident">layer_left</span> <span class="kw">as</span> <span class="ident">usize</span>
+            <span class="op">|</span><span class="op">|</span> <span class="ident">pixel_left</span> <span class="op">&gt;</span> <span class="ident">layer</span>.<span class="ident">layer_properties</span>.<span class="ident">layer_right</span> <span class="kw">as</span> <span class="ident">usize</span>
+            <span class="op">|</span><span class="op">|</span> <span class="ident">pixel_top</span> <span class="op">&lt;</span> <span class="ident">layer</span>.<span class="ident">layer_properties</span>.<span class="ident">layer_top</span> <span class="kw">as</span> <span class="ident">usize</span>
+            <span class="op">|</span><span class="op">|</span> <span class="ident">pixel_top</span> <span class="op">&gt;</span> <span class="ident">layer</span>.<span class="ident">layer_properties</span>.<span class="ident">layer_bottom</span> <span class="kw">as</span> <span class="ident">usize</span>
         {
             <span class="kw">if</span> <span class="ident">flattened_layer_top_down_idx</span> <span class="op">+</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="ident">layers_to_flatten_top_down</span>.<span class="ident">len</span>() {
                 <span class="kw">return</span> <span class="self">self</span>.<span class="ident">flattened_pixel</span>(
