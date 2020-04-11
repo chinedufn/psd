@@ -13,12 +13,10 @@ Types of changes:
 
 _Here we list notable things that have been merged into the master branch but have not been released yet._
 
-- ...
 
-## 0.1.3
+## 0.1.7 - April 11, 2020
 
-- [added] better support for grayscale images. Still not perfect and the colors will be slightly (usually around 10 or so units out of 255) off.
+- [added] Support for PSD groups [PR][13]
+  - @tdakkota
 
-## 0.1.2
-
-- [fixed] `.rgba()` methods for image data sections and layer and information sections that only have one channel (grayscale)
+[13]: https://github.com/chinedufn/psd/pull/13
