@@ -9,7 +9,7 @@ use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::layer_and_mask_information_section::container::NamedItems;
-use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerChannels, LayerRecord, PsdGroup, PsdLayer};
+use crate::sections::layer_and_mask_information_section::layer::{BlendMode, GroupDivider, LayerChannels, LayerRecord, PsdGroup, PsdLayer, PsdLayerError};
 use crate::sections::PsdCursor;
 
 /// One of the possible additional layer block signatures
@@ -359,17 +359,27 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // We do not currently parse the blend mode signature, skip it
     cursor.read_4()?;
 
-    // We do not currently parse the blend mode key, skip it
-    cursor.read_4()?;
+    let mut key = [0; 4];
+    key.copy_from_slice(cursor.read_4()?);
+    let blend_mode = match BlendMode::match_mode(key) {
+        Some(v) => v,
+        None => return Err(PsdLayerError::UnknownBlendingMode { mode: key }.into())
+    };
 
-    // We do not currently parse the opacity, skip it
-    cursor.read_1()?;
+    let opacity = cursor.read_u8()?;
 
     // We do not currently parse the clipping, skip it
-    cursor.read_1()?;
+    let clipping_base = cursor.read_u8()?;
+    let clipping_base = clipping_base == 0;
 
-    // We do not currently parse the flags, skip it
-    cursor.read_1()?;
+    // We do not currently parse all flags, only visible
+    // Flags:
+    //  - bit 0 = transparency protected;
+    //  - bit 1 = visible;
+    //  - bit 2 = obsolete;
+    //  - bit 3 = 1 for Photoshop 5.0 and later, tells if bit 4 has useful information;
+    //  - bit 4 = pixel data irrelevant to appearance of document
+    let visible = cursor.read_u8()? & (1 << 4) != 0;
 
     // We do not currently parse the filter, skip it
     cursor.read_1()?;
@@ -443,6 +453,10 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
         left,
         bottom,
         right,
+        visible,
+        opacity,
+        clipping_base,
+        blend_mode,
         divider_type,
     })
 }

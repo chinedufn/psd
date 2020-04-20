@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::ops::{Range, Deref};
+use std::ops::{Deref, Range};
 
 use failure::{Error, Fail};
 
@@ -26,37 +26,23 @@ pub struct LayerProperties {
     pub(crate) layer_bottom: i32,
     /// The position of the right of the layer
     pub(crate) layer_right: i32,
+    /// If true, the layer is marked as visible
+    pub(crate) visible: bool,
+    /// The opacity of the layer
+    pub(crate) opacity: u8,
+    /// If true, the layer is clipping mask
+    pub(crate) clipping_mask: bool,
     /// The width of the PSD
     pub(crate) psd_width: u32,
     /// The height of the PSD
     pub(crate) psd_height: u32,
+    /// Blending mode of the layer
+    pub(crate) blend_mode: BlendMode,
     /// If layer is nested, contains parent group ID, otherwise `None`
     pub(crate) group_id: Option<u32>,
 }
 
 impl LayerProperties {
-    pub fn new(
-        name: String,
-        layer_top: i32,
-        layer_left: i32,
-        layer_bottom: i32,
-        layer_right: i32,
-        psd_width: u32,
-        psd_height: u32,
-        group_id: Option<u32>,
-    ) -> Self {
-        LayerProperties {
-            name,
-            layer_top,
-            layer_left,
-            layer_bottom,
-            layer_right,
-            psd_width,
-            psd_height,
-            group_id,
-        }
-    }
-
     pub fn from_layer_record(
         name: String,
         layer_record: &LayerRecord,
@@ -64,16 +50,20 @@ impl LayerProperties {
         psd_height: u32,
         group_id: Option<u32>,
     ) -> Self {
-        Self::new(
+        LayerProperties {
             name,
-            layer_record.top,
-            layer_record.left,
-            layer_record.bottom,
-            layer_record.right,
+            layer_top: layer_record.top,
+            layer_left: layer_record.left,
+            layer_bottom: layer_record.bottom,
+            layer_right: layer_record.right,
+            opacity: layer_record.opacity,
+            clipping_mask: layer_record.clipping_base,
+            visible: layer_record.visible,
+            blend_mode: layer_record.blend_mode,
             psd_width,
             psd_height,
             group_id,
-        )
+        }
     }
 
     /// Get the name of the layer
@@ -91,6 +81,26 @@ impl LayerProperties {
     pub fn height(&self) -> u16 {
         // If top is at 0 and bottom is at 3, the height is 4
         (self.layer_bottom - self.layer_top) as u16 + 1
+    }
+
+    /// If true, the layer is marked as visible
+    pub fn visible(&self) -> bool {
+        self.visible
+    }
+
+    /// The opacity of the layer
+    pub fn opacity(&self) -> u8 {
+        self.opacity
+    }
+
+    /// If true, the layer is clipping mask
+    pub fn is_clipping_mask(&self) -> bool {
+        self.clipping_mask
+    }
+
+    /// Returns blending mode of the layer
+    pub fn blend_mode(&self) -> BlendMode {
+        self.blend_mode
     }
 
     /// If layer is nested, returns parent group ID, otherwise `None`
@@ -172,6 +182,8 @@ pub enum PsdLayerError {
     channel
     )]
     MissingChannels { channel: PsdChannelKind },
+    #[fail(display = r#"Unknown blending mode: {:#?}"#, mode)]
+    UnknownBlendingMode { mode: [u8; 4] },
 }
 
 impl PsdLayer {
@@ -191,7 +203,7 @@ impl PsdLayer {
                 psd_height,
                 group_id,
             ),
-            channels
+            channels,
         }
     }
 
@@ -253,6 +265,78 @@ impl GroupDivider {
     }
 }
 
+
+/// BlendMode represents blending mode.
+#[derive(Debug, Clone, Copy)]
+///
+pub enum BlendMode {
+    PassThrough = 0,
+    Normal = 1,
+    Dissolve = 2,
+    Darken = 3,
+    Multiply = 4,
+    ColorBurn = 5,
+    LinearBurn = 6,
+    DarkerColor = 7,
+    Lighten = 8,
+    Screen = 9,
+    ColorDodge = 10,
+    LinearDodge = 11,
+    LighterColor = 12,
+    Overlay = 13,
+    SoftLight = 14,
+    HardLight = 15,
+    VividLight = 16,
+    LinearLight = 17,
+    PinLight = 18,
+    HardMix = 19,
+    Difference = 20,
+    Exclusion = 21,
+    Subtract = 22,
+    Divide = 23,
+    Hue = 24,
+    Saturation = 25,
+    Color = 26,
+    Luminosity = 27,
+}
+
+impl BlendMode {
+    pub(super) fn match_mode(mode: [u8; 4]) -> Option<BlendMode> {
+        match &mode {
+            b"pass" => Some(BlendMode::PassThrough),
+            b"norm" => Some(BlendMode::Normal),
+            b"diss" => Some(BlendMode::Dissolve),
+            b"dark" => Some(BlendMode::Darken),
+            b"mul " => Some(BlendMode::Multiply),
+            b"idiv" => Some(BlendMode::ColorBurn),
+            b"lbrn" => Some(BlendMode::LinearBurn),
+            b"dkCl" => Some(BlendMode::DarkerColor),
+            b"lite" => Some(BlendMode::Lighten),
+            b"scrn" => Some(BlendMode::Screen),
+            b"div " => Some(BlendMode::ColorDodge),
+            b"lddg" => Some(BlendMode::LinearDodge),
+            b"lgCl" => Some(BlendMode::LighterColor),
+            b"over" => Some(BlendMode::Overlay),
+            b"sLit" => Some(BlendMode::SoftLight),
+            b"hLit" => Some(BlendMode::HardLight),
+            b"vLit" => Some(BlendMode::VividLight),
+            b"lLit" => Some(BlendMode::LinearLight),
+            b"pLit" => Some(BlendMode::PinLight),
+            b"hMix" => Some(BlendMode::HardMix),
+            b"diff" => Some(BlendMode::Difference),
+            b"smud" => Some(BlendMode::Exclusion),
+            b"fsub" => Some(BlendMode::Subtract),
+            b"fdiv" => Some(BlendMode::Divide),
+            b"hue " => Some(BlendMode::Hue),
+            b"sat " => Some(BlendMode::Saturation),
+            b"colr" => Some(BlendMode::Color),
+            b"lum " => Some(BlendMode::Luminosity),
+            _ => None
+        }
+    }
+}
+
+
 /// A layer record within the layer info section
 ///
 /// TODO: Set all ofo these pubs to get things working. Replace with private
@@ -277,6 +361,14 @@ pub struct LayerRecord {
     pub(super) bottom: i32,
     /// The position of the right of the image
     pub(super) right: i32,
+    /// If true, the layer is marked as visible
+    pub(super) visible: bool,
+    /// The opacity of the layer
+    pub(super) opacity: u8,
+    /// If true, the layer is clipping mask
+    pub(super) clipping_base: bool,
+    /// Blending mode of the layer
+    pub(super) blend_mode: BlendMode,
     /// Group divider tag
     pub(super) divider_type: Option<GroupDivider>,
 }

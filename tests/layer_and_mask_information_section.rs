@@ -33,6 +33,15 @@ fn layer_with_chinese_name() {
     psd.layer_by_name("圆角矩形").unwrap();
 }
 
+#[test]
+fn layer_with_clipping() {
+    let psd = include_bytes!("fixtures/green-clipping-10x10.psd");
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    assert_eq!(psd.layers().len(), 3);
+    assert_eq!(psd.layer_by_name("Clipping base").unwrap().is_clipping_mask(), true);
+    assert_eq!(psd.layer_by_name("First clipped layer").unwrap().is_clipping_mask(), false);
+}
 
 const TOP_LEVEL_ID : u32 = 1;
 
