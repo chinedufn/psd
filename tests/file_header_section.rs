@@ -2,6 +2,7 @@ use failure::Error;
 use psd::PsdDepth;
 use psd::{ColorMode, Psd};
 
+/// cargo test --test file_header_section file_header_section -- --exact
 #[test]
 fn file_header_section() -> Result<(), Error> {
     let psd = include_bytes!("./fixtures/green-1x1.psd");
@@ -18,6 +19,7 @@ fn file_header_section() -> Result<(), Error> {
     Ok(())
 }
 
+/// cargo test --test file_header_section negative_top_left -- --exact
 #[test]
 fn negative_top_left() -> Result<(), Error> {
     let psd = include_bytes!("./fixtures/negative-top-left-layer.psd");

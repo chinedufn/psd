@@ -2,6 +2,7 @@ use psd::Psd;
 
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
 
+/// cargo test --test layer_and_mask_information_section layer_and_mask_information_section -- --exact
 #[test]
 fn layer_and_mask_information_section() {
     let psd = include_bytes!("./fixtures/green-1x1.psd");
@@ -15,6 +16,7 @@ fn layer_and_mask_information_section() {
     assert_eq!(&layer.rgba().unwrap()[..], &GREEN_PIXEL);
 }
 
+/// cargo test --test layer_and_mask_information_section layer_with_cyrillic_name -- --exact
 #[test]
 fn layer_with_cyrillic_name() {
     let psd = include_bytes!("fixtures/green-cyrillic-layer-name-1x1.psd");
@@ -24,6 +26,7 @@ fn layer_with_cyrillic_name() {
     psd.layer_by_name("привет").unwrap();
 }
 
+/// cargo test --test layer_and_mask_information_section layer_with_chinese_name -- --exact
 #[test]
 fn layer_with_chinese_name() {
     let psd = include_bytes!("fixtures/green-chinese-layer-name-1x1.psd");
@@ -36,6 +39,7 @@ fn layer_with_chinese_name() {
 
 const TOP_LEVEL_ID : u32 = 1;
 
+/// cargo test --test layer_and_mask_information_section one_group_one_layer_inside -- --exact
 #[test]
 fn one_group_one_layer_inside() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-one-layer-inside.psd");
@@ -57,6 +61,7 @@ fn one_group_one_layer_inside() {
     assert_eq!(layer_parent_id, group.id());
 }
 
+/// cargo test --test layer_and_mask_information_section one_group_one_layer_inside_one_outside -- --exact
 #[test]
 fn one_group_one_layer_inside_one_outside() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-one-layer-inside-one-outside.psd");
@@ -79,6 +84,7 @@ fn one_group_one_layer_inside_one_outside() {
     assert_eq!(layer.parent_id().unwrap(), group.id());
 }
 
+/// cargo test --test layer_and_mask_information_section two_groups_two_layers_inside -- --exact
 #[test]
 fn two_groups_two_layers_inside() {
     let psd = include_bytes!("fixtures/groups/green-1x1-two-groups-two-layers-inside.psd");
@@ -115,6 +121,8 @@ fn two_groups_two_layers_inside() {
 /// +-------------+-----+---------+
 /// | First Layer | 0   | Some(1) |  refers to 'group inside'
 /// +-------------+-----+---------+
+///
+/// cargo test --test layer_and_mask_information_section one_group_inside_another -- --exact
 #[test]
 fn one_group_inside_another() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-inside-another.psd");
@@ -137,7 +145,6 @@ fn one_group_inside_another() {
 }
 
 
-///
 /// PSD file structure
 /// group: outside group, parent: `None`
 /// 	group: first group inside, parent: `outside group`
@@ -157,6 +164,7 @@ fn one_group_inside_another() {
 /// group: outside group 2, parent: `None`
 /// 	layer: Sixth Layer, parent: `outside group 2`
 ///
+/// cargo test --test layer_and_mask_information_section one_group_with_two_subgroups -- --exact
 #[test]
 fn one_group_with_two_subgroups() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-with-two-subgroups.psd");
