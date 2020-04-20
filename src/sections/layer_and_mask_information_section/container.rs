@@ -35,7 +35,7 @@ impl<T> NamedItems<T> {
     pub fn item_by_name(&self, name: &str) -> Option<&T> {
         match self.item_indices.get(name) {
             Some(item_idx) => self.items.get(*item_idx),
-            None => None
+            None => None,
         }
     }
 

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::ops::{Range, Deref};
+use std::ops::{Deref, Range};
 
 use failure::{Error, Fail};
 
@@ -121,17 +121,17 @@ impl PsdGroup {
         psd_height: u32,
         group_id: Option<u32>,
     ) -> Self {
-        let layer_properties = LayerProperties::from_layer_record(
-            name,
-            layer_record,
-            psd_width,
-            psd_height,
-            group_id,
-        );
+        let layer_properties =
+            LayerProperties::from_layer_record(name, layer_record, psd_width, psd_height, group_id);
 
-        PsdGroup { id, contained_layers, layer_properties }
+        PsdGroup {
+            id,
+            contained_layers,
+            layer_properties,
+        }
     }
 
+    /// A unique identifier for the layer within the PSD file
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -167,9 +167,9 @@ pub struct PsdLayer {
 #[derive(Debug, Fail)]
 pub enum PsdLayerError {
     #[fail(
-    display = r#"Could not combine Red, Green, Blue and Alpha.
+        display = r#"Could not combine Red, Green, Blue and Alpha.
         This layer is missing channel: {:#?}"#,
-    channel
+        channel
     )]
     MissingChannels { channel: PsdChannelKind },
 }
@@ -191,7 +191,7 @@ impl PsdLayer {
                 psd_height,
                 group_id,
             ),
-            channels
+            channels,
         }
     }
 
@@ -248,7 +248,7 @@ impl GroupDivider {
             1 => Some(GroupDivider::OpenFolder),
             2 => Some(GroupDivider::CloseFolder),
             3 => Some(GroupDivider::BoundingSection),
-            _ => None
+            _ => None,
         }
     }
 }

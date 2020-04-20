@@ -12,14 +12,14 @@ use std::collections::HashMap;
 
 use failure::Error;
 
-pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
 use crate::psd_channel::IntoRgba;
+pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
 pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
 pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
 use crate::sections::image_resources_section::{DescriptorStructure, ImageResourcesSection};
-use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
+pub use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
 use crate::sections::MajorSections;
@@ -77,10 +77,8 @@ impl Psd {
             channel_count,
         )?;
 
-
-        let image_resources_section = ImageResourcesSection::from_bytes(
-            major_sections.image_resources
-        )?;
+        let image_resources_section =
+            ImageResourcesSection::from_bytes(major_sections.image_resources)?;
 
         Ok(Psd {
             file_header_section,
@@ -152,7 +150,9 @@ impl Psd {
 
     /// Get a group by name
     pub fn group_by_name(&self, name: &str) -> Option<&PsdGroup> {
-        self.layer_and_mask_information_section.groups.item_by_name(name)
+        self.layer_and_mask_information_section
+            .groups
+            .item_by_name(name)
     }
 
     /// Get all of the groups in the PSD
@@ -368,7 +368,6 @@ impl Psd {
         &self.image_data_section.compression
     }
 }
-
 
 // Methods for working with the image resources section
 impl Psd {
