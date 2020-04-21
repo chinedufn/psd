@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::iter::Map;
 use std::ops::Range;
 
 use failure::{Error, Fail};
@@ -25,12 +24,11 @@ pub struct ImageResourcesSection {
 #[derive(Debug, PartialEq, Fail)]
 pub enum ImageResourcesSectionError {
     #[fail(
-    display = r#"The first four bytes (indices 0-3) must always equal [56, 66, 73, 77],
+        display = r#"The first four bytes (indices 0-3) must always equal [56, 66, 73, 77],
          which in string form is '8BIM'."#
     )]
     InvalidSignature {},
 }
-
 
 impl ImageResourcesSection {
     pub fn from_bytes(bytes: &[u8]) -> Result<ImageResourcesSection, Error> {
@@ -39,24 +37,23 @@ impl ImageResourcesSection {
         let mut descriptors = None;
 
         let length = cursor.read_u32()? as u64;
-        let mut read = 0;
 
-        while read < length {
-            let pair = ImageResourcesSection::read_resource_block(&mut cursor)?;
-            read = pair.0;
+        while cursor.position() < length {
+            let block = ImageResourcesSection::read_resource_block(&mut cursor)?;
 
-            let block = pair.1;
             match block.resource_id {
                 RESOURCE_SLICES_INFO => {
-                    descriptors = Some(ImageResourcesSection::read_slice_block(&cursor.get_ref()[block.data_range])?);
+                    descriptors = Some(ImageResourcesSection::read_slice_block(
+                        &cursor.get_ref()[block.data_range],
+                    )?);
                 }
                 _ => {}
             }
         }
 
-        Ok(ImageResourcesSection {
-            descriptors
-        })
+        assert_eq!(cursor.position(), length + 4);
+
+        Ok(ImageResourcesSection { descriptors })
     }
 
     /// +----------+--------------------------------------------------------------------------------------------------------------------+
@@ -68,7 +65,7 @@ impl ImageResourcesSection {
     /// | 4        | Actual size of resource data that follows                                                                          |
     /// | Variable | The resource data, described in the sections on the individual resource types. It is padded to make the size even. |
     /// +----------+--------------------------------------------------------------------------------------------------------------------+
-    fn read_resource_block(cursor: &mut PsdCursor) -> Result<(u64, ImageResourcesBlock), Error> {
+    fn read_resource_block(cursor: &mut PsdCursor) -> Result<ImageResourcesBlock, Error> {
         // First four bytes must be '8BIM'
         let signature = cursor.read_4()?;
         if signature != EXPECTED_RESOURCE_BLOCK_SIGNATURE {
@@ -88,14 +85,11 @@ impl ImageResourcesSection {
         };
         cursor.read(data_len)?;
 
-        Ok((
-            cursor.position(),
-            ImageResourcesBlock {
-                resource_id,
-                name,
-                data_range,
-            },
-        ))
+        Ok(ImageResourcesBlock {
+            resource_id,
+            name,
+            data_range,
+        })
     }
 
     /// Slice header for version 6
@@ -113,24 +107,40 @@ impl ImageResourcesSection {
 
         let version = cursor.read_i32()?;
         if version != 6 {
-            unimplemented!("Adobe Photoshop 6.0+ slice currently unsupported");
+            unimplemented!(
+                "Only the Adobe Photoshop 6.0 slices resource format is currently supported"
+            );
         }
 
-        // We do not currently parse top of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse left of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse bottom of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse right of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse name of group of slices, skip it
-        cursor.read_unicode_string()?;
+        let _top = cursor.read_i32()?;
+        let _left = cursor.read_i32()?;
+        let _bottom = cursor.read_i32()?;
+        let _right = cursor.read_i32()?;
 
-        let number_of_slices = cursor.read_u32()?;
+        let _group_of_slices_name = cursor.read_unicode_string()?;
+
+        let mut number_of_slices = cursor.read_u32()?;
+
+        // When a PSD file's name has 15 letters or 23 letters (and likely other counts),
+        // for some reason we see [0, 1, 0, 0] as the number of slices (65536).
+        //
+        // At the end of the image resources section parsing we assert that we parsed the correct
+        // number of bytes for the section, so it doesn't _seem_ to be an issue with reading the
+        // wrong data.
+        //
+        // Would be great to find a better solution for this.
+        //
+        // Perhaps when the group of slices name is a certain length the way we're reading unicode
+        // PSDs is incorrect. Not sure.
+        //
+        // @see tests/slices_resource.rs->name_of_psd_has_fifteen_letters
+        if number_of_slices == 65536 {
+            number_of_slices = 0;
+        }
+
         let mut vec = Vec::new();
 
-        for n in 0..number_of_slices {
+        for _ in 0..number_of_slices {
             match ImageResourcesSection::read_slice_body(&mut cursor)? {
                 Some(v) => vec.push(v),
                 None => {}
@@ -323,7 +333,6 @@ pub struct PropertyStructure {
     pub key_id: Vec<u8>,
 }
 
-
 /// +------------------------------------+--------------------------------------------------------+
 /// |               Length               |                      Description                       |
 /// +------------------------------------+--------------------------------------------------------+
@@ -431,7 +440,6 @@ pub struct EnumeratedDescriptor {
     pub enum_field: Vec<u8>,
 }
 
-
 /// NOTE: This struct is not documented in the specification
 /// So it's based on https://github.com/psd-tools/psd-tools/blob/master/src/psd_tools/psd/descriptor.py#L691
 ///
@@ -481,7 +489,6 @@ const OS_TYPE_ALIAS: &[u8; 4] = b"alis";
 /// 'tdta' = Raw Data
 const OS_TYPE_RAW_DATA: &[u8; 4] = b"tdta";
 
-
 /// Reference structure OSType keys
 /// 'prop' = Property
 const OS_TYPE_PROPERTY: &[u8; 4] = b"prop";
@@ -498,16 +505,11 @@ const OS_TYPE_INDEX: &[u8; 4] = b"indx";
 /// 'name' = Name
 const OS_TYPE_NAME: &[u8; 4] = b"name";
 
-
 #[derive(Debug, PartialEq, Fail)]
 pub enum ImageResourcesDescriptorError {
-    #[fail(
-    display = r#"Invalid TypeOS field."#
-    )]
+    #[fail(display = r#"Invalid TypeOS field."#)]
     InvalidTypeOS {},
-    #[fail(
-    display = r#"Invalid unit name."#
-    )]
+    #[fail(display = r#"Invalid unit name."#)]
     InvalidUnitName {},
 }
 
@@ -524,7 +526,10 @@ impl DescriptorStructure {
         })
     }
 
-    fn read_fields(cursor: &mut PsdCursor, sub_list: bool) -> Result<HashMap<String, DescriptorField>, Error> {
+    fn read_fields(
+        cursor: &mut PsdCursor,
+        sub_list: bool,
+    ) -> Result<HashMap<String, DescriptorField>, Error> {
         let count = cursor.read_u32()?;
         let mut m = HashMap::with_capacity(count as usize);
 
@@ -555,21 +560,41 @@ impl DescriptorStructure {
         os_type.copy_from_slice(cursor.read_4()?);
 
         let r: DescriptorField = match &os_type {
-            OS_TYPE_REFERENCE => DescriptorField::Reference(DescriptorStructure::read_reference_structure(cursor)?),
-            OS_TYPE_DESCRIPTOR => DescriptorField::Descriptor(DescriptorStructure::read_descriptor_structure(cursor)?),
-            OS_TYPE_LIST => DescriptorField::List(DescriptorStructure::read_list_structure(cursor)?),
+            OS_TYPE_REFERENCE => {
+                DescriptorField::Reference(DescriptorStructure::read_reference_structure(cursor)?)
+            }
+            OS_TYPE_DESCRIPTOR => {
+                DescriptorField::Descriptor(DescriptorStructure::read_descriptor_structure(cursor)?)
+            }
+            OS_TYPE_LIST => {
+                DescriptorField::List(DescriptorStructure::read_list_structure(cursor)?)
+            }
             OS_TYPE_DOUBLE => DescriptorField::Double(cursor.read_f64()?),
-            OS_TYPE_UNIT_FLOAT => DescriptorField::UnitFloat(DescriptorStructure::read_unit_float(cursor)?),
+            OS_TYPE_UNIT_FLOAT => {
+                DescriptorField::UnitFloat(DescriptorStructure::read_unit_float(cursor)?)
+            }
             OS_TYPE_TEXT => DescriptorField::String(cursor.read_unicode_string_padding(1)?),
-            OS_TYPE_ENUMERATED => DescriptorField::EnumeratedDescriptor(DescriptorStructure::read_enumerated_descriptor(cursor)?),
+            OS_TYPE_ENUMERATED => DescriptorField::EnumeratedDescriptor(
+                DescriptorStructure::read_enumerated_descriptor(cursor)?,
+            ),
             OS_TYPE_LARGE_INTEGER => DescriptorField::LargeInteger(cursor.read_i64()?),
             OS_TYPE_INTEGER => DescriptorField::Integer(cursor.read_i32()?),
             OS_TYPE_BOOL => DescriptorField::Boolean(cursor.read_u8()? > 0),
-            OS_TYPE_GLOBAL_OBJECT => DescriptorField::Descriptor(DescriptorStructure::read_descriptor_structure(cursor)?),
-            OS_TYPE_CLASS => DescriptorField::Class(DescriptorStructure::read_class_structure(cursor)?),
-            OS_TYPE_CLASS2 => DescriptorField::Class(DescriptorStructure::read_class_structure(cursor)?),
-            OS_TYPE_ALIAS => DescriptorField::Alias(DescriptorStructure::read_alias_structure(cursor)?),
-            OS_TYPE_RAW_DATA => DescriptorField::RawData(DescriptorStructure::read_raw_data(cursor)?),
+            OS_TYPE_GLOBAL_OBJECT => {
+                DescriptorField::Descriptor(DescriptorStructure::read_descriptor_structure(cursor)?)
+            }
+            OS_TYPE_CLASS => {
+                DescriptorField::Class(DescriptorStructure::read_class_structure(cursor)?)
+            }
+            OS_TYPE_CLASS2 => {
+                DescriptorField::Class(DescriptorStructure::read_class_structure(cursor)?)
+            }
+            OS_TYPE_ALIAS => {
+                DescriptorField::Alias(DescriptorStructure::read_alias_structure(cursor)?)
+            }
+            OS_TYPE_RAW_DATA => {
+                DescriptorField::RawData(DescriptorStructure::read_raw_data(cursor)?)
+            }
             _ => return Err(ImageResourcesDescriptorError::InvalidTypeOS {}.into()),
         };
 
@@ -601,10 +626,18 @@ impl DescriptorStructure {
             let mut os_type = [0; 4];
             os_type.copy_from_slice(cursor.read_4()?);
             vec.push(match &os_type {
-                OS_TYPE_PROPERTY => DescriptorField::Property(DescriptorStructure::read_property_structure(cursor)?),
-                OS_TYPE_CLASS3 => DescriptorField::Class(DescriptorStructure::read_class_structure(cursor)?),
-                OS_TYPE_ENUMERATED_REFERENCE => DescriptorField::EnumeratedReference(DescriptorStructure::read_enumerated_reference(cursor)?),
-                OS_TYPE_OFFSET => DescriptorField::Offset(DescriptorStructure::read_offset_structure(cursor)?),
+                OS_TYPE_PROPERTY => {
+                    DescriptorField::Property(DescriptorStructure::read_property_structure(cursor)?)
+                }
+                OS_TYPE_CLASS3 => {
+                    DescriptorField::Class(DescriptorStructure::read_class_structure(cursor)?)
+                }
+                OS_TYPE_ENUMERATED_REFERENCE => DescriptorField::EnumeratedReference(
+                    DescriptorStructure::read_enumerated_reference(cursor)?,
+                ),
+                OS_TYPE_OFFSET => {
+                    DescriptorField::Offset(DescriptorStructure::read_offset_structure(cursor)?)
+                }
                 OS_TYPE_IDENTIFIER => DescriptorField::Identifier(cursor.read_i32()?),
                 OS_TYPE_INDEX => DescriptorField::Index(cursor.read_i32()?),
                 OS_TYPE_NAME => DescriptorField::Name(DescriptorStructure::read_name(cursor)?),
@@ -638,7 +671,7 @@ impl DescriptorStructure {
             UNIT_FLOAT_NONE => UnitFloatStructure::None,
             UNIT_FLOAT_PERCENT => UnitFloatStructure::Percent(cursor.read_f64()?),
             UNIT_FLOAT_PIXELS => UnitFloatStructure::Pixels(cursor.read_f64()?),
-            _ => return Err(ImageResourcesDescriptorError::InvalidUnitName {}.into())
+            _ => return Err(ImageResourcesDescriptorError::InvalidUnitName {}.into()),
         })
     }
 
@@ -646,10 +679,7 @@ impl DescriptorStructure {
         let name = cursor.read_unicode_string()?;
         let class_id = DescriptorStructure::read_key_length(cursor)?.to_vec();
 
-        Ok(ClassStructure {
-            name,
-            class_id,
-        })
+        Ok(ClassStructure { name, class_id })
     }
 
     fn read_enumerated_reference(cursor: &mut PsdCursor) -> Result<EnumeratedReference, Error> {
@@ -682,9 +712,7 @@ impl DescriptorStructure {
         let length = cursor.read_u32()?;
         let data = cursor.read(length)?.to_vec();
 
-        Ok(AliasStructure {
-            data
-        })
+        Ok(AliasStructure { data })
     }
 
     fn read_list_structure(cursor: &mut PsdCursor) -> Result<Vec<DescriptorField>, Error> {
@@ -721,44 +749,9 @@ impl DescriptorStructure {
 
     fn read_key_length<'a>(cursor: &'a mut PsdCursor) -> Result<&'a [u8], Error> {
         let length = cursor.read_u32()?;
-        let length = if length > 0 {
-            length
-        } else {
-            4
-        };
+        let length = if length > 0 { length } else { 4 };
 
         let key = cursor.read(length)?;
         Ok(key)
-    }
-}
-
-
-/// There are some tests to make sure that descriptors and slices are decoding correctly
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn check_descriptor() {
-        let bytes = include_bytes!("../../tests/fixtures/descriptors/descriptor_block.dat");
-        let mut cursor = PsdCursor::new(bytes);
-
-        let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
-        println!("{:?}", descriptor);
-    }
-
-    #[test]
-    fn check_descriptor2() {
-        let bytes = include_bytes!("../../tests/fixtures/descriptors/descriptor_block2.dat");
-        let mut cursor = PsdCursor::new(bytes);
-
-        let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
-        println!("{:?}", descriptor);
-    }
-
-    #[test]
-    fn check_slices() {
-        let bytes = include_bytes!("../../tests/fixtures/slices/0.dat");
-        ImageResourcesSection::read_slice_block(bytes).unwrap();
     }
 }

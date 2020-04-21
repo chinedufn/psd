@@ -2,14 +2,14 @@ use std::io::Cursor;
 
 use failure::{Error, Fail};
 
-use crate::sections::file_header_section::{EXPECTED_PSD_SIGNATURE, FileHeaderSectionError};
+use crate::sections::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};
 
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
 
 pub mod file_header_section;
-pub mod image_resources_section;
 pub mod image_data_section;
+pub mod image_resources_section;
 pub mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file
@@ -64,7 +64,7 @@ impl<'a> MajorSections<'a> {
             return Err(NotEnoughBytesError::FileHeader {
                 total_bytes: bytes.len(),
             }
-                .into());
+            .into());
         }
 
         let mut cursor = PsdCursor::new(bytes);
@@ -113,10 +113,10 @@ fn read_major_section_start_end(cursor: &mut PsdCursor) -> Result<(usize, usize)
 #[derive(Debug, Fail)]
 pub enum NotEnoughBytesError {
     #[fail(
-    display = r#"Could not parse the file header section.
+        display = r#"Could not parse the file header section.
     The file header section is comprised of the first 26 bytes (indices 0-25)
     of a PSD file, but only {} total bytes were provided."#,
-    total_bytes
+        total_bytes
     )]
     FileHeader { total_bytes: usize },
 }
@@ -294,9 +294,7 @@ impl<'a> PsdCursor<'a> {
         let length_bytes = length * 2;
 
         let data = self.read(length_bytes as u32)?;
-        let result = String::from_utf16(
-            &u8_slice_to_u16(data).as_slice()[..length as usize]
-        )?;
+        let result = String::from_utf16(&u8_slice_to_u16(data).as_slice()[..length as usize])?;
 
         self.read_padding(4 + length_bytes, padding)?;
 
