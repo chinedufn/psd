@@ -268,7 +268,6 @@ impl GroupDivider {
 
 /// BlendMode represents blending mode.
 #[derive(Debug, Clone, Copy)]
-///
 pub enum BlendMode {
     PassThrough = 0,
     Normal = 1,

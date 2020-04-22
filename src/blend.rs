@@ -2,15 +2,12 @@ use std::cmp::min;
 
 use crate::sections::layer_and_mask_information_section::layer::BlendMode;
 
-// Converts layer opacity property to alpha channel
-pub(crate) fn perform_opacity(pixel: &mut [u8; 4], opacity: u8) {
+// Multiplies the pixel's current alpha by the passed in `opacity`
+pub(crate) fn apply_opacity(pixel: &mut [u8; 4], opacity: u8) {
     let alpha = opacity as f32 / 255.;
     pixel[3] = (pixel[3] as f32 * alpha) as u8;
 }
 
-/// blend the two pixels.
-///
-/// TODO: Take the layer's blend mode into account when blending layers. Right now
 ///
 /// https://www.w3.org/TR/compositing-1/#simplealphacompositing
 /// `Cs = (1 - αb) x Cs + αb x B(Cb, Cs)`
@@ -40,7 +37,7 @@ pub(crate) fn blend_pixels(top: [u8; 4], bottom: [u8; 4], blend_mode: BlendMode,
     let alpha_b = bottom[3] as f32 / 255.;
     let alpha_output = alpha_s + alpha_b * (1. - alpha_s);
 
-    let (r_s, g_s, b_s) = (top[0]  as f32 / 255., top[1] as f32 / 255., top[2] as f32 / 255.);
+    let (r_s, g_s, b_s) = (top[0] as f32 / 255., top[1] as f32 / 255., top[2] as f32 / 255.);
     let (r_b, g_b, b_b) = (bottom[0] as f32 / 255., bottom[1] as f32 / 255., bottom[2] as f32 / 255.);
 
     let blend_f = map_blend_mode(blend_mode);
@@ -60,21 +57,40 @@ type BlendFunction = dyn Fn(f32, f32) -> f32;
 
 /// Returns blend function for given BlendMode
 fn map_blend_mode(blend_mode: BlendMode) -> &'static BlendFunction {
+    // Modes are sorted like in Photoshop UI
     match blend_mode {
         BlendMode::Normal => &normal,
-        BlendMode::Multiply => &multiply,
-        BlendMode::Screen => &screen,
-        BlendMode::Overlay => &overlay,
+        // Here we need Dissolve
+        // --------------------------------------
         BlendMode::Darken => &darken,
-        BlendMode::Lighten => &lighten,
-        BlendMode::ColorDodge => &color_dodge,
+        BlendMode::Multiply => &multiply,
         BlendMode::ColorBurn => &color_burn,
-        BlendMode::LinearDodge => &linear_dodge,
         BlendMode::LinearBurn => &linear_burn,
-        BlendMode::HardLight => &hard_light,
+        // Here we need Darker Color
+        // --------------------------------------
+        BlendMode::Lighten => &lighten,
+        BlendMode::Screen => &screen,
+        BlendMode::ColorDodge => &color_dodge,
+        BlendMode::LinearDodge => &linear_dodge,
+        // Here we need Lighter Color
+        // --------------------------------------
+        BlendMode::Overlay => &overlay,
         BlendMode::SoftLight => &soft_light,
+        BlendMode::HardLight => &hard_light,
+        // Here we need Vivid Light
+        // Here we need Linear Light
+        // Here we need Pin Light
+        // Here we need Hard Mix
+        // --------------------------------------
         BlendMode::Difference => &difference,
         BlendMode::Exclusion => &exclusion,
+        BlendMode::Subtract => &subtract,
+        BlendMode::Divide => &divide,
+        // --------------------------------------
+        // Here we need Hue
+        // Here we need Saturation
+        // Here we need Color
+        // Here we need Luminosity
 
         // TODO: make other modes
         _ => unimplemented!()
@@ -101,6 +117,31 @@ fn multiply(color_b: f32, color_s: f32) -> f32 {
     color_b * color_s
 }
 
+/// https://helpx.adobe.com/photoshop/using/blending-modes.html
+///
+/// Looks at the color information in each channel and divides the blend color from the base color.
+/// In 8- and 16-bit images, any resulting negative values are clipped to zero.
+///
+/// `B(Cb, Cs) = Cb / Cs`
+#[inline(always)]
+fn divide(color_b: f32, color_s: f32) -> f32 {
+    if color_s == 0. {
+        color_b
+    } else {
+        color_b / color_s
+    }
+}
+
+/// https://helpx.adobe.com/photoshop/using/blending-modes.html
+///
+/// Looks at the color information in each channel and subtracts the blend color from the base color.
+///
+/// `B(Cb, Cs) = Cb - Cs`
+#[inline(always)]
+fn subtract(color_b: f32, color_s: f32) -> f32 {
+    (color_b - color_s).max(0.)
+}
+
 /// https://www.w3.org/TR/compositing-1/#blendingscreen
 /// Multiplies the complements of the backdrop and source color values, then complements the result.
 ///
@@ -119,7 +160,7 @@ fn screen(color_b: f32, color_s: f32) -> f32 {
 ///
 /// The backdrop is replaced with the source where the source is darker; otherwise, it is left unchanged.
 ///
-/// `B(Cb, Cs) = max(Cb, Cs)`
+/// `B(Cb, Cs) = min(Cb, Cs)`
 #[inline(always)]
 fn darken(color_b: f32, color_s: f32) -> f32 {
     color_b.min(color_s)
@@ -166,20 +207,16 @@ fn color_dodge(color_b: f32, color_s: f32) -> f32 {
 /// ```ignore
 /// if(Cb == 1)
 ///     B(Cb, Cs) = 1
-/// else if(Cs == 0)
-///     B(Cb, Cs) = 0
 /// else
-///     B(Cb, Cs) = 1 - min(1, (1 - Cb) / Cs)
+///     B(Cb, Cs) = max(0, (1 - (1 - Cs) / Cb))
 ///```
 #[inline(always)]
 fn color_burn(color_b: f32, color_s: f32) -> f32 {
-    let r = if color_b == 1. {
+    if color_b == 1. {
         1.
-    } else if color_s == 0. {
-        0.
     } else {
-        ((1. - color_b) / color_s).min(1.)
-    };
+        (1. - (1. - color_s) / color_b).max(0.)
+    }
 }
 
 /// See: http://www.simplefilter.de/en/basics/mixmods.html
@@ -199,11 +236,19 @@ fn linear_dodge(color_b: f32, color_s: f32) -> f32 {
 /// The tonal values of fore- and background that sum up to less than 255 (i.e. 1.0) become pure black.
 /// If the foreground image A is converted prior to the operation, the result is the mathematical subtraction.
 ///
-/// Also: Subtract
+/// ```ignore
+/// sum = Cb + Cs
+/// if (sum >= 1)
+///     B(Cb, Cs) = Cb - (1 - Cs)
+/// else
+///     B(Cb, Cs) = 0
+/// ```
+/// Also:
 /// `B(Cb, Cs) = Cb + Cs - 1`
 #[inline(always)]
 fn linear_burn(color_b: f32, color_s: f32) -> f32 {
     let sum = color_b + color_s;
+
     if sum >= 1. {
         color_b - (1. - color_s)
     } else {
@@ -222,27 +267,6 @@ fn linear_burn(color_b: f32, color_s: f32) -> f32 {
 #[inline(always)]
 fn overlay(color_b: f32, color_s: f32) -> f32 {
     hard_light(color_s, color_b) // inverted hard_light
-}
-
-/// https://www.w3.org/TR/compositing-1/#blendinghardlight
-///
-/// Multiplies or screens the colors, depending on the source color value.
-/// The effect is similar to shining a harsh spotlight on the backdrop.
-///
-/// ```ignore
-/// if(Cs <= 0.5)
-///     B(Cb, Cs) = Multiply(Cb, 2 x Cs) = 2 x Cb x Cs
-/// else
-///     B(Cb, Cs) = Screen(Cb, 2 x Cs -1)
-/// ```
-/// See the definition of `multiply` and `screen` for their formulas.
-#[inline(always)]
-fn hard_light(color_b: f32, color_s: f32) -> f32 {
-    if color_s < 0.5 {
-       multiply(color_b, 2. * color_s)
-    } else {
-        screen(color_b, 2. * color_s - 1.)
-    }
 }
 
 /// https://www.w3.org/TR/compositing-1/#blendingsoftlight
@@ -276,6 +300,48 @@ fn soft_light(color_b: f32, color_s: f32) -> f32 {
         color_b - (1. - 2. * color_s) * color_b * (1. - color_b)
     } else {
         color_b + (2. * color_s - 1.) * (d - color_b)
+    }
+}
+
+/// https://www.w3.org/TR/compositing-1/#blendinghardlight
+///
+/// Multiplies or screens the colors, depending on the source color value.
+/// The effect is similar to shining a harsh spotlight on the backdrop.
+///
+/// ```ignore
+/// if(Cs <= 0.5)
+///     B(Cb, Cs) = Multiply(Cb, 2 x Cs) = 2 x Cb x Cs
+/// else
+///     B(Cb, Cs) = Screen(Cb, 2 x Cs -1)
+/// ```
+/// See the definition of `multiply` and `screen` for their formulas.
+#[inline(always)]
+fn hard_light(color_b: f32, color_s: f32) -> f32 {
+    if color_s < 0.5 {
+        multiply(color_b, 2. * color_s)
+    } else {
+        screen(color_b, 2. * color_s - 1.)
+    }
+}
+
+/// https://www.w3.org/TR/compositing-1/#blendinghardlight
+///
+/// Multiplies or screens the colors, depending on the source color value.
+/// The effect is similar to shining a harsh spotlight on the backdrop.
+///
+/// ```ignore
+/// if(Cs <= 0.5)
+///     B(Cb, Cs) = Multiply(Cb, 2 x Cs) = 2 x Cb x Cs
+/// else
+///     B(Cb, Cs) = Screen(Cb, 2 x Cs -1)
+/// ```
+/// See the definition of `multiply` and `screen` for their formulas.
+#[inline(always)]
+fn vivid_light(color_b: f32, color_s: f32) -> f32 {
+    if color_s < 0.5 {
+        multiply(color_b, 2. * color_s)
+    } else {
+        screen(color_b, 2. * color_s - 1.)
     }
 }
 

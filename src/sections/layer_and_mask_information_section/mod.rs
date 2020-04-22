@@ -368,7 +368,6 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
 
     let opacity = cursor.read_u8()?;
 
-    // We do not currently parse the clipping, skip it
     let clipping_base = cursor.read_u8()?;
     let clipping_base = clipping_base == 0;
 
@@ -379,7 +378,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     //  - bit 2 = obsolete;
     //  - bit 3 = 1 for Photoshop 5.0 and later, tells if bit 4 has useful information;
     //  - bit 4 = pixel data irrelevant to appearance of document
-    let visible = cursor.read_u8()? & (1 << 4) != 0;
+    let visible = cursor.read_u8()? & (1 << 1) != 0; // here we get second bit - visible
 
     // We do not currently parse the filter, skip it
     cursor.read_1()?;

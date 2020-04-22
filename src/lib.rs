@@ -307,11 +307,10 @@ impl Psd {
             let mut copy = [0; 4];
             copy.copy_from_slice(pixel);
 
-            blend::perform_opacity(&mut copy, layer.opacity);
+            blend::apply_opacity(&mut copy, layer.opacity);
             copy
         };
 
-        println!("layer: {:?}, opacity: {:?}", layer.name(), layer.opacity);
         // This pixel is fully opaque, return it
         let pixel = if pixel[3] == 255 && layer.opacity == 255 {
             pixel
@@ -328,7 +327,6 @@ impl Psd {
                 );
 
                 blend::blend_pixels(pixel, pixel_below, layer.blend_mode, &mut final_pixel);
-                println!("mode: {:?}, pixel: {:?}, pixel_below: {:?}, final: {:?}", layer.blend_mode, pixel, pixel_below, final_pixel);
                 final_pixel
             } else {
                 // There is no pixel below this layer, so use it even though it has transparency
