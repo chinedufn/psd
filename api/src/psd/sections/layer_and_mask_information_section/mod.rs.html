@@ -444,9 +444,6 @@
 <span id="444">444</span>
 <span id="445">445</span>
 <span id="446">446</span>
-<span id="447">447</span>
-<span id="448">448</span>
-<span id="449">449</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Cow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
@@ -459,7 +456,9 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">PsdChannelKind</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ChannelBytes</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">container</span>::<span class="ident">NamedItems</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::{<span class="ident">GroupDivider</span>, <span class="ident">LayerChannels</span>, <span class="ident">LayerRecord</span>, <span class="ident">PsdGroup</span>, <span class="ident">PsdLayer</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::{
+    <span class="ident">GroupDivider</span>, <span class="ident">LayerChannels</span>, <span class="ident">LayerRecord</span>, <span class="ident">PsdGroup</span>, <span class="ident">PsdLayer</span>,
+};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">PsdCursor</span>;
 
 <span class="doccomment">/// One of the possible additional layer block signatures</span>
@@ -473,8 +472,8 @@
 <span class="doccomment">/// Key of `Section divider setting (Photoshop 6.0)`, &quot;lsct&quot;</span>
 <span class="kw">const</span> <span class="ident">KEY_SECTION_DIVIDER_SETTING</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> <span class="string">b&quot;lsct&quot;</span>;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">layer</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">container</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">layer</span>;
 
 <span class="doccomment">/// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.</span>
 <span class="doccomment">///</span>
@@ -555,10 +554,8 @@
         <span class="comment">// channel as transparency data for the merged result.. So add a new test with a transparent</span>
         <span class="comment">// PSD and make sure that we&#39;re handling this case properly.</span>
         <span class="kw">let</span> <span class="ident">layer_count</span>: <span class="ident">u16</span> <span class="op">=</span> <span class="ident">layer_count</span>.<span class="ident">abs</span>() <span class="kw">as</span> <span class="ident">u16</span>;
-        <span class="kw">let</span> (
-            <span class="ident">group_count</span>,
-            <span class="ident">layer_records</span>
-        ) <span class="op">=</span> <span class="ident">LayerAndMaskInformationSection</span>::<span class="ident">read_layer_records</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cursor</span>, <span class="ident">layer_count</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> (<span class="ident">group_count</span>, <span class="ident">layer_records</span>) <span class="op">=</span>
+            <span class="ident">LayerAndMaskInformationSection</span>::<span class="ident">read_layer_records</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cursor</span>, <span class="ident">layer_count</span>)<span class="question-mark">?</span>;
 
         <span class="ident">LayerAndMaskInformationSection</span>::<span class="ident">decode_layers</span>(
             <span class="ident">layer_records</span>,
@@ -615,19 +612,22 @@
                         <span class="ident">end</span>: <span class="ident">layers</span>.<span class="ident">len</span>(),
                     };
 
-                    <span class="ident">groups</span>.<span class="ident">push</span>(<span class="ident">frame</span>.<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">PsdGroup</span>::<span class="ident">new</span>(
-                        <span class="ident">frame</span>.<span class="ident">name</span>,
-                        <span class="ident">frame</span>.<span class="ident">group_id</span>,
-                        <span class="ident">range</span>,
-                        <span class="kw-2">&amp;</span><span class="ident">layer_record</span>,
-                        <span class="ident">psd_size</span>.<span class="number">0</span>,
-                        <span class="ident">psd_size</span>.<span class="number">1</span>,
-                        <span class="kw">if</span> <span class="ident">frame</span>.<span class="ident">parent_group_id</span> <span class="op">&gt;</span> <span class="number">0</span> {
-                            <span class="prelude-val">Some</span>(<span class="ident">frame</span>.<span class="ident">parent_group_id</span>)
-                        } <span class="kw">else</span> {
-                            <span class="prelude-val">None</span>
-                        },
-                    ));
+                    <span class="ident">groups</span>.<span class="ident">push</span>(
+                        <span class="ident">frame</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
+                        <span class="ident">PsdGroup</span>::<span class="ident">new</span>(
+                            <span class="ident">frame</span>.<span class="ident">name</span>,
+                            <span class="ident">frame</span>.<span class="ident">group_id</span>,
+                            <span class="ident">range</span>,
+                            <span class="kw-2">&amp;</span><span class="ident">layer_record</span>,
+                            <span class="ident">psd_size</span>.<span class="number">0</span>,
+                            <span class="ident">psd_size</span>.<span class="number">1</span>,
+                            <span class="kw">if</span> <span class="ident">frame</span>.<span class="ident">parent_group_id</span> <span class="op">&gt;</span> <span class="number">0</span> {
+                                <span class="prelude-val">Some</span>(<span class="ident">frame</span>.<span class="ident">parent_group_id</span>)
+                            } <span class="kw">else</span> {
+                                <span class="prelude-val">None</span>
+                            },
+                        ),
+                    );
                 }
 
                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -643,13 +643,13 @@
             };
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">LayerAndMaskInformationSection</span> {
-            <span class="ident">layers</span>,
-            <span class="ident">groups</span>,
-        })
+        <span class="prelude-val">Ok</span>(<span class="ident">LayerAndMaskInformationSection</span> { <span class="ident">layers</span>, <span class="ident">groups</span> })
     }
 
-    <span class="kw">fn</span> <span class="ident">read_layer_records</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>, <span class="ident">layer_count</span>: <span class="ident">u16</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">LayerRecord</span>, <span class="ident">LayerChannels</span>)<span class="op">&gt;</span>), <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">read_layer_records</span>(
+        <span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>,
+        <span class="ident">layer_count</span>: <span class="ident">u16</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">LayerRecord</span>, <span class="ident">LayerChannels</span>)<span class="op">&gt;</span>), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">groups_count</span> <span class="op">=</span> <span class="number">0</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">layer_records</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
@@ -693,11 +693,7 @@
             <span class="kw-2">&amp;</span><span class="ident">layer_record</span>,
             <span class="ident">psd_size</span>.<span class="number">0</span>,
             <span class="ident">psd_size</span>.<span class="number">1</span>,
-            <span class="kw">if</span> <span class="ident">parent_id</span> <span class="op">&gt;</span> <span class="number">0</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">parent_id</span>)
-            } <span class="kw">else</span> {
-                <span class="prelude-val">None</span>
-            },
+            <span class="kw">if</span> <span class="ident">parent_id</span> <span class="op">&gt;</span> <span class="number">0</span> { <span class="prelude-val">Some</span>(<span class="ident">parent_id</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> },
             <span class="ident">channels</span>,
         ))
     }
@@ -850,7 +846,6 @@
     <span class="kw">let</span> <span class="ident">padding</span> <span class="op">=</span> (<span class="number">4</span> <span class="op">-</span> <span class="ident">bytes_mod_4</span>) <span class="op">%</span> <span class="number">4</span>;
     <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">padding</span> <span class="kw">as</span> <span class="ident">u32</span>)<span class="question-mark">?</span>;
 
-
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">divider_type</span> <span class="op">=</span> <span class="prelude-val">None</span>;
     <span class="comment">// There can be multiple additional layer information sections so we&#39;ll loop</span>
     <span class="comment">// until we stop seeing them.</span>
@@ -896,6 +891,5 @@
         <span class="ident">divider_type</span>,
     })
 }
-
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "psd";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>

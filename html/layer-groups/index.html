@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Contributing - The Psd Book</title>
+        <title>Layer Groups - The Psd Book</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,7 +75,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="../introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="../contributing/index.html" class="active"><strong aria-hidden="true">1.</strong> Contributing</a></li><li><ol class="section"><li><a href="../contributing/internal-design/index.html"><strong aria-hidden="true">1.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="../contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">1.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="../introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="../user-guide/index.html"><strong aria-hidden="true">1.</strong> User Guide</a></li><li><ol class="section"><li><a href="../layer-groups/index.html" class="active"><strong aria-hidden="true">1.1.</strong> Layer Groups</a></li></ol></li><li><a href="../contributing/index.html"><strong aria-hidden="true">2.</strong> Contributing</a></li><li><ol class="section"><li><a href="../contributing/internal-design/index.html"><strong aria-hidden="true">2.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="../contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">2.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -140,21 +140,138 @@
 
                 <div id="content" class="content">
                     <main>
-                        <a class="header" href="#contributing" id="contributing"><h1>Contributing</h1></a>
-<p>This section dives into contributing to the <code>psd</code> crate.</p>
+                        <a class="header" href="#layer-groups" id="layer-groups"><h1>Layer Groups</h1></a>
+<p><code>psd</code> has support for parsing and getting information about layer groups.</p>
+<p>Here are some examples:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use psd::Psd;
+const TOP_LEVEL_ID: u32 = 1;
+
+/// group structure
+/// +---------------+----------+---------+
+/// | name          | group_id | parent  |
+/// +---------------+----------+---------+
+/// | group inside  | 2        | Some(1) | refers to 'group outside'
+/// | group outside | 1        | None    |
+/// +------------------------------------+
+///
+/// layer structure
+/// +-------------+-----+---------+
+/// | name        | idx | parent  |
+/// +-------------+-----+---------+
+/// | First Layer | 0   | Some(1) |  refers to 'group inside'
+/// +-------------+-----+---------+
+///
+/// cargo test --test layer_and_mask_information_section one_group_inside_another -- --exact
+#[test]
+fn one_group_inside_another() {
+    let psd = include_bytes!(&quot;fixtures/groups/green-1x1-one-group-inside-another.psd&quot;);
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    assert_eq!(psd.layers().len(), 1);
+    // parent group + children group
+    assert_eq!(psd.groups().len(), 2);
+
+    // Check group
+    let group = psd.group_by_name(&quot;group outside&quot;).unwrap();
+    assert_eq!(group.id(), TOP_LEVEL_ID);
+
+    // Check subgroup
+    let children_group = psd.group_by_name(&quot;group inside&quot;).unwrap();
+    assert_eq!(children_group.parent_id().unwrap(), group.id());
+
+    let layer = psd.layer_by_name(&quot;First Layer&quot;).unwrap();
+    assert_eq!(children_group.id(), layer.parent_id().unwrap());
+}
+
+/// PSD file structure
+/// group: outside group, parent: `None`
+/// 	group: first group inside, parent: `outside group`
+/// 		layer: First Layer, parent: `first group inside`
+///
+/// 	group: second group inside, parent: `outside group`
+/// 		group: sub sub group, parent: `second group inside`
+/// 			layer: Second Layer, parent: `sub sub group`
+///
+/// 		layer: Third Layer, parent: `second group inside`
+///
+/// 	group: third group inside, parent: `outside group`
+///
+/// 	layer: Fourth Layer, parent: `outside group`
+/// layer: Firth Layer, parent: `None`
+///
+/// group: outside group 2, parent: `None`
+/// 	layer: Sixth Layer, parent: `outside group 2`
+///
+/// cargo test --test layer_and_mask_information_section one_group_with_two_subgroups -- --exact
+#[test]
+fn one_group_with_two_subgroups() {
+    let psd = include_bytes!(&quot;fixtures/groups/green-1x1-one-group-with-two-subgroups.psd&quot;);
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    assert_eq!(6, psd.layers().len());
+    assert_eq!(6, psd.groups().len());
+
+    // Check first top-level group
+    let outside_group = psd.group_by_name(&quot;outside group&quot;).unwrap();
+    assert_eq!(outside_group.id(), 1);
+
+    // Check first subgroup
+    let children_group = psd.group_by_name(&quot;first group inside&quot;).unwrap();
+    assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
+
+    let layer = psd.layer_by_name(&quot;First Layer&quot;).unwrap();
+    assert_eq!(children_group.id(), layer.parent_id().unwrap());
+
+    // Check second subgroup
+    let children_group = psd.group_by_name(&quot;second group inside&quot;).unwrap();
+    assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
+
+    // Check `sub sub group`
+    let sub_sub_group = psd.group_by_name(&quot;sub sub group&quot;).unwrap();
+    assert_eq!(sub_sub_group.parent_id().unwrap(), children_group.id());
+
+    let layer = psd.layer_by_name(&quot;Second Layer&quot;).unwrap();
+    assert_eq!(sub_sub_group.id(), layer.parent_id().unwrap());
+
+    let layer = psd.layer_by_name(&quot;Third Layer&quot;).unwrap();
+    assert_eq!(children_group.id(), layer.parent_id().unwrap());
+
+    // Check third subgroup
+    let children_group = psd.group_by_name(&quot;third group inside&quot;).unwrap();
+    assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
+
+    let layer = psd.layer_by_name(&quot;Fourth Layer&quot;).unwrap();
+    assert_eq!(outside_group.id(), layer.parent_id().unwrap());
+
+    // Check top-level Firth Group
+    let layer = psd.layer_by_name(&quot;Firth Layer&quot;).unwrap();
+    assert_eq!(layer.parent_id(), None);
+
+    // Check second top-level group
+    let outside_group = psd.group_by_name(&quot;outside group 2&quot;).unwrap();
+    assert_eq!(outside_group.id(), 6);
+
+    let layer = psd.layer_by_name(&quot;Sixth Layer&quot;).unwrap();
+    assert_eq!(layer.parent_id().unwrap(), outside_group.id());
+}
+
+#}</code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../introduction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../user-guide/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
                         
-                            <a rel="next" href="../contributing/internal-design/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../contributing/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -166,13 +283,13 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a href="../introduction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a href="../user-guide/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a href="../contributing/internal-design/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a href="../contributing/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

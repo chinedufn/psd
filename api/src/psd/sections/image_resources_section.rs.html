@@ -762,6 +762,18 @@
 <span id="762">762</span>
 <span id="763">763</span>
 <span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">Map</span>;
@@ -790,12 +802,11 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Fail</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ImageResourcesSectionError</span> {
     <span class="attribute">#[<span class="ident">fail</span>(
-    <span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;The first four bytes (indices 0-3) must always equal [56, 66, 73, 77],
+        <span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;The first four bytes (indices 0-3) must always equal [56, 66, 73, 77],
          which in string form is &#39;8BIM&#39;.&quot;#</span>
     )]</span>
     <span class="ident">InvalidSignature</span> {},
 }
-
 
 <span class="kw">impl</span> <span class="ident">ImageResourcesSection</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImageResourcesSection</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
@@ -813,15 +824,15 @@
             <span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">pair</span>.<span class="number">1</span>;
             <span class="kw">match</span> <span class="ident">block</span>.<span class="ident">resource_id</span> {
                 <span class="ident">RESOURCE_SLICES_INFO</span> <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="ident">descriptors</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ImageResourcesSection</span>::<span class="ident">read_slice_block</span>(<span class="kw-2">&amp;</span><span class="ident">cursor</span>.<span class="ident">get_ref</span>()[<span class="ident">block</span>.<span class="ident">data_range</span>])<span class="question-mark">?</span>);
+                    <span class="ident">descriptors</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ImageResourcesSection</span>::<span class="ident">read_slice_block</span>(
+                        <span class="kw-2">&amp;</span><span class="ident">cursor</span>.<span class="ident">get_ref</span>()[<span class="ident">block</span>.<span class="ident">data_range</span>],
+                    )<span class="question-mark">?</span>);
                 }
                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {}
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">ImageResourcesSection</span> {
-            <span class="ident">descriptors</span>
-        })
+        <span class="prelude-val">Ok</span>(<span class="ident">ImageResourcesSection</span> { <span class="ident">descriptors</span> })
     }
 
     <span class="doccomment">/// +----------+--------------------------------------------------------------------------------------------------------------------+</span>
@@ -1088,7 +1099,6 @@
     <span class="kw">pub</span> <span class="ident">key_id</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 }
 
-
 <span class="doccomment">/// +------------------------------------+--------------------------------------------------------+</span>
 <span class="doccomment">/// |               Length               |                      Description                       |</span>
 <span class="doccomment">/// +------------------------------------+--------------------------------------------------------+</span>
@@ -1196,7 +1206,6 @@
     <span class="kw">pub</span> <span class="ident">enum_field</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 }
 
-
 <span class="doccomment">/// NOTE: This struct is not documented in the specification</span>
 <span class="doccomment">/// So it&#39;s based on https://github.com/psd-tools/psd-tools/blob/master/src/psd_tools/psd/descriptor.py#L691</span>
 <span class="doccomment">///</span>
@@ -1246,7 +1255,6 @@
 <span class="doccomment">/// &#39;tdta&#39; = Raw Data</span>
 <span class="kw">const</span> <span class="ident">OS_TYPE_RAW_DATA</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> <span class="string">b&quot;tdta&quot;</span>;
 
-
 <span class="doccomment">/// Reference structure OSType keys</span>
 <span class="doccomment">/// &#39;prop&#39; = Property</span>
 <span class="kw">const</span> <span class="ident">OS_TYPE_PROPERTY</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> <span class="string">b&quot;prop&quot;</span>;
@@ -1263,16 +1271,11 @@
 <span class="doccomment">/// &#39;name&#39; = Name</span>
 <span class="kw">const</span> <span class="ident">OS_TYPE_NAME</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> <span class="string">b&quot;name&quot;</span>;
 
-
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Fail</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ImageResourcesDescriptorError</span> {
-    <span class="attribute">#[<span class="ident">fail</span>(
-    <span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;Invalid TypeOS field.&quot;#</span>
-    )]</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;Invalid TypeOS field.&quot;#</span>)]</span>
     <span class="ident">InvalidTypeOS</span> {},
-    <span class="attribute">#[<span class="ident">fail</span>(
-    <span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;Invalid unit name.&quot;#</span>
-    )]</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">r#&quot;Invalid unit name.&quot;#</span>)]</span>
     <span class="ident">InvalidUnitName</span> {},
 }
 
@@ -1289,7 +1292,10 @@
         })
     }
 
-    <span class="kw">fn</span> <span class="ident">read_fields</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>, <span class="ident">sub_list</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">DescriptorField</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">read_fields</span>(
+        <span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>,
+        <span class="ident">sub_list</span>: <span class="ident">bool</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">DescriptorField</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">count</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">with_capacity</span>(<span class="ident">count</span> <span class="kw">as</span> <span class="ident">usize</span>);
 
@@ -1320,21 +1326,41 @@
         <span class="ident">os_type</span>.<span class="ident">copy_from_slice</span>(<span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>);
 
         <span class="kw">let</span> <span class="ident">r</span>: <span class="ident">DescriptorField</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">os_type</span> {
-            <span class="ident">OS_TYPE_REFERENCE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Reference</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_reference_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_DESCRIPTOR</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Descriptor</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_descriptor_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_LIST</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">List</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_list_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
+            <span class="ident">OS_TYPE_REFERENCE</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">Reference</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_reference_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
+            <span class="ident">OS_TYPE_DESCRIPTOR</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">Descriptor</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_descriptor_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
+            <span class="ident">OS_TYPE_LIST</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">List</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_list_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
             <span class="ident">OS_TYPE_DOUBLE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Double</span>(<span class="ident">cursor</span>.<span class="ident">read_f64</span>()<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_UNIT_FLOAT</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">UnitFloat</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_unit_float</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
+            <span class="ident">OS_TYPE_UNIT_FLOAT</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">UnitFloat</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_unit_float</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
             <span class="ident">OS_TYPE_TEXT</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">String</span>(<span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_ENUMERATED</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">EnumeratedDescriptor</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_enumerated_descriptor</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
+            <span class="ident">OS_TYPE_ENUMERATED</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">EnumeratedDescriptor</span>(
+                <span class="ident">DescriptorStructure</span>::<span class="ident">read_enumerated_descriptor</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>,
+            ),
             <span class="ident">OS_TYPE_LARGE_INTEGER</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">LargeInteger</span>(<span class="ident">cursor</span>.<span class="ident">read_i64</span>()<span class="question-mark">?</span>),
             <span class="ident">OS_TYPE_INTEGER</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Integer</span>(<span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>),
             <span class="ident">OS_TYPE_BOOL</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Boolean</span>(<span class="ident">cursor</span>.<span class="ident">read_u8</span>()<span class="question-mark">?</span> <span class="op">&gt;</span> <span class="number">0</span>),
-            <span class="ident">OS_TYPE_GLOBAL_OBJECT</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Descriptor</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_descriptor_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_CLASS</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Class</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_class_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_CLASS2</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Class</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_class_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_ALIAS</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Alias</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_alias_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-            <span class="ident">OS_TYPE_RAW_DATA</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">RawData</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_raw_data</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
+            <span class="ident">OS_TYPE_GLOBAL_OBJECT</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">Descriptor</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_descriptor_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
+            <span class="ident">OS_TYPE_CLASS</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">Class</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_class_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
+            <span class="ident">OS_TYPE_CLASS2</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">Class</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_class_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
+            <span class="ident">OS_TYPE_ALIAS</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">Alias</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_alias_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
+            <span class="ident">OS_TYPE_RAW_DATA</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">DescriptorField</span>::<span class="ident">RawData</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_raw_data</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+            }
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ImageResourcesDescriptorError</span>::<span class="ident">InvalidTypeOS</span> {}.<span class="ident">into</span>()),
         };
 
@@ -1366,10 +1392,18 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">os_type</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">4</span>];
             <span class="ident">os_type</span>.<span class="ident">copy_from_slice</span>(<span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>);
             <span class="ident">vec</span>.<span class="ident">push</span>(<span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">os_type</span> {
-                <span class="ident">OS_TYPE_PROPERTY</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Property</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_property_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-                <span class="ident">OS_TYPE_CLASS3</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Class</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_class_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-                <span class="ident">OS_TYPE_ENUMERATED_REFERENCE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">EnumeratedReference</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_enumerated_reference</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
-                <span class="ident">OS_TYPE_OFFSET</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Offset</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_offset_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
+                <span class="ident">OS_TYPE_PROPERTY</span> <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">DescriptorField</span>::<span class="ident">Property</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_property_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+                }
+                <span class="ident">OS_TYPE_CLASS3</span> <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">DescriptorField</span>::<span class="ident">Class</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_class_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+                }
+                <span class="ident">OS_TYPE_ENUMERATED_REFERENCE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">EnumeratedReference</span>(
+                    <span class="ident">DescriptorStructure</span>::<span class="ident">read_enumerated_reference</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>,
+                ),
+                <span class="ident">OS_TYPE_OFFSET</span> <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">DescriptorField</span>::<span class="ident">Offset</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_offset_structure</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>)
+                }
                 <span class="ident">OS_TYPE_IDENTIFIER</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Identifier</span>(<span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>),
                 <span class="ident">OS_TYPE_INDEX</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Index</span>(<span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>),
                 <span class="ident">OS_TYPE_NAME</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">DescriptorField</span>::<span class="ident">Name</span>(<span class="ident">DescriptorStructure</span>::<span class="ident">read_name</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>),
@@ -1403,7 +1437,7 @@
             <span class="ident">UNIT_FLOAT_NONE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">UnitFloatStructure</span>::<span class="prelude-val">None</span>,
             <span class="ident">UNIT_FLOAT_PERCENT</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">UnitFloatStructure</span>::<span class="ident">Percent</span>(<span class="ident">cursor</span>.<span class="ident">read_f64</span>()<span class="question-mark">?</span>),
             <span class="ident">UNIT_FLOAT_PIXELS</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">UnitFloatStructure</span>::<span class="ident">Pixels</span>(<span class="ident">cursor</span>.<span class="ident">read_f64</span>()<span class="question-mark">?</span>),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ImageResourcesDescriptorError</span>::<span class="ident">InvalidUnitName</span> {}.<span class="ident">into</span>())
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ImageResourcesDescriptorError</span>::<span class="ident">InvalidUnitName</span> {}.<span class="ident">into</span>()),
         })
     }
 
@@ -1411,10 +1445,7 @@
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">class_id</span> <span class="op">=</span> <span class="ident">DescriptorStructure</span>::<span class="ident">read_key_length</span>(<span class="ident">cursor</span>)<span class="question-mark">?</span>.<span class="ident">to_vec</span>();
 
-        <span class="prelude-val">Ok</span>(<span class="ident">ClassStructure</span> {
-            <span class="ident">name</span>,
-            <span class="ident">class_id</span>,
-        })
+        <span class="prelude-val">Ok</span>(<span class="ident">ClassStructure</span> { <span class="ident">name</span>, <span class="ident">class_id</span> })
     }
 
     <span class="kw">fn</span> <span class="ident">read_enumerated_reference</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EnumeratedReference</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
@@ -1447,9 +1478,7 @@
         <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">length</span>)<span class="question-mark">?</span>.<span class="ident">to_vec</span>();
 
-        <span class="prelude-val">Ok</span>(<span class="ident">AliasStructure</span> {
-            <span class="ident">data</span>
-        })
+        <span class="prelude-val">Ok</span>(<span class="ident">AliasStructure</span> { <span class="ident">data</span> })
     }
 
     <span class="kw">fn</span> <span class="ident">read_list_structure</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DescriptorField</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
@@ -1486,17 +1515,12 @@
 
     <span class="kw">fn</span> <span class="ident">read_key_length</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">PsdCursor</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">u8</span>], <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">length</span> <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="ident">length</span>
-        } <span class="kw">else</span> {
-            <span class="number">4</span>
-        };
+        <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">length</span> <span class="op">&gt;</span> <span class="number">0</span> { <span class="ident">length</span> } <span class="kw">else</span> { <span class="number">4</span> };
 
         <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read</span>(<span class="ident">length</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">key</span>)
     }
 }
-
 
 <span class="doccomment">/// There are some tests to make sure that descriptors and slices are decoding correctly</span>
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -1526,5 +1550,6 @@
         <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="macro">include_bytes</span><span class="macro">!</span>(<span class="string">&quot;../../tests/fixtures/slices/0.dat&quot;</span>);
         <span class="ident">ImageResourcesSection</span>::<span class="ident">read_slice_block</span>(<span class="ident">bytes</span>).<span class="ident">unwrap</span>();
     }
-}</pre></div>
+}
+</pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "psd";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>

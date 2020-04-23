@@ -3,27 +3,27 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Internal Design - The Psd Book</title>
+        <title>Major Sections - The Psd Book</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        <link rel="shortcut icon" href="../../favicon.png">
-        <link rel="stylesheet" href="../../css/variables.css">
-        <link rel="stylesheet" href="../../css/general.css">
-        <link rel="stylesheet" href="../../css/chrome.css">
-        <link rel="stylesheet" href="../../css/print.css" media="print">
+        <link rel="shortcut icon" href="../../../favicon.png">
+        <link rel="stylesheet" href="../../../css/variables.css">
+        <link rel="stylesheet" href="../../../css/general.css">
+        <link rel="stylesheet" href="../../../css/chrome.css">
+        <link rel="stylesheet" href="../../../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../../FontAwesome/css/font-awesome.css">
         <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
         <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../../highlight.css">
-        <link rel="stylesheet" href="../../tomorrow-night.css">
-        <link rel="stylesheet" href="../../ayu-highlight.css">
+        <link rel="stylesheet" href="../../../highlight.css">
+        <link rel="stylesheet" href="../../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
         
@@ -33,7 +33,7 @@
     <body class="light">
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
-            var path_to_root = "../../";
+            var path_to_root = "../../../";
             var default_theme = "light";
         </script>
 
@@ -75,7 +75,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="../../introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="../../contributing/index.html"><strong aria-hidden="true">1.</strong> Contributing</a></li><li><ol class="section"><li><a href="../../contributing/internal-design/index.html" class="active"><strong aria-hidden="true">1.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="../../contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">1.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="../../../introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="../../../user-guide/index.html"><strong aria-hidden="true">1.</strong> User Guide</a></li><li><ol class="section"><li><a href="../../../layer-groups/index.html"><strong aria-hidden="true">1.1.</strong> Layer Groups</a></li></ol></li><li><a href="../../../contributing/index.html"><strong aria-hidden="true">2.</strong> Contributing</a></li><li><ol class="section"><li><a href="../../../contributing/internal-design/index.html"><strong aria-hidden="true">2.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="../../../contributing/internal-design/major-sections/index.html" class="active"><strong aria-hidden="true">2.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -108,7 +108,7 @@
                         <h1 class="menu-title">The Psd Book</h1> 
 
                         <div class="right-buttons">
-                            <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <a href="../../../print.html" title="Print this book" aria-label="Print this book">
                                 <i id="print-button" class="fa fa-print"></i>
                             </a>
                             
@@ -140,31 +140,54 @@
 
                 <div id="content" class="content">
                     <main>
-                        <a class="header" href="#internal-design" id="internal-design"><h1>Internal Design</h1></a>
-<p>This section discusses the internal design of the <code>psd</code> crate.</p>
-<hr />
-<p>Before reading this section it is recommended that you read through
-the <a href="https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577409_89817">psd specification</a>.</p>
-<p>Reading through the spec will bring context to the organization of the codebase and the
-approach that we take to parsing <code>.psd</code> data</p>
-<hr />
-<p>After reading this section you should have a good sense of how everything works and be better prepared
-to dive into the codebase.</p>
+                        <a class="header" href="#major-sections" id="major-sections"><h1>Major Sections</h1></a>
+<p>You can think of a Photoshop file as a byte slice <code>&amp;[u8]</code>.</p>
+<p>These bytes are organized into 5 major sections, each of which have their own sub-sections.</p>
+<p>We represent this in our code using the <code>MajorSections</code> type.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Imported into the book from `src/sections/mod.rs`
+
+pub mod image_data_section;
+pub mod image_resources_section;
+pub mod layer_and_mask_information_section;
+
+/// References to the different major sections of a PSD file
+#[derive(Debug)]
+pub struct MajorSections&lt;'a&gt; {
+    pub(crate) file_header: &amp;'a [u8],
+    pub(crate) color_mode_data: &amp;'a [u8],
+    pub(crate) image_resources: &amp;'a [u8],
+    pub(crate) layer_and_mask: &amp;'a [u8],
+    pub(crate) image_data: &amp;'a [u8],
+}
+
+impl&lt;'a&gt; MajorSections&lt;'a&gt; {
+    /// Given the bytes of a PSD file, return the slices that correspond to each
+    /// of the five major sections.
+    ///
+    /// ┌──────────────────┐
+    /// │   File Header    │
+    /// ├──────────────────┤
+    /// │ Color Mode Data  │
+    /// ├──────────────────┤
+    /// │ Image Resources  │
+    /// ├──────────────────┤
+#}</code></pre></pre>
+<p>Our parsing comes down to reading through the bytes in this byte slice and
+using them to create these five major sections.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../../contributing/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../contributing/internal-design/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
-                        
-                            <a rel="next" href="../../contributing/internal-design/major-sections/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
                         
 
                         <div style="clear: both"></div>
@@ -174,15 +197,11 @@ to dive into the codebase.</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a href="../../contributing/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a href="../../../contributing/internal-design/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
-                
-                    <a href="../../contributing/internal-design/major-sections/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
                 
             </nav>
 
@@ -195,14 +214,14 @@ to dive into the codebase.</p>
         
 
         
-        <script src="../../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../../mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../../searcher.js" type="text/javascript" charset="utf-8"></script>
         
 
-        <script src="../../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../../highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../../book.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
         

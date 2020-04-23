@@ -431,7 +431,6 @@
 <span id="431">431</span>
 <span id="432">432</span>
 <span id="433">433</span>
-<span id="434">434</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Data structures and methods for working with PSD files.</span>
 <span class="doccomment">//!</span>
@@ -447,14 +446,14 @@
 
 <span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::{<span class="ident">PsdChannelCompression</span>, <span class="ident">PsdChannelKind</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::<span class="ident">IntoRgba</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">psd_channel</span>::{<span class="ident">PsdChannelCompression</span>, <span class="ident">PsdChannelKind</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::{<span class="ident">ColorMode</span>, <span class="ident">PsdDepth</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ChannelBytes</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ImageDataSection</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::{<span class="ident">DescriptorField</span>, <span class="ident">UnitFloatStructure</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::{<span class="ident">DescriptorStructure</span>, <span class="ident">ImageResourcesSection</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdGroup</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdGroup</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::<span class="ident">PsdLayer</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">LayerAndMaskInformationSection</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">MajorSections</span>;
@@ -512,10 +511,8 @@
             <span class="ident">channel_count</span>,
         )<span class="question-mark">?</span>;
 
-
-        <span class="kw">let</span> <span class="ident">image_resources_section</span> <span class="op">=</span> <span class="ident">ImageResourcesSection</span>::<span class="ident">from_bytes</span>(
-            <span class="ident">major_sections</span>.<span class="ident">image_resources</span>
-        )<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">image_resources_section</span> <span class="op">=</span>
+            <span class="ident">ImageResourcesSection</span>::<span class="ident">from_bytes</span>(<span class="ident">major_sections</span>.<span class="ident">image_resources</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">Psd</span> {
             <span class="ident">file_header_section</span>,
@@ -587,7 +584,9 @@
 
     <span class="doccomment">/// Get a group by name</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">group_by_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PsdGroup</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>.<span class="ident">groups</span>.<span class="ident">item_by_name</span>(<span class="ident">name</span>)
+        <span class="self">self</span>.<span class="ident">layer_and_mask_information_section</span>
+            .<span class="ident">groups</span>
+            .<span class="ident">item_by_name</span>(<span class="ident">name</span>)
     }
 
     <span class="doccomment">/// Get all of the groups in the PSD</span>
@@ -803,7 +802,6 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">image_data_section</span>.<span class="ident">compression</span>
     }
 }
-
 
 <span class="comment">// Methods for working with the image resources section</span>
 <span class="kw">impl</span> <span class="ident">Psd</span> {
