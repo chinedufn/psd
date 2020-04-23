@@ -117,29 +117,11 @@ impl ImageResourcesSection {
         let _bottom = cursor.read_i32()?;
         let _right = cursor.read_i32()?;
 
-        let _group_of_slices_name = cursor.read_unicode_string()?;
+        let _group_of_slices_name = cursor.read_unicode_string_padding(1)?;
 
         let mut number_of_slices = cursor.read_u32()?;
 
-        // When a PSD file's name has 15 letters or 23 letters (and likely other counts),
-        // for some reason we see [0, 1, 0, 0] as the number of slices (65536).
-        //
-        // At the end of the image resources section parsing we assert that we parsed the correct
-        // number of bytes for the section, so it doesn't _seem_ to be an issue with reading the
-        // wrong data.
-        //
-        // Would be great to find a better solution for this.
-        //
-        // Perhaps when the group of slices name is a certain length the way we're reading unicode
-        // PSDs is incorrect. Not sure.
-        //
-        // @see tests/slices_resource.rs->name_of_psd_has_fifteen_letters
-        if number_of_slices == 65536 {
-            number_of_slices = 0;
-        }
-
         let mut vec = Vec::new();
-
         for _ in 0..number_of_slices {
             match ImageResourcesSection::read_slice_body(&mut cursor)? {
                 Some(v) => vec.push(v),
