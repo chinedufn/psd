@@ -4,10 +4,6 @@
 
 `psd` seeks to make it easy for you to write scripts that work with Photoshop files.
 
-For example, the original use case that motivated the creationg of the `psd` crate was to be part of a Rust
-script that iterated over a directory full of PSD's and combined all of them into a texture atlas (using the
-[texture_packer] crate).
-
 ---
 
 The Photoshop specification is large so, while we support the main parts of it, not every little bit

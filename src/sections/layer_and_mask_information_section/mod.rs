@@ -9,7 +9,9 @@ use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::layer_and_mask_information_section::container::NamedItems;
-use crate::sections::layer_and_mask_information_section::layer::{GroupDivider, LayerChannels, LayerRecord, PsdGroup, PsdLayer};
+use crate::sections::layer_and_mask_information_section::layer::{
+    GroupDivider, LayerChannels, LayerRecord, PsdGroup, PsdLayer,
+};
 use crate::sections::PsdCursor;
 
 /// One of the possible additional layer block signatures
@@ -23,8 +25,8 @@ const KEY_UNICODE_LAYER_NAME: &[u8; 4] = b"luni";
 /// Key of `Section divider setting (Photoshop 6.0)`, "lsct"
 const KEY_SECTION_DIVIDER_SETTING: &[u8; 4] = b"lsct";
 
-pub mod layer;
 pub mod container;
+pub mod layer;
 
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
@@ -105,10 +107,8 @@ impl LayerAndMaskInformationSection {
         // channel as transparency data for the merged result.. So add a new test with a transparent
         // PSD and make sure that we're handling this case properly.
         let layer_count: u16 = layer_count.abs() as u16;
-        let (
-            group_count,
-            layer_records
-        ) = LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
+        let (group_count, layer_records) =
+            LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
 
         LayerAndMaskInformationSection::decode_layers(
             layer_records,
@@ -165,19 +165,22 @@ impl LayerAndMaskInformationSection {
                         end: layers.len(),
                     };
 
-                    groups.push(frame.name.clone(), PsdGroup::new(
-                        frame.name,
-                        frame.group_id,
-                        range,
-                        &layer_record,
-                        psd_size.0,
-                        psd_size.1,
-                        if frame.parent_group_id > 0 {
-                            Some(frame.parent_group_id)
-                        } else {
-                            None
-                        },
-                    ));
+                    groups.push(
+                        frame.name.clone(),
+                        PsdGroup::new(
+                            frame.name,
+                            frame.group_id,
+                            range,
+                            &layer_record,
+                            psd_size.0,
+                            psd_size.1,
+                            if frame.parent_group_id > 0 {
+                                Some(frame.parent_group_id)
+                            } else {
+                                None
+                            },
+                        ),
+                    );
                 }
 
                 _ => {
@@ -193,13 +196,13 @@ impl LayerAndMaskInformationSection {
             };
         }
 
-        Ok(LayerAndMaskInformationSection {
-            layers,
-            groups,
-        })
+        Ok(LayerAndMaskInformationSection { layers, groups })
     }
 
-    fn read_layer_records(cursor: &mut PsdCursor, layer_count: u16) -> Result<(usize, Vec<(LayerRecord, LayerChannels)>), Error> {
+    fn read_layer_records(
+        cursor: &mut PsdCursor,
+        layer_count: u16,
+    ) -> Result<(usize, Vec<(LayerRecord, LayerChannels)>), Error> {
         let mut groups_count = 0;
 
         let mut layer_records = vec![];
@@ -243,11 +246,7 @@ impl LayerAndMaskInformationSection {
             &layer_record,
             psd_size.0,
             psd_size.1,
-            if parent_id > 0 {
-                Some(parent_id)
-            } else {
-                None
-            },
+            if parent_id > 0 { Some(parent_id) } else { None },
             channels,
         ))
     }
@@ -400,7 +399,6 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     let padding = (4 - bytes_mod_4) % 4;
     cursor.read(padding as u32)?;
 
-
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
@@ -446,4 +444,3 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
         divider_type,
     })
 }
-
