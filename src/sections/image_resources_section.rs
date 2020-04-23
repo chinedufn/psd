@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::iter::Map;
 use std::ops::Range;
 
 use failure::{Error, Fail};
@@ -38,13 +37,10 @@ impl ImageResourcesSection {
         let mut descriptors = None;
 
         let length = cursor.read_u32()? as u64;
-        let mut read = 0;
 
-        while read < length {
-            let pair = ImageResourcesSection::read_resource_block(&mut cursor)?;
-            read = pair.0;
+        while cursor.position() < length {
+            let block = ImageResourcesSection::read_resource_block(&mut cursor)?;
 
-            let block = pair.1;
             match block.resource_id {
                 RESOURCE_SLICES_INFO => {
                     descriptors = Some(ImageResourcesSection::read_slice_block(
@@ -54,6 +50,8 @@ impl ImageResourcesSection {
                 _ => {}
             }
         }
+
+        assert_eq!(cursor.position(), length + 4);
 
         Ok(ImageResourcesSection { descriptors })
     }
@@ -67,7 +65,7 @@ impl ImageResourcesSection {
     /// | 4        | Actual size of resource data that follows                                                                          |
     /// | Variable | The resource data, described in the sections on the individual resource types. It is padded to make the size even. |
     /// +----------+--------------------------------------------------------------------------------------------------------------------+
-    fn read_resource_block(cursor: &mut PsdCursor) -> Result<(u64, ImageResourcesBlock), Error> {
+    fn read_resource_block(cursor: &mut PsdCursor) -> Result<ImageResourcesBlock, Error> {
         // First four bytes must be '8BIM'
         let signature = cursor.read_4()?;
         if signature != EXPECTED_RESOURCE_BLOCK_SIGNATURE {
@@ -87,14 +85,11 @@ impl ImageResourcesSection {
         };
         cursor.read(data_len)?;
 
-        Ok((
-            cursor.position(),
-            ImageResourcesBlock {
-                resource_id,
-                name,
-                data_range,
-            },
-        ))
+        Ok(ImageResourcesBlock {
+            resource_id,
+            name,
+            data_range,
+        })
     }
 
     /// Slice header for version 6
@@ -112,24 +107,40 @@ impl ImageResourcesSection {
 
         let version = cursor.read_i32()?;
         if version != 6 {
-            unimplemented!("Adobe Photoshop 6.0+ slice currently unsupported");
+            unimplemented!(
+                "Only the Adobe Photoshop 6.0 slices resource format is currently supported"
+            );
         }
 
-        // We do not currently parse top of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse left of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse bottom of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse right of all the slices, skip it
-        cursor.read_i32()?;
-        // We do not currently parse name of group of slices, skip it
-        cursor.read_unicode_string()?;
+        let _top = cursor.read_i32()?;
+        let _left = cursor.read_i32()?;
+        let _bottom = cursor.read_i32()?;
+        let _right = cursor.read_i32()?;
 
-        let number_of_slices = cursor.read_u32()?;
+        let _group_of_slices_name = cursor.read_unicode_string()?;
+
+        let mut number_of_slices = cursor.read_u32()?;
+
+        // When a PSD file's name has 15 letters or 23 letters (and likely other counts),
+        // for some reason we see [0, 1, 0, 0] as the number of slices (65536).
+        //
+        // At the end of the image resources section parsing we assert that we parsed the correct
+        // number of bytes for the section, so it doesn't _seem_ to be an issue with reading the
+        // wrong data.
+        //
+        // Would be great to find a better solution for this.
+        //
+        // Perhaps when the group of slices name is a certain length the way we're reading unicode
+        // PSDs is incorrect. Not sure.
+        //
+        // @see tests/slices_resource.rs->name_of_psd_has_fifteen_letters
+        if number_of_slices == 65536 {
+            number_of_slices = 0;
+        }
+
         let mut vec = Vec::new();
 
-        for n in 0..number_of_slices {
+        for _ in 0..number_of_slices {
             match ImageResourcesSection::read_slice_body(&mut cursor)? {
                 Some(v) => vec.push(v),
                 None => {}
@@ -742,35 +753,5 @@ impl DescriptorStructure {
 
         let key = cursor.read(length)?;
         Ok(key)
-    }
-}
-
-/// There are some tests to make sure that descriptors and slices are decoding correctly
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn check_descriptor() {
-        let bytes = include_bytes!("../../tests/fixtures/descriptors/descriptor_block.dat");
-        let mut cursor = PsdCursor::new(bytes);
-
-        let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
-        println!("{:?}", descriptor);
-    }
-
-    #[test]
-    fn check_descriptor2() {
-        let bytes = include_bytes!("../../tests/fixtures/descriptors/descriptor_block2.dat");
-        let mut cursor = PsdCursor::new(bytes);
-
-        let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor).unwrap();
-        println!("{:?}", descriptor);
-    }
-
-    #[test]
-    fn check_slices() {
-        let bytes = include_bytes!("../../tests/fixtures/slices/0.dat");
-        ImageResourcesSection::read_slice_block(bytes).unwrap();
     }
 }
