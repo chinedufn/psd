@@ -31,14 +31,27 @@ pub(crate) fn apply_opacity(pixel: &mut [u8; 4], opacity: u8) {
 /// `Co = co / αo`
 ///
 /// *The backdrop is the content behind the element and is what the element is composited with. This means that the backdrop is the result of compositing all previous elements.
-pub(crate) fn blend_pixels(top: [u8; 4], bottom: [u8; 4], blend_mode: BlendMode, out: &mut [u8; 4]) {
+pub(crate) fn blend_pixels(
+    top: [u8; 4],
+    bottom: [u8; 4],
+    blend_mode: BlendMode,
+    out: &mut [u8; 4],
+) {
     // TODO: make some optimizations
     let alpha_s = top[3] as f32 / 255.;
     let alpha_b = bottom[3] as f32 / 255.;
     let alpha_output = alpha_s + alpha_b * (1. - alpha_s);
 
-    let (r_s, g_s, b_s) = (top[0] as f32 / 255., top[1] as f32 / 255., top[2] as f32 / 255.);
-    let (r_b, g_b, b_b) = (bottom[0] as f32 / 255., bottom[1] as f32 / 255., bottom[2] as f32 / 255.);
+    let (r_s, g_s, b_s) = (
+        top[0] as f32 / 255.,
+        top[1] as f32 / 255.,
+        top[2] as f32 / 255.,
+    );
+    let (r_b, g_b, b_b) = (
+        bottom[0] as f32 / 255.,
+        bottom[1] as f32 / 255.,
+        bottom[2] as f32 / 255.,
+    );
 
     let blend_f = map_blend_mode(blend_mode);
     let (r, g, b) = (
@@ -58,43 +71,47 @@ type BlendFunction = dyn Fn(f32, f32) -> f32;
 /// Returns blend function for given BlendMode
 fn map_blend_mode(blend_mode: BlendMode) -> &'static BlendFunction {
     // Modes are sorted like in Photoshop UI
+    // TODO: make other modes
     match blend_mode {
+        BlendMode::PassThrough => &pass_through, // only for groups
+        // --------------------------------------
         BlendMode::Normal => &normal,
-        // Here we need Dissolve
+        BlendMode::Dissolve => &dissolve,
         // --------------------------------------
         BlendMode::Darken => &darken,
         BlendMode::Multiply => &multiply,
         BlendMode::ColorBurn => &color_burn,
         BlendMode::LinearBurn => &linear_burn,
-        // Here we need Darker Color
+        BlendMode::DarkerColor => &darker_color,
         // --------------------------------------
         BlendMode::Lighten => &lighten,
         BlendMode::Screen => &screen,
         BlendMode::ColorDodge => &color_dodge,
         BlendMode::LinearDodge => &linear_dodge,
-        // Here we need Lighter Color
+        BlendMode::LighterColor => &lighter_color,
         // --------------------------------------
         BlendMode::Overlay => &overlay,
         BlendMode::SoftLight => &soft_light,
         BlendMode::HardLight => &hard_light,
-        // Here we need Vivid Light
-        // Here we need Linear Light
-        // Here we need Pin Light
-        // Here we need Hard Mix
+        BlendMode::VividLight => &vivid_light,
+        BlendMode::LinearLight => &linear_light,
+        BlendMode::PinLight => &pin_light,
+        BlendMode::HardMix => &hard_mix,
         // --------------------------------------
         BlendMode::Difference => &difference,
         BlendMode::Exclusion => &exclusion,
         BlendMode::Subtract => &subtract,
         BlendMode::Divide => &divide,
         // --------------------------------------
-        // Here we need Hue
-        // Here we need Saturation
-        // Here we need Color
-        // Here we need Luminosity
-
-        // TODO: make other modes
-        _ => unimplemented!()
+        BlendMode::Hue => &hue,
+        BlendMode::Saturation => &saturation,
+        BlendMode::Color => &color,
+        BlendMode::Luminosity => &luminosity,
     }
+}
+
+fn pass_through(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
 }
 
 /// https://www.w3.org/TR/compositing-1/#blendingnormal
@@ -104,6 +121,23 @@ fn map_blend_mode(blend_mode: BlendMode) -> &'static BlendFunction {
 #[inline(always)]
 fn normal(color_b: f32, color_s: f32) -> f32 {
     color_s
+}
+
+fn dissolve(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+// Darken modes
+
+/// https://www.w3.org/TR/compositing-1/#blendingdarken
+/// Selects the darker of the backdrop and source colors.
+///
+/// The backdrop is replaced with the source where the source is darker; otherwise, it is left unchanged.
+///
+/// `B(Cb, Cs) = min(Cb, Cs)`
+#[inline(always)]
+fn darken(color_b: f32, color_s: f32) -> f32 {
+    color_b.min(color_s)
 }
 
 /// https://www.w3.org/TR/compositing-1/#blendingmultiply
@@ -117,29 +151,53 @@ fn multiply(color_b: f32, color_s: f32) -> f32 {
     color_b * color_s
 }
 
-/// https://helpx.adobe.com/photoshop/using/blending-modes.html
+/// https://www.w3.org/TR/compositing-1/#blendingcolorburn
 ///
-/// Looks at the color information in each channel and divides the blend color from the base color.
-/// In 8- and 16-bit images, any resulting negative values are clipped to zero.
+/// Darkens the backdrop color to reflect the source color. Painting with white produces no change.
 ///
-/// `B(Cb, Cs) = Cb / Cs`
+/// ```ignore
+/// if(Cb == 1)
+///     B(Cb, Cs) = 1
+/// else
+///     B(Cb, Cs) = max(0, (1 - (1 - Cs) / Cb))
+///```
 #[inline(always)]
-fn divide(color_b: f32, color_s: f32) -> f32 {
-    if color_s == 0. {
-        color_b
+fn color_burn(color_b: f32, color_s: f32) -> f32 {
+    if color_b == 1. {
+        1.
     } else {
-        color_b / color_s
+        (1. - (1. - color_s) / color_b).max(0.)
     }
 }
 
-/// https://helpx.adobe.com/photoshop/using/blending-modes.html
+/// See: http://www.simplefilter.de/en/basics/mixmods.html
+/// psd_tools impl: https://github.com/psd-tools/psd-tools/blob/master/src/psd_tools/composer/blend.py#L139
 ///
-/// Looks at the color information in each channel and subtracts the blend color from the base color.
+/// This variant of subtraction is also known as subtractive color blending.
+/// The tonal values of fore- and background that sum up to less than 255 (i.e. 1.0) become pure black.
+/// If the foreground image A is converted prior to the operation, the result is the mathematical subtraction.
 ///
-/// `B(Cb, Cs) = Cb - Cs`
+/// `B(Cb, Cs) = max(0,  Cb + Cs - 1)`
 #[inline(always)]
-fn subtract(color_b: f32, color_s: f32) -> f32 {
-    (color_b - color_s).max(0.)
+fn linear_burn(color_b: f32, color_s: f32) -> f32 {
+    (color_b - color_s - 1.).max(0.)
+}
+
+fn darker_color(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+// Lighten modes
+
+/// https://www.w3.org/TR/compositing-1/#blendinglighten
+/// Selects the lighter of the backdrop and source colors.
+///
+/// The backdrop is replaced with the source where the source is lighter; otherwise, it is left unchanged.
+///
+/// `B(Cb, Cs) = max(Cb, Cs)`
+#[inline(always)]
+fn lighten(color_b: f32, color_s: f32) -> f32 {
+    color_b.max(color_s)
 }
 
 /// https://www.w3.org/TR/compositing-1/#blendingscreen
@@ -153,28 +211,6 @@ fn subtract(color_b: f32, color_s: f32) -> f32 {
 #[inline(always)]
 fn screen(color_b: f32, color_s: f32) -> f32 {
     color_b + color_s - (color_b * color_s)
-}
-
-/// https://www.w3.org/TR/compositing-1/#blendingdarken
-/// Selects the darker of the backdrop and source colors.
-///
-/// The backdrop is replaced with the source where the source is darker; otherwise, it is left unchanged.
-///
-/// `B(Cb, Cs) = min(Cb, Cs)`
-#[inline(always)]
-fn darken(color_b: f32, color_s: f32) -> f32 {
-    color_b.min(color_s)
-}
-
-/// https://www.w3.org/TR/compositing-1/#blendinglighten
-/// Selects the lighter of the backdrop and source colors.
-///
-/// The backdrop is replaced with the source where the source is lighter; otherwise, it is left unchanged.
-///
-/// `B(Cb, Cs) = max(Cb, Cs)`
-#[inline(always)]
-fn lighten(color_b: f32, color_s: f32) -> f32 {
-    color_b.max(color_s)
 }
 
 /// https://www.w3.org/TR/compositing-1/#blendingcolordodge
@@ -200,25 +236,6 @@ fn color_dodge(color_b: f32, color_s: f32) -> f32 {
     }
 }
 
-/// https://www.w3.org/TR/compositing-1/#blendingcolorburn
-///
-/// Darkens the backdrop color to reflect the source color. Painting with white produces no change.
-///
-/// ```ignore
-/// if(Cb == 1)
-///     B(Cb, Cs) = 1
-/// else
-///     B(Cb, Cs) = max(0, (1 - (1 - Cs) / Cb))
-///```
-#[inline(always)]
-fn color_burn(color_b: f32, color_s: f32) -> f32 {
-    if color_b == 1. {
-        1.
-    } else {
-        (1. - (1. - color_s) / color_b).max(0.)
-    }
-}
-
 /// See: http://www.simplefilter.de/en/basics/mixmods.html
 ///
 /// Adds the tonal values of fore- and background.
@@ -227,34 +244,14 @@ fn color_burn(color_b: f32, color_s: f32) -> f32 {
 /// `B(Cb, Cs) = Cb + Cs`
 #[inline(always)]
 fn linear_dodge(color_b: f32, color_s: f32) -> f32 {
-    color_b + color_s
+    (color_b + color_s).min(1.)
 }
 
-/// See: http://www.simplefilter.de/en/basics/mixmods.html
-///
-/// This variant of subtraction is also known as subtractive color blending.
-/// The tonal values of fore- and background that sum up to less than 255 (i.e. 1.0) become pure black.
-/// If the foreground image A is converted prior to the operation, the result is the mathematical subtraction.
-///
-/// ```ignore
-/// sum = Cb + Cs
-/// if (sum >= 1)
-///     B(Cb, Cs) = Cb - (1 - Cs)
-/// else
-///     B(Cb, Cs) = 0
-/// ```
-/// Also:
-/// `B(Cb, Cs) = Cb + Cs - 1`
-#[inline(always)]
-fn linear_burn(color_b: f32, color_s: f32) -> f32 {
-    let sum = color_b + color_s;
-
-    if sum >= 1. {
-        color_b - (1. - color_s)
-    } else {
-        0.
-    }
+fn lighter_color(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
 }
+
+// Contrast modes
 
 /// https://www.w3.org/TR/compositing-1/#blendingoverlay
 /// Multiplies or screens the colors, depending on the backdrop color value.
@@ -324,26 +321,25 @@ fn hard_light(color_b: f32, color_s: f32) -> f32 {
     }
 }
 
-/// https://www.w3.org/TR/compositing-1/#blendinghardlight
-///
-/// Multiplies or screens the colors, depending on the source color value.
-/// The effect is similar to shining a harsh spotlight on the backdrop.
-///
-/// ```ignore
-/// if(Cs <= 0.5)
-///     B(Cb, Cs) = Multiply(Cb, 2 x Cs) = 2 x Cb x Cs
-/// else
-///     B(Cb, Cs) = Screen(Cb, 2 x Cs -1)
-/// ```
-/// See the definition of `multiply` and `screen` for their formulas.
-#[inline(always)]
 fn vivid_light(color_b: f32, color_s: f32) -> f32 {
-    if color_s < 0.5 {
-        multiply(color_b, 2. * color_s)
-    } else {
-        screen(color_b, 2. * color_s - 1.)
-    }
+    unimplemented!()
 }
+
+fn linear_light(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+#[inline(always)]
+fn pin_light(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+#[inline(always)]
+fn hard_mix(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+// Inversion modes
 
 /// https://www.w3.org/TR/compositing-1/#blendingdifference
 ///
@@ -367,6 +363,47 @@ fn exclusion(color_b: f32, color_s: f32) -> f32 {
     color_b + color_s - 2. * color_b * color_s
 }
 
+/// https://helpx.adobe.com/photoshop/using/blending-modes.html
+///
+/// Looks at the color information in each channel and subtracts the blend color from the base color.
+///
+/// `B(Cb, Cs) = Cb - Cs`
+#[inline(always)]
+fn subtract(color_b: f32, color_s: f32) -> f32 {
+    (color_b - color_s).max(0.)
+}
+
+/// https://helpx.adobe.com/photoshop/using/blending-modes.html
+///
+/// Looks at the color information in each channel and divides the blend color from the base color.
+/// In 8- and 16-bit images, any resulting negative values are clipped to zero.
+///
+/// `B(Cb, Cs) = Cb / Cs`
+#[inline(always)]
+fn divide(color_b: f32, color_s: f32) -> f32 {
+    if color_s == 0. {
+        color_b
+    } else {
+        color_b / color_s
+    }
+}
+
+fn hue(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+fn saturation(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+fn color(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+fn luminosity(color_b: f32, color_s: f32) -> f32 {
+    unimplemented!()
+}
+
 /// https://www.w3.org/TR/compositing-1/#generalformula
 ///
 /// `Cs = (1 - αb) x Cs + αb x B(Cb, Cs)`
@@ -381,7 +418,13 @@ fn exclusion(color_b: f32, color_s: f32) -> f32 {
 ///  - B(Cb, Cs): is the mixing function
 ///
 /// *The backdrop is the content behind the element and is what the element is composited with. This means that the backdrop is the result of compositing all previous elements.
-fn composite(color_s: f32, alpha_s: f32, color_b: f32, alpha_b: f32, blend_f: &BlendFunction) -> f32 {
+fn composite(
+    color_s: f32,
+    alpha_s: f32,
+    color_b: f32,
+    alpha_b: f32,
+    blend_f: &BlendFunction,
+) -> f32 {
     let color_s = (1. - alpha_b) * color_s + alpha_b * blend_f(color_b, color_s);
     let cs = color_s * alpha_s;
     let cb = color_b * alpha_b;

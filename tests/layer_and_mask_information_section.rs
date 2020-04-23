@@ -11,7 +11,7 @@ fn layer_and_mask_information_section() {
     assert_eq!(psd.layers().len(), 1);
 
     let layer = psd.layer_by_name("First Layer").unwrap();
-    
+
     assert_eq!(&layer.rgba().unwrap()[..], &GREEN_PIXEL);
 }
 
@@ -39,11 +39,21 @@ fn layer_with_clipping() {
     let psd = Psd::from_bytes(psd).unwrap();
 
     assert_eq!(psd.layers().len(), 3);
-    assert_eq!(psd.layer_by_name("Clipping base").unwrap().is_clipping_mask(), true);
-    assert_eq!(psd.layer_by_name("First clipped layer").unwrap().is_clipping_mask(), false);
+    assert_eq!(
+        psd.layer_by_name("Clipping base")
+            .unwrap()
+            .is_clipping_mask(),
+        true
+    );
+    assert_eq!(
+        psd.layer_by_name("First clipped layer")
+            .unwrap()
+            .is_clipping_mask(),
+        false
+    );
 }
 
-const TOP_LEVEL_ID : u32 = 1;
+const TOP_LEVEL_ID: u32 = 1;
 
 #[test]
 fn one_group_one_layer_inside() {
@@ -57,18 +67,15 @@ fn one_group_one_layer_inside() {
     let group = psd.group_by_name("group").unwrap();
     assert_eq!(group.id(), TOP_LEVEL_ID);
 
-    let layer_parent_id = psd.layers().
-        get(0).
-        unwrap().
-        parent_id().
-        unwrap();
+    let layer_parent_id = psd.layers().get(0).unwrap().parent_id().unwrap();
 
     assert_eq!(layer_parent_id, group.id());
 }
 
 #[test]
 fn one_group_one_layer_inside_one_outside() {
-    let psd = include_bytes!("fixtures/groups/green-1x1-one-group-one-layer-inside-one-outside.psd");
+    let psd =
+        include_bytes!("fixtures/groups/green-1x1-one-group-one-layer-inside-one-outside.psd");
     let psd = Psd::from_bytes(psd).unwrap();
 
     // 1 layer outside + 1 layer inside
@@ -144,7 +151,6 @@ fn one_group_inside_another() {
     let layer = psd.layer_by_name("First Layer").unwrap();
     assert_eq!(children_group.id(), layer.parent_id().unwrap());
 }
-
 
 ///
 /// PSD file structure

@@ -131,15 +131,14 @@ impl PsdGroup {
         psd_height: u32,
         group_id: Option<u32>,
     ) -> Self {
-        let layer_properties = LayerProperties::from_layer_record(
-            name,
-            layer_record,
-            psd_width,
-            psd_height,
-            group_id,
-        );
+        let layer_properties =
+            LayerProperties::from_layer_record(name, layer_record, psd_width, psd_height, group_id);
 
-        PsdGroup { id, contained_layers, layer_properties }
+        PsdGroup {
+            id,
+            contained_layers,
+            layer_properties,
+        }
     }
 
     pub fn id(&self) -> u32 {
@@ -177,9 +176,9 @@ pub struct PsdLayer {
 #[derive(Debug, Fail)]
 pub enum PsdLayerError {
     #[fail(
-    display = r#"Could not combine Red, Green, Blue and Alpha.
+        display = r#"Could not combine Red, Green, Blue and Alpha.
         This layer is missing channel: {:#?}"#,
-    channel
+        channel
     )]
     MissingChannels { channel: PsdChannelKind },
     #[fail(display = r#"Unknown blending mode: {:#?}"#, mode)]
@@ -260,11 +259,10 @@ impl GroupDivider {
             1 => Some(GroupDivider::OpenFolder),
             2 => Some(GroupDivider::CloseFolder),
             3 => Some(GroupDivider::BoundingSection),
-            _ => None
+            _ => None,
         }
     }
 }
-
 
 /// BlendMode represents blending mode.
 #[derive(Debug, Clone, Copy)]
@@ -330,11 +328,10 @@ impl BlendMode {
             b"sat " => Some(BlendMode::Saturation),
             b"colr" => Some(BlendMode::Color),
             b"lum " => Some(BlendMode::Luminosity),
-            _ => None
+            _ => None,
         }
     }
 }
-
 
 /// A layer record within the layer info section
 ///

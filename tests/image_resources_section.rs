@@ -1,6 +1,5 @@
 use psd::{DescriptorField, Psd};
 
-
 // In this test we check that root descriptor's `bounds` field is equal to 1
 // So, then fields parsed correctly
 #[test]
