@@ -14,9 +14,14 @@ Types of changes:
 _Here we list notable things that have been merged into the master branch but have not been released yet._
 
 
+## 0.1.8 - April 23, 2020
+
+- [fixed] Parsing of slices resource section [PR][17]
+
 ## 0.1.7 - April 11, 2020
 
 - [added] Support for PSD groups [PR][13]
   - @tdakkota
 
 [13]: https://github.com/chinedufn/psd/pull/13
+[17]: https://github.com/chinedufn/psd/pull/17
