@@ -3,10 +3,3 @@ authors = ["Chinedu Francis Nwafili"]
 multilingual = false
 src = "src"
 title = "The Psd Book"
-
-[output.html]
-
-[output.linkcheck]
-follow-web-links = false
-traverse-parent-directories = true
-warning-policy = "error"
