@@ -161,13 +161,18 @@ impl<'a> PsdCursor<'a> {
         Ok(bytes)
     }
 
+    pub fn peek_u32(&self) -> Result<u32, Error> {
+        let bytes = self.peek_4()?;
+        Ok(u32_from_be_bytes(bytes))
+    }
+
     /// Peek at the next four bytes
-    pub fn peek_4(&mut self) -> Result<&[u8], Error> {
+    pub fn peek_4(&self) -> Result<&[u8], Error> {
         self.peek(4)
     }
 
     /// Get the next n bytes without moving the cursor
-    fn peek(&mut self, n: u8) -> Result<&[u8], Error> {
+    fn peek(&self, n: u8) -> Result<&[u8], Error> {
         let start = self.cursor.position() as usize;
         let end = start + n as usize;
         let bytes = &self.cursor.get_ref()[start..end];
@@ -218,11 +223,7 @@ impl<'a> PsdCursor<'a> {
     /// Read 4 bytes as a u32
     pub fn read_u32(&mut self) -> Result<u32, Error> {
         let bytes = self.read_4()?;
-
-        let mut array = [0; 4];
-        array.copy_from_slice(bytes);
-
-        Ok(u32::from_be_bytes(array))
+        Ok(u32_from_be_bytes(bytes))
     }
 
     /// Read 1 byte as a i8
@@ -332,4 +333,11 @@ fn u8_slice_to_u16(bytes: &[u8]) -> Vec<u16> {
         .into_iter()
         .map(|a| u16::from_be_bytes([a[0], a[1]]))
         .collect();
+}
+
+fn u32_from_be_bytes(bytes: &[u8]) -> u32 {
+    let mut array = [0; 4];
+    array.copy_from_slice(bytes);
+
+    u32::from_be_bytes(array)
 }
