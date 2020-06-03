@@ -3,11 +3,15 @@ use std::ops::Range;
 
 use failure::{Error, Fail};
 
+pub use crate::sections::image_resources_section::image_resource::ImageResource;
+use crate::sections::image_resources_section::image_resource::SlicesImageResource;
 use crate::sections::PsdCursor;
 
 const EXPECTED_RESOURCE_BLOCK_SIGNATURE: [u8; 4] = [56, 66, 73, 77];
-const EXPECTED_DESCRIPTOR_VERSION: [u8; 4] = [0, 0, 0, 16];
+const EXPECTED_DESCRIPTOR_VERSION: u32 = 16;
 const RESOURCE_SLICES_INFO: i16 = 1050;
+
+mod image_resource;
 
 struct ImageResourcesBlock {
     resource_id: i16,
@@ -17,7 +21,7 @@ struct ImageResourcesBlock {
 
 #[derive(Debug)]
 pub struct ImageResourcesSection {
-    pub descriptors: Option<Vec<DescriptorStructure>>,
+    pub(crate) resources: Vec<ImageResource>,
 }
 
 /// Represents an malformed resource block
@@ -34,18 +38,20 @@ impl ImageResourcesSection {
     pub fn from_bytes(bytes: &[u8]) -> Result<ImageResourcesSection, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
-        let mut descriptors = None;
+        let mut resources = vec![];
 
         let length = cursor.read_u32()? as u64;
 
         while cursor.position() < length {
             let block = ImageResourcesSection::read_resource_block(&mut cursor)?;
 
-            match block.resource_id {
-                RESOURCE_SLICES_INFO => {
-                    descriptors = Some(ImageResourcesSection::read_slice_block(
+            let rid = block.resource_id;
+            match rid {
+                _ if rid == RESOURCE_SLICES_INFO => {
+                    let slices_image_resource = ImageResourcesSection::read_slice_block(
                         &cursor.get_ref()[block.data_range],
-                    )?);
+                    )?;
+                    resources.push(ImageResource::Slices(slices_image_resource));
                 }
                 _ => {}
             }
@@ -53,7 +59,7 @@ impl ImageResourcesSection {
 
         assert_eq!(cursor.position(), length + 4);
 
-        Ok(ImageResourcesSection { descriptors })
+        Ok(ImageResourcesSection { resources })
     }
 
     /// +----------+--------------------------------------------------------------------------------------------------------------------+
@@ -102,7 +108,7 @@ impl ImageResourcesSection {
     /// | Variable | Name of group of slices: Unicode string                                              |
     /// | 4        | Number of slices to follow. See Slices resource block in the next table              |
     /// +----------+--------------------------------------------------------------------------------------+
-    fn read_slice_block(bytes: &[u8]) -> Result<Vec<DescriptorStructure>, Error> {
+    fn read_slice_block(bytes: &[u8]) -> Result<SlicesImageResource, Error> {
         let mut cursor = PsdCursor::new(bytes);
 
         let version = cursor.read_i32()?;
@@ -117,37 +123,23 @@ impl ImageResourcesSection {
         let _bottom = cursor.read_i32()?;
         let _right = cursor.read_i32()?;
 
-        let _group_of_slices_name = cursor.read_unicode_string()?;
+        let group_of_slices_name = cursor.read_unicode_string_padding(1)?;
 
-        let mut number_of_slices = cursor.read_u32()?;
+        let number_of_slices = cursor.read_u32()?;
 
-        // When a PSD file's name has 15 letters or 23 letters (and likely other counts),
-        // for some reason we see [0, 1, 0, 0] as the number of slices (65536).
-        //
-        // At the end of the image resources section parsing we assert that we parsed the correct
-        // number of bytes for the section, so it doesn't _seem_ to be an issue with reading the
-        // wrong data.
-        //
-        // Would be great to find a better solution for this.
-        //
-        // Perhaps when the group of slices name is a certain length the way we're reading unicode
-        // PSDs is incorrect. Not sure.
-        //
-        // @see tests/slices_resource.rs->name_of_psd_has_fifteen_letters
-        if number_of_slices == 65536 {
-            number_of_slices = 0;
-        }
-
-        let mut vec = Vec::new();
+        let mut descriptors = Vec::new();
 
         for _ in 0..number_of_slices {
             match ImageResourcesSection::read_slice_body(&mut cursor)? {
-                Some(v) => vec.push(v),
+                Some(v) => descriptors.push(v),
                 None => {}
             }
         }
 
-        Ok(vec)
+        Ok(SlicesImageResource {
+            name: group_of_slices_name,
+            descriptors,
+        })
     }
 
     /// Slices resource block
@@ -180,8 +172,8 @@ impl ImageResourcesSection {
     /// | Variable                                             | Descriptor (see See Descriptor structure)     |
     /// +------------------------------------------------------+-----------------------------------------------+
     fn read_slice_body(cursor: &mut PsdCursor) -> Result<Option<DescriptorStructure>, Error> {
-        let slice_id = cursor.read_i32()?;
-        let group_id = cursor.read_i32()?;
+        let _slice_id = cursor.read_i32()?;
+        let _group_id = cursor.read_i32()?;
         let origin = cursor.read_i32()?;
 
         // if origin = 1, Associated Layer ID is present
@@ -189,40 +181,32 @@ impl ImageResourcesSection {
             cursor.read_i32()?;
         }
 
-        // We do not currently parse name of group of slices, skip it
-        cursor.read_unicode_string_padding(1)?;
-        // We do not currently parse type, skip it
-        cursor.read_i32()?;
-        // We do not currently parse top, skip it
-        let top = cursor.read_i32()?;
-        // We do not currently parse left, skip it
-        let left = cursor.read_i32()?;
-        // We do not currently parse bottom, skip it
-        let bottom = cursor.read_i32()?;
-        // We do not currently parse right, skip it
-        let right = cursor.read_i32()?;
-        // We do not currently parse URL, skip it
-        cursor.read_unicode_string_padding(1)?;
-        // We do not currently parse target, skip it
-        cursor.read_unicode_string_padding(1)?;
-        // We do not currently parse message skip it
-        cursor.read_unicode_string_padding(1)?;
-        // We do not currently parse alt tag skip it
-        cursor.read_unicode_string_padding(1)?;
-        // We do not currently parse cell text HTML flag, skip it
-        cursor.read_1()?;
-        // We do not currently parse cell text, skip it
-        cursor.read_unicode_string_padding(1)?;
-        // We do not currently parse horizontal alignment, skip it
-        cursor.read_i32()?;
-        // We do not currently parse vertical alignment, skip it
-        cursor.read_i32()?;
-        // We do not currently parse color, skip it
-        // Note: in docs color is ARGB tuple
-        cursor.read_i32()?;
+        let _name = cursor.read_unicode_string_padding(1)?;
+
+        let _type = cursor.read_i32()?;
+
+        let _top = cursor.read_i32()?;
+        let _left = cursor.read_i32()?;
+        let _bottom = cursor.read_i32()?;
+        let _right = cursor.read_i32()?;
+
+        let _url = cursor.read_unicode_string_padding(1)?;
+
+        let _target = cursor.read_unicode_string_padding(1)?;
+
+        let _message = cursor.read_unicode_string_padding(1)?;
+
+        let _alt_tag = cursor.read_unicode_string_padding(1)?;
+
+        let _cell_text_html = cursor.read_1()?;
+        let _cell_text = cursor.read_unicode_string_padding(1)?;
+
+        let _horizontal_alignment = cursor.read_i32()?;
+        let _vertical_alignment = cursor.read_i32()?;
+        let _argb_color = cursor.read_i32()?;
 
         let pos = cursor.position();
-        let descriptor_version = cursor.peek_4()?;
+        let descriptor_version = cursor.peek_u32()?;
 
         Ok(if descriptor_version == EXPECTED_DESCRIPTOR_VERSION {
             cursor.read_4()?;
