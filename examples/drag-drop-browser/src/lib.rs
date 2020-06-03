@@ -143,6 +143,7 @@ impl App {
                 let checked = if checked { "true" } else { "false" };
 
                 let name = layer.name().to_string();
+                let name_node = html! { &name };
 
                 html! {
                 <div
@@ -165,8 +166,8 @@ impl App {
                        let msg = Msg::SetLayerVisibility(idx, input.checked());
                        store.borrow_mut().msg(&msg);
                      }
-                     >
-                    <span style="cursor: pointer; margin-left: 5px;">{ layer.name() }</span>
+                     />
+                    <span style="cursor: pointer; margin-left: 5px;">{ name_node }</span>
                   </label>
                 </div>
                 }
