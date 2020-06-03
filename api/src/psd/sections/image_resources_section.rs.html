@@ -739,33 +739,21 @@
 <span id="739">739</span>
 <span id="740">740</span>
 <span id="741">741</span>
-<span id="742">742</span>
-<span id="743">743</span>
-<span id="744">744</span>
-<span id="745">745</span>
-<span id="746">746</span>
-<span id="747">747</span>
-<span id="748">748</span>
-<span id="749">749</span>
-<span id="750">750</span>
-<span id="751">751</span>
-<span id="752">752</span>
-<span id="753">753</span>
-<span id="754">754</span>
-<span id="755">755</span>
-<span id="756">756</span>
-<span id="757">757</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Range</span>;
 
 <span class="kw">use</span> <span class="ident">failure</span>::{<span class="ident">Error</span>, <span class="ident">Fail</span>};
 
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::<span class="ident">image_resource</span>::<span class="ident">ImageResource</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_resources_section</span>::<span class="ident">image_resource</span>::<span class="ident">SlicesImageResource</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">PsdCursor</span>;
 
 <span class="kw">const</span> <span class="ident">EXPECTED_RESOURCE_BLOCK_SIGNATURE</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">56</span>, <span class="number">66</span>, <span class="number">73</span>, <span class="number">77</span>];
-<span class="kw">const</span> <span class="ident">EXPECTED_DESCRIPTOR_VERSION</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">16</span>];
+<span class="kw">const</span> <span class="ident">EXPECTED_DESCRIPTOR_VERSION</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">16</span>;
 <span class="kw">const</span> <span class="ident">RESOURCE_SLICES_INFO</span>: <span class="ident">i16</span> <span class="op">=</span> <span class="number">1050</span>;
+
+<span class="kw">mod</span> <span class="ident">image_resource</span>;
 
 <span class="kw">struct</span> <span class="ident">ImageResourcesBlock</span> {
     <span class="ident">resource_id</span>: <span class="ident">i16</span>,
@@ -775,7 +763,7 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ImageResourcesSection</span> {
-    <span class="kw">pub</span> <span class="ident">descriptors</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DescriptorStructure</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">resources</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ImageResource</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Represents an malformed resource block</span>
@@ -792,18 +780,20 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImageResourcesSection</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">PsdCursor</span>::<span class="ident">new</span>(<span class="ident">bytes</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">descriptors</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">resources</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
 
         <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">u64</span>;
 
         <span class="kw">while</span> <span class="ident">cursor</span>.<span class="ident">position</span>() <span class="op">&lt;</span> <span class="ident">length</span> {
             <span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">ImageResourcesSection</span>::<span class="ident">read_resource_block</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cursor</span>)<span class="question-mark">?</span>;
 
-            <span class="kw">match</span> <span class="ident">block</span>.<span class="ident">resource_id</span> {
-                <span class="ident">RESOURCE_SLICES_INFO</span> <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="ident">descriptors</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ImageResourcesSection</span>::<span class="ident">read_slice_block</span>(
+            <span class="kw">let</span> <span class="ident">rid</span> <span class="op">=</span> <span class="ident">block</span>.<span class="ident">resource_id</span>;
+            <span class="kw">match</span> <span class="ident">rid</span> {
+                <span class="kw">_</span> <span class="kw">if</span> <span class="ident">rid</span> <span class="op">=</span><span class="op">=</span> <span class="ident">RESOURCE_SLICES_INFO</span> <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">slices_image_resource</span> <span class="op">=</span> <span class="ident">ImageResourcesSection</span>::<span class="ident">read_slice_block</span>(
                         <span class="kw-2">&amp;</span><span class="ident">cursor</span>.<span class="ident">get_ref</span>()[<span class="ident">block</span>.<span class="ident">data_range</span>],
-                    )<span class="question-mark">?</span>);
+                    )<span class="question-mark">?</span>;
+                    <span class="ident">resources</span>.<span class="ident">push</span>(<span class="ident">ImageResource</span>::<span class="ident">Slices</span>(<span class="ident">slices_image_resource</span>));
                 }
                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {}
             }
@@ -811,7 +801,7 @@
 
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">cursor</span>.<span class="ident">position</span>(), <span class="ident">length</span> <span class="op">+</span> <span class="number">4</span>);
 
-        <span class="prelude-val">Ok</span>(<span class="ident">ImageResourcesSection</span> { <span class="ident">descriptors</span> })
+        <span class="prelude-val">Ok</span>(<span class="ident">ImageResourcesSection</span> { <span class="ident">resources</span> })
     }
 
     <span class="doccomment">/// +----------+--------------------------------------------------------------------------------------------------------------------+</span>
@@ -860,7 +850,7 @@
     <span class="doccomment">/// | Variable | Name of group of slices: Unicode string                                              |</span>
     <span class="doccomment">/// | 4        | Number of slices to follow. See Slices resource block in the next table              |</span>
     <span class="doccomment">/// +----------+--------------------------------------------------------------------------------------+</span>
-    <span class="kw">fn</span> <span class="ident">read_slice_block</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DescriptorStructure</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">read_slice_block</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SlicesImageResource</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">PsdCursor</span>::<span class="ident">new</span>(<span class="ident">bytes</span>);
 
         <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
@@ -875,37 +865,23 @@
         <span class="kw">let</span> <span class="ident">_bottom</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">_right</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">_group_of_slices_name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">group_of_slices_name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">number_of_slices</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">number_of_slices</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u32</span>()<span class="question-mark">?</span>;
 
-        <span class="comment">// When a PSD file&#39;s name has 15 letters or 23 letters (and likely other counts),</span>
-        <span class="comment">// for some reason we see [0, 1, 0, 0] as the number of slices (65536).</span>
-        <span class="comment">//</span>
-        <span class="comment">// At the end of the image resources section parsing we assert that we parsed the correct</span>
-        <span class="comment">// number of bytes for the section, so it doesn&#39;t _seem_ to be an issue with reading the</span>
-        <span class="comment">// wrong data.</span>
-        <span class="comment">//</span>
-        <span class="comment">// Would be great to find a better solution for this.</span>
-        <span class="comment">//</span>
-        <span class="comment">// Perhaps when the group of slices name is a certain length the way we&#39;re reading unicode</span>
-        <span class="comment">// PSDs is incorrect. Not sure.</span>
-        <span class="comment">//</span>
-        <span class="comment">// @see tests/slices_resource.rs-&gt;name_of_psd_has_fifteen_letters</span>
-        <span class="kw">if</span> <span class="ident">number_of_slices</span> <span class="op">=</span><span class="op">=</span> <span class="number">65536</span> {
-            <span class="ident">number_of_slices</span> <span class="op">=</span> <span class="number">0</span>;
-        }
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vec</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">descriptors</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 
         <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">number_of_slices</span> {
             <span class="kw">match</span> <span class="ident">ImageResourcesSection</span>::<span class="ident">read_slice_body</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cursor</span>)<span class="question-mark">?</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">vec</span>.<span class="ident">push</span>(<span class="ident">v</span>),
+                <span class="prelude-val">Some</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">descriptors</span>.<span class="ident">push</span>(<span class="ident">v</span>),
                 <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {}
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">vec</span>)
+        <span class="prelude-val">Ok</span>(<span class="ident">SlicesImageResource</span> {
+            <span class="ident">name</span>: <span class="ident">group_of_slices_name</span>,
+            <span class="ident">descriptors</span>,
+        })
     }
 
     <span class="doccomment">/// Slices resource block</span>
@@ -938,8 +914,8 @@
     <span class="doccomment">/// | Variable                                             | Descriptor (see See Descriptor structure)     |</span>
     <span class="doccomment">/// +------------------------------------------------------+-----------------------------------------------+</span>
     <span class="kw">fn</span> <span class="ident">read_slice_body</span>(<span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PsdCursor</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DescriptorStructure</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">slice_id</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">group_id</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_slice_id</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_group_id</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">origin</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
 
         <span class="comment">// if origin = 1, Associated Layer ID is present</span>
@@ -947,40 +923,32 @@
             <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
         }
 
-        <span class="comment">// We do not currently parse name of group of slices, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse type, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse top, skip it</span>
-        <span class="kw">let</span> <span class="ident">top</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse left, skip it</span>
-        <span class="kw">let</span> <span class="ident">left</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse bottom, skip it</span>
-        <span class="kw">let</span> <span class="ident">bottom</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse right, skip it</span>
-        <span class="kw">let</span> <span class="ident">right</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse URL, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse target, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse message skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse alt tag skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse cell text HTML flag, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_1</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse cell text, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse horizontal alignment, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse vertical alignment, skip it</span>
-        <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
-        <span class="comment">// We do not currently parse color, skip it</span>
-        <span class="comment">// Note: in docs color is ARGB tuple</span>
-        <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_name</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_type</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_top</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_left</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_bottom</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_right</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_url</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_target</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_message</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_alt_tag</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_cell_text_html</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_1</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_cell_text</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_unicode_string_padding</span>(<span class="number">1</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">_horizontal_alignment</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_vertical_alignment</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">_argb_color</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_i32</span>()<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">pos</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">position</span>();
-        <span class="kw">let</span> <span class="ident">descriptor_version</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">peek_4</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">descriptor_version</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">peek_u32</span>()<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="kw">if</span> <span class="ident">descriptor_version</span> <span class="op">=</span><span class="op">=</span> <span class="ident">EXPECTED_DESCRIPTOR_VERSION</span> {
             <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
@@ -1514,4 +1482,4 @@
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "psd";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "psd";</script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>
