@@ -13,7 +13,7 @@ use std::path::PathBuf;
 /// https://github.com/chinedufn/psd/pull/17
 /// https://github.com/chinedufn/psd/pull/18
 ///
-/// cargo test --test slices_resource name_of_psd_has_fifteen_letters -- --exact
+/// cargo test --test slices_resource name_of_slices_resource_group -- --exact
 #[test]
 fn name_of_slices_resource_group() {
     let fixtures = ["1.psd", "12.psd", "123.psd", "1234.psd"];
