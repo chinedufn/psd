@@ -1,3 +1,6 @@
+//! FIXME: Combine these all into one test that iterates through a vector of
+//! (PathBuf, [f32; 4])
+
 use failure::Error;
 use psd::Psd;
 
