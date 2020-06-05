@@ -155,7 +155,7 @@ fn multiply(color_b: f32, color_s: f32) -> f32 {
 ///
 /// Darkens the backdrop color to reflect the source color. Painting with white produces no change.
 ///
-/// ```ignore
+/// ```text
 /// if(Cb == 1)
 ///     B(Cb, Cs) = 1
 /// else
@@ -217,7 +217,7 @@ fn screen(color_b: f32, color_s: f32) -> f32 {
 ///
 /// Brightens the backdrop color to reflect the source color. Painting with black produces no changes.
 ///
-/// ```ignore
+/// ```text
 /// if(Cb == 0)
 ///     B(Cb, Cs) = 0
 /// else if(Cs == 1)
@@ -271,14 +271,14 @@ fn overlay(color_b: f32, color_s: f32) -> f32 {
 /// Darkens or lightens the colors, depending on the source color value.
 /// The effect is similar to shining a diffused spotlight on the backdrop.
 ///
-/// ```ignore
+/// ```text
 /// if(Cs <= 0.5)
 ///     B(Cb, Cs) = Cb - (1 - 2 x Cs) x Cb x (1 - Cb)
 /// else
 ///     B(Cb, Cs) = Cb + (2 x Cs - 1) x (D(Cb) - Cb)
 /// ```
 /// with
-/// ```ignore
+/// ```text
 /// if(Cb <= 0.25)
 ///     D(Cb) = ((16 * Cb - 12) x Cb + 4) x Cb
 /// else
@@ -305,7 +305,7 @@ fn soft_light(color_b: f32, color_s: f32) -> f32 {
 /// Multiplies or screens the colors, depending on the source color value.
 /// The effect is similar to shining a harsh spotlight on the backdrop.
 ///
-/// ```ignore
+/// ```text
 /// if(Cs <= 0.5)
 ///     B(Cb, Cs) = Multiply(Cb, 2 x Cs) = 2 x Cb x Cs
 /// else

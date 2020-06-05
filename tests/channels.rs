@@ -3,6 +3,7 @@ use psd::ColorMode;
 use psd::Psd;
 use psd::PsdDepth;
 
+/// cargo test --test channels one_channel_grayscale_raw_data -- --exact
 #[test]
 fn one_channel_grayscale_raw_data() -> Result<(), Error> {
     let psd = include_bytes!("./fixtures/one-channel-1x1.psd");
@@ -28,6 +29,8 @@ fn one_channel_grayscale_raw_data() -> Result<(), Error> {
 /// Similarly, our colors appear to be slightly off. Usually by 10 or so units (out of 255).
 ///
 /// We can investigate this in further in the future.
+///
+/// cargo test --test channels two_channel_grayscale_raw_data -- --exact
 #[test]
 fn two_channel_grayscale_raw_data() -> Result<(), Error> {
     let psd = include_bytes!("./fixtures/two-channel-8x8.psd");
@@ -40,6 +43,7 @@ fn two_channel_grayscale_raw_data() -> Result<(), Error> {
     //
     // We used the eyedropper tool in photoshop to get the exact color of the top right pixel.
     // Verify that it appear here.
+    // TODO:
     /*
     let top_right_pixel = 7 * 4;
     let expected_top_right = &[27, 27, 27, 255];

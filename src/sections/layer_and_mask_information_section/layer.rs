@@ -141,6 +141,7 @@ impl PsdGroup {
         }
     }
 
+    /// A unique identifier for the layer within the PSD file
     pub fn id(&self) -> u32 {
         self.id
     }
