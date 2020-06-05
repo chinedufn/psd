@@ -27,6 +27,7 @@ use crate::sections::MajorSections;
 
 use self::sections::file_header_section::FileHeaderSection;
 
+mod blend;
 mod psd_channel;
 mod sections;
 
@@ -196,17 +197,14 @@ impl Psd {
         }
 
         // Filter out layers based on the passed in filter.
-        let mut layers_to_flatten_bottom_to_top: Vec<(usize, &PsdLayer)> = self
+        let layers_to_flatten_top_to_bottom: Vec<(usize, &PsdLayer)> = self
             .layers()
             .iter()
-            .rev()
             .enumerate()
+            // here we filter transparent layers and invisible layers
+            .filter(|(_, layer)| (layer.opacity > 0 && layer.visible) || layer.clipping_mask)
             .filter(|(idx, layer)| filter((*idx, layer)))
             .collect();
-        layers_to_flatten_bottom_to_top.reverse();
-
-        // index 0 = top layer ... index len = bottom layer
-        let layers_to_flatten_top_to_bottom = layers_to_flatten_bottom_to_top;
 
         let pixel_count = self.width() * self.height();
 
@@ -309,51 +307,35 @@ impl Psd {
             let pixel = &layer_rgba[start..end];
             let mut copy = [0; 4];
             copy.copy_from_slice(pixel);
+
+            blend::apply_opacity(&mut copy, layer.opacity);
             copy
         };
 
         // This pixel is fully opaque, return it
-        if pixel[3] == 255 {
+        let pixel = if pixel[3] == 255 && layer.opacity == 255 {
             pixel
         } else {
             // If this pixel has some transparency, blend it with the layer below it
-
-            let mut final_pixel = [0; 4];
-
-            match flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
+            if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
+                let mut final_pixel = [0; 4];
                 // This pixel has some transparency and there is a pixel below it, blend them
-                true => {
-                    let pixel_below = self.flattened_pixel(
-                        flattened_layer_top_down_idx + 1,
-                        pixel_coord,
-                        layers_to_flatten_top_down,
-                        cached_layer_rgba,
-                    );
+                let pixel_below = self.flattened_pixel(
+                    flattened_layer_top_down_idx + 1,
+                    pixel_coord,
+                    layers_to_flatten_top_down,
+                    cached_layer_rgba,
+                );
 
-                    blend_pixels(pixel, pixel_below, &mut final_pixel);
-                    final_pixel
-                }
+                blend::blend_pixels(pixel, pixel_below, layer.blend_mode, &mut final_pixel);
+                final_pixel
+            } else {
                 // There is no pixel below this layer, so use it even though it has transparency
-                false => pixel,
+                pixel
             }
-        }
+        };
+        pixel
     }
-}
-
-// blend the two pixels.
-//
-// TODO: Take the layer's blend mode into account when blending layers. Right now
-// we just use ONE_MINUS_SRC_ALPHA blending regardless of the layer.
-// Didn't bother cleaning this up to be readable since we need to replace it
-// anyways. Need to blend based on the layer's blend mode.
-fn blend_pixels(top: [u8; 4], bottom: [u8; 4], out: &mut [u8; 4]) {
-    let top_alpha = top[3] as f32 / 255.;
-
-    out[0] = (bottom[0] as f32 + ((top[0] as f32 - bottom[0] as f32) * top_alpha)) as u8;
-    out[1] = (bottom[1] as f32 + ((top[1] as f32 - bottom[1] as f32) * top_alpha)) as u8;
-    out[2] = (bottom[2] as f32 + ((top[2] as f32 - bottom[2] as f32) * top_alpha)) as u8;
-
-    out[3] = 255;
 }
 
 // Methods for working with the final flattened image data
