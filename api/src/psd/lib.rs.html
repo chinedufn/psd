@@ -414,24 +414,6 @@
 <span id="414">414</span>
 <span id="415">415</span>
 <span id="416">416</span>
-<span id="417">417</span>
-<span id="418">418</span>
-<span id="419">419</span>
-<span id="420">420</span>
-<span id="421">421</span>
-<span id="422">422</span>
-<span id="423">423</span>
-<span id="424">424</span>
-<span id="425">425</span>
-<span id="426">426</span>
-<span id="427">427</span>
-<span id="428">428</span>
-<span id="429">429</span>
-<span id="430">430</span>
-<span id="431">431</span>
-<span id="432">432</span>
-<span id="433">433</span>
-<span id="434">434</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Data structures and methods for working with PSD files.</span>
 <span class="doccomment">//!</span>
@@ -462,6 +444,7 @@
 
 <span class="kw">use</span> <span class="self">self</span>::<span class="ident">sections</span>::<span class="ident">file_header_section</span>::<span class="ident">FileHeaderSection</span>;
 
+<span class="kw">mod</span> <span class="ident">blend</span>;
 <span class="kw">mod</span> <span class="ident">psd_channel</span>;
 <span class="kw">mod</span> <span class="ident">sections</span>;
 
@@ -631,17 +614,14 @@
         }
 
         <span class="comment">// Filter out layers based on the passed in filter.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">layers_to_flatten_bottom_to_top</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="ident">PsdLayer</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">layers_to_flatten_top_to_bottom</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="ident">PsdLayer</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">layers</span>()
             .<span class="ident">iter</span>()
-            .<span class="ident">rev</span>()
             .<span class="ident">enumerate</span>()
+            <span class="comment">// here we filter transparent layers and invisible layers</span>
+            .<span class="ident">filter</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">layer</span>)<span class="op">|</span> (<span class="ident">layer</span>.<span class="ident">opacity</span> <span class="op">&gt;</span> <span class="number">0</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">layer</span>.<span class="ident">visible</span>) <span class="op">|</span><span class="op">|</span> <span class="ident">layer</span>.<span class="ident">clipping_mask</span>)
             .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">idx</span>, <span class="ident">layer</span>)<span class="op">|</span> <span class="ident">filter</span>((<span class="kw-2">*</span><span class="ident">idx</span>, <span class="ident">layer</span>)))
             .<span class="ident">collect</span>();
-        <span class="ident">layers_to_flatten_bottom_to_top</span>.<span class="ident">reverse</span>();
-
-        <span class="comment">// index 0 = top layer ... index len = bottom layer</span>
-        <span class="kw">let</span> <span class="ident">layers_to_flatten_top_to_bottom</span> <span class="op">=</span> <span class="ident">layers_to_flatten_bottom_to_top</span>;
 
         <span class="kw">let</span> <span class="ident">pixel_count</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">width</span>() <span class="op">*</span> <span class="self">self</span>.<span class="ident">height</span>();
 
@@ -744,51 +724,35 @@
             <span class="kw">let</span> <span class="ident">pixel</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">layer_rgba</span>[<span class="ident">start</span>..<span class="ident">end</span>];
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">copy</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">4</span>];
             <span class="ident">copy</span>.<span class="ident">copy_from_slice</span>(<span class="ident">pixel</span>);
+
+            <span class="ident">blend</span>::<span class="ident">apply_opacity</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">copy</span>, <span class="ident">layer</span>.<span class="ident">opacity</span>);
             <span class="ident">copy</span>
         };
 
         <span class="comment">// This pixel is fully opaque, return it</span>
-        <span class="kw">if</span> <span class="ident">pixel</span>[<span class="number">3</span>] <span class="op">=</span><span class="op">=</span> <span class="number">255</span> {
+        <span class="kw">let</span> <span class="ident">pixel</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">pixel</span>[<span class="number">3</span>] <span class="op">=</span><span class="op">=</span> <span class="number">255</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">layer</span>.<span class="ident">opacity</span> <span class="op">=</span><span class="op">=</span> <span class="number">255</span> {
             <span class="ident">pixel</span>
         } <span class="kw">else</span> {
             <span class="comment">// If this pixel has some transparency, blend it with the layer below it</span>
-
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">final_pixel</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">4</span>];
-
-            <span class="kw">match</span> <span class="ident">flattened_layer_top_down_idx</span> <span class="op">+</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="ident">layers_to_flatten_top_down</span>.<span class="ident">len</span>() {
+            <span class="kw">if</span> <span class="ident">flattened_layer_top_down_idx</span> <span class="op">+</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="ident">layers_to_flatten_top_down</span>.<span class="ident">len</span>() {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">final_pixel</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">4</span>];
                 <span class="comment">// This pixel has some transparency and there is a pixel below it, blend them</span>
-                <span class="bool-val">true</span> <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">pixel_below</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">flattened_pixel</span>(
-                        <span class="ident">flattened_layer_top_down_idx</span> <span class="op">+</span> <span class="number">1</span>,
-                        <span class="ident">pixel_coord</span>,
-                        <span class="ident">layers_to_flatten_top_down</span>,
-                        <span class="ident">cached_layer_rgba</span>,
-                    );
+                <span class="kw">let</span> <span class="ident">pixel_below</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">flattened_pixel</span>(
+                    <span class="ident">flattened_layer_top_down_idx</span> <span class="op">+</span> <span class="number">1</span>,
+                    <span class="ident">pixel_coord</span>,
+                    <span class="ident">layers_to_flatten_top_down</span>,
+                    <span class="ident">cached_layer_rgba</span>,
+                );
 
-                    <span class="ident">blend_pixels</span>(<span class="ident">pixel</span>, <span class="ident">pixel_below</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">final_pixel</span>);
-                    <span class="ident">final_pixel</span>
-                }
+                <span class="ident">blend</span>::<span class="ident">blend_pixels</span>(<span class="ident">pixel</span>, <span class="ident">pixel_below</span>, <span class="ident">layer</span>.<span class="ident">blend_mode</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">final_pixel</span>);
+                <span class="ident">final_pixel</span>
+            } <span class="kw">else</span> {
                 <span class="comment">// There is no pixel below this layer, so use it even though it has transparency</span>
-                <span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">pixel</span>,
+                <span class="ident">pixel</span>
             }
-        }
+        };
+        <span class="ident">pixel</span>
     }
-}
-
-<span class="comment">// blend the two pixels.</span>
-<span class="comment">//</span>
-<span class="comment">// TODO: Take the layer&#39;s blend mode into account when blending layers. Right now</span>
-<span class="comment">// we just use ONE_MINUS_SRC_ALPHA blending regardless of the layer.</span>
-<span class="comment">// Didn&#39;t bother cleaning this up to be readable since we need to replace it</span>
-<span class="comment">// anyways. Need to blend based on the layer&#39;s blend mode.</span>
-<span class="kw">fn</span> <span class="ident">blend_pixels</span>(<span class="ident">top</span>: [<span class="ident">u8</span>; <span class="number">4</span>], <span class="ident">bottom</span>: [<span class="ident">u8</span>; <span class="number">4</span>], <span class="ident">out</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>; <span class="number">4</span>]) {
-    <span class="kw">let</span> <span class="ident">top_alpha</span> <span class="op">=</span> <span class="ident">top</span>[<span class="number">3</span>] <span class="kw">as</span> <span class="ident">f32</span> <span class="op">/</span> <span class="number">255.</span>;
-
-    <span class="ident">out</span>[<span class="number">0</span>] <span class="op">=</span> (<span class="ident">bottom</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="ident">f32</span> <span class="op">+</span> ((<span class="ident">top</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="ident">f32</span> <span class="op">-</span> <span class="ident">bottom</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="ident">f32</span>) <span class="op">*</span> <span class="ident">top_alpha</span>)) <span class="kw">as</span> <span class="ident">u8</span>;
-    <span class="ident">out</span>[<span class="number">1</span>] <span class="op">=</span> (<span class="ident">bottom</span>[<span class="number">1</span>] <span class="kw">as</span> <span class="ident">f32</span> <span class="op">+</span> ((<span class="ident">top</span>[<span class="number">1</span>] <span class="kw">as</span> <span class="ident">f32</span> <span class="op">-</span> <span class="ident">bottom</span>[<span class="number">1</span>] <span class="kw">as</span> <span class="ident">f32</span>) <span class="op">*</span> <span class="ident">top_alpha</span>)) <span class="kw">as</span> <span class="ident">u8</span>;
-    <span class="ident">out</span>[<span class="number">2</span>] <span class="op">=</span> (<span class="ident">bottom</span>[<span class="number">2</span>] <span class="kw">as</span> <span class="ident">f32</span> <span class="op">+</span> ((<span class="ident">top</span>[<span class="number">2</span>] <span class="kw">as</span> <span class="ident">f32</span> <span class="op">-</span> <span class="ident">bottom</span>[<span class="number">2</span>] <span class="kw">as</span> <span class="ident">f32</span>) <span class="op">*</span> <span class="ident">top_alpha</span>)) <span class="kw">as</span> <span class="ident">u8</span>;
-
-    <span class="ident">out</span>[<span class="number">3</span>] <span class="op">=</span> <span class="number">255</span>;
 }
 
 <span class="comment">// Methods for working with the final flattened image data</span>

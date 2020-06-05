@@ -444,6 +444,19 @@
 <span id="444">444</span>
 <span id="445">445</span>
 <span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Cow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
@@ -457,7 +470,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">image_data_section</span>::<span class="ident">ChannelBytes</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">container</span>::<span class="ident">NamedItems</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">layer_and_mask_information_section</span>::<span class="ident">layer</span>::{
-    <span class="ident">GroupDivider</span>, <span class="ident">LayerChannels</span>, <span class="ident">LayerRecord</span>, <span class="ident">PsdGroup</span>, <span class="ident">PsdLayer</span>,
+    <span class="ident">BlendMode</span>, <span class="ident">GroupDivider</span>, <span class="ident">LayerChannels</span>, <span class="ident">LayerRecord</span>, <span class="ident">PsdGroup</span>, <span class="ident">PsdLayer</span>, <span class="ident">PsdLayerError</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sections</span>::<span class="ident">PsdCursor</span>;
 
@@ -805,17 +818,26 @@
     <span class="comment">// We do not currently parse the blend mode signature, skip it</span>
     <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
 
-    <span class="comment">// We do not currently parse the blend mode key, skip it</span>
-    <span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">key</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">4</span>];
+    <span class="ident">key</span>.<span class="ident">copy_from_slice</span>(<span class="ident">cursor</span>.<span class="ident">read_4</span>()<span class="question-mark">?</span>);
+    <span class="kw">let</span> <span class="ident">blend_mode</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">BlendMode</span>::<span class="ident">match_mode</span>(<span class="ident">key</span>) {
+        <span class="prelude-val">Some</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">v</span>,
+        <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">PsdLayerError</span>::<span class="ident">UnknownBlendingMode</span> { <span class="ident">mode</span>: <span class="ident">key</span> }.<span class="ident">into</span>()),
+    };
 
-    <span class="comment">// We do not currently parse the opacity, skip it</span>
-    <span class="ident">cursor</span>.<span class="ident">read_1</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">opacity</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u8</span>()<span class="question-mark">?</span>;
 
-    <span class="comment">// We do not currently parse the clipping, skip it</span>
-    <span class="ident">cursor</span>.<span class="ident">read_1</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">clipping_base</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u8</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">clipping_base</span> <span class="op">=</span> <span class="ident">clipping_base</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>;
 
-    <span class="comment">// We do not currently parse the flags, skip it</span>
-    <span class="ident">cursor</span>.<span class="ident">read_1</span>()<span class="question-mark">?</span>;
+    <span class="comment">// We do not currently parse all flags, only visible</span>
+    <span class="comment">// Flags:</span>
+    <span class="comment">//  - bit 0 = transparency protected;</span>
+    <span class="comment">//  - bit 1 = visible;</span>
+    <span class="comment">//  - bit 2 = obsolete;</span>
+    <span class="comment">//  - bit 3 = 1 for Photoshop 5.0 and later, tells if bit 4 has useful information;</span>
+    <span class="comment">//  - bit 4 = pixel data irrelevant to appearance of document</span>
+    <span class="kw">let</span> <span class="ident">visible</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">read_u8</span>()<span class="question-mark">?</span> <span class="op">&amp;</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">1</span>) <span class="op">!</span><span class="op">=</span> <span class="number">0</span>; <span class="comment">// here we get second bit - visible</span>
 
     <span class="comment">// We do not currently parse the filter, skip it</span>
     <span class="ident">cursor</span>.<span class="ident">read_1</span>()<span class="question-mark">?</span>;
@@ -888,6 +910,10 @@
         <span class="ident">left</span>,
         <span class="ident">bottom</span>,
         <span class="ident">right</span>,
+        <span class="ident">visible</span>,
+        <span class="ident">opacity</span>,
+        <span class="ident">clipping_base</span>,
+        <span class="ident">blend_mode</span>,
         <span class="ident">divider_type</span>,
     })
 }
