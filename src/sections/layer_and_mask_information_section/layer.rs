@@ -264,8 +264,9 @@ impl GroupDivider {
     }
 }
 
-/// BlendMode represents blending mode.
+/// Describes how to blend a layer with the layer below it
 #[derive(Debug, Clone, Copy)]
+#[allow(missing_docs)]
 pub enum BlendMode {
     PassThrough = 0,
     Normal = 1,
