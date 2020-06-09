@@ -142,8 +142,7 @@ impl App {
 
                 let checked = if checked { "true" } else { "false" };
 
-                let name = layer.name().to_string();
-                let name_node = html! { &name };
+                let name = layer.name();
 
                 html! {
                 <div
@@ -167,7 +166,7 @@ impl App {
                        store.borrow_mut().msg(&msg);
                      }
                      />
-                    <span style="cursor: pointer; margin-left: 5px;">{ name_node }</span>
+                    <span style="cursor: pointer; margin-left: 5px;">{ name.to_string() }</span>
                   </label>
                 </div>
                 }
@@ -218,7 +217,7 @@ impl App {
                     onload.forget();
                  }
                >
-                 <strong>Drag and drop here to upload a PSD</strong>
+                 <strong>{ "Drag and drop here to upload a PSD" }</strong>
                </div>
              </div>
 

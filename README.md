@@ -12,6 +12,8 @@ The `psd` crate can be compiled to WebAssembly and used in a browser.
 In the [live demo](https://chinedufn.github.io/psd/drag-drop-demo/) you can visualize a PSD in the browser,
 toggle layers on and off and drag and drop a new PSD into the demo.
 
+![Demo screenshot](./examples/drag-drop-browser/demo-screenshot.png)
+
 ## The Psd Book
 
 The _WIP_ [The Psd Book](https://chinedufn.github.io/psd) will contain information about getting started with the `psd` crate,
