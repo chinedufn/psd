@@ -1,0 +1,20 @@
+# Only Exporting Certain Layers
+
+One use case that the `psd` crate is designed to support is an asset pipeline where you're extracting image data from PSD files in order to convert it into the format that your
+application works with (such as PNG).
+
+In order to support that use case we grant control over exactly which layers in your PSD get exported via the [flatten_layers_rgba][flatten-fn] funcion.
+
+You provide a filter function and any layers that pass your filter (return true) will get blended from top to bottom into a final image.
+
+Here's an example of compositing a final image from layers that do not have names that begin with an underscore.
+
+```rust,no_run,ignore
+let psd = include_bytes!("./my-psd-file.psd");
+
+let pixels: Vec<u8> = psd.flatten_layers_rgba(&|(_idx, layer) {
+   !layer.name().started_with("_")
+}).unwrap();
+```
+
+[flatten-fn]: https://chinedufn.github.io/psd/api/psd/struct.Psd.html#method.flatten_layers_rgba
