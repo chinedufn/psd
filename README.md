@@ -5,17 +5,19 @@ psd
 
 > A Rust API for parsing and working with PSD files.
 
-## [Live Demo](https://chinedufn.github.io/psd/drag-drop-demo/)
+## Live Demo
+
+The `psd` crate can be compiled to WebAssembly and used in a browser.
 
 In the [live demo](https://chinedufn.github.io/psd/drag-drop-demo/) you can visualize a PSD in the browser,
 toggle layers on and off and drag and drop a new PSD into the demo.
 
-## [The Psd Book](https://chinedufn.github.io/psd)
+## The Psd Book
 
 The _WIP_ [The Psd Book](https://chinedufn.github.io/psd) will contain information about getting started with the `psd` crate,
 a description of the architecture and information on how to get started.
 
-## [API Docs](https://chinedufn.github.io/psd/api/psd)
+## API Docs
 
 Check out the [API documentation](https://chinedufn.github.io/psd/api/psd) to see everything that you can currently access.
 
