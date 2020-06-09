@@ -14,6 +14,8 @@ toggle layers on and off and drag and drop a new PSD into the demo.
 
 ![Demo screenshot](./examples/drag-drop-browser/demo-screenshot.png)
 
+Check out the [examples/drag-drop-browser](examples/drag-drop-browser) directory for instructions on running the demo locally.
+
 ## The Psd Book
 
 The _WIP_ [The Psd Book](https://chinedufn.github.io/psd) will contain information about getting started with the `psd` crate,
