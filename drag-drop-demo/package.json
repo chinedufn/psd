@@ -8,5 +8,6 @@
     "drag_drop_browser_bg.wasm",
     "drag_drop_browser.js"
   ],
-  "browser": "drag_drop_browser.js"
+  "module": "drag_drop_browser.js",
+  "sideEffects": false
 }

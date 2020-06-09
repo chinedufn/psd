@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Contributing - The Psd Book</title>
+        <title>Only Exporting Certain Layers - The Psd Book</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,7 +75,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="../introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="../user-guide/index.html"><strong aria-hidden="true">1.</strong> User Guide</a></li><li><ol class="section"><li><a href="../controlling-exported-layers/index.html"><strong aria-hidden="true">1.1.</strong> Only Exporting Certain Layers</a></li><li><a href="../layer-groups/index.html"><strong aria-hidden="true">1.2.</strong> Layer Groups</a></li></ol></li><li><a href="../contributing/index.html" class="active"><strong aria-hidden="true">2.</strong> Contributing</a></li><li><ol class="section"><li><a href="../contributing/internal-design/index.html"><strong aria-hidden="true">2.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="../contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">2.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="../introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="../user-guide/index.html"><strong aria-hidden="true">1.</strong> User Guide</a></li><li><ol class="section"><li><a href="../controlling-exported-layers/index.html" class="active"><strong aria-hidden="true">1.1.</strong> Only Exporting Certain Layers</a></li><li><a href="../layer-groups/index.html"><strong aria-hidden="true">1.2.</strong> Layer Groups</a></li></ol></li><li><a href="../contributing/index.html"><strong aria-hidden="true">2.</strong> Contributing</a></li><li><ol class="section"><li><a href="../contributing/internal-design/index.html"><strong aria-hidden="true">2.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="../contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">2.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -140,21 +140,31 @@
 
                 <div id="content" class="content">
                     <main>
-                        <a class="header" href="#contributing" id="contributing"><h1>Contributing</h1></a>
-<p>This section dives into contributing to the <code>psd</code> crate.</p>
+                        <a class="header" href="#only-exporting-certain-layers" id="only-exporting-certain-layers"><h1>Only Exporting Certain Layers</h1></a>
+<p>One use case that the <code>psd</code> crate is designed to support is an asset pipeline where you're extracting image data from PSD files in order to convert it into the format that your
+application works with (such as PNG).</p>
+<p>In order to support that use case we grant control over exactly which layers in your PSD get exported via the <a href="https://chinedufn.github.io/psd/api/psd/struct.Psd.html#method.flatten_layers_rgba">flatten_layers_rgba</a> funcion.</p>
+<p>You provide a filter function and any layers that pass your filter (return true) will get blended from top to bottom into a final image.</p>
+<p>Here's an example of compositing a final image from layers that do not have names that begin with an underscore.</p>
+<pre><code class="language-rust no_run ignore">let psd = include_bytes!(&quot;./my-psd-file.psd&quot;);
+
+let pixels: Vec&lt;u8&gt; = psd.flatten_layers_rgba(&amp;|(_idx, layer) {
+   !layer.name().started_with(&quot;_&quot;)
+}).unwrap();
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../layer-groups/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../user-guide/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
                         
-                            <a rel="next" href="../contributing/internal-design/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../layer-groups/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -166,13 +176,13 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a href="../layer-groups/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a href="../user-guide/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a href="../contributing/internal-design/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a href="../layer-groups/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

@@ -1,11 +1,9 @@
-let wasm_bindgen;
-(function() {
-    const __exports = {};
-    let wasm;
 
-    const heap = new Array(32).fill(undefined);
+let wasm;
 
-    heap.push(undefined, null, true, false);
+const heap = new Array(32).fill(undefined);
+
+heap.push(undefined, null, true, false);
 
 function getObject(idx) { return heap[idx]; }
 
@@ -199,12 +197,12 @@ function __wbg_adapter_18(arg0, arg1, arg2) {
     wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h0464633ff841b041(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wbg_adapter_21(arg0, arg1, arg2) {
-    wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h0464633ff841b041(arg0, arg1, addHeapObject(arg2));
+function __wbg_adapter_21(arg0, arg1) {
+    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h364b64d1a5bcf768(arg0, arg1);
 }
 
-function __wbg_adapter_24(arg0, arg1) {
-    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h364b64d1a5bcf768(arg0, arg1);
+function __wbg_adapter_24(arg0, arg1, arg2) {
+    wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h0464633ff841b041(arg0, arg1, addHeapObject(arg2));
 }
 
 function isLikeNone(x) {
@@ -236,7 +234,7 @@ function getClampedArrayU8FromWasm0(ptr, len) {
 /**
 * Our client side web application
 */
-class App {
+export class App {
 
     free() {
         const ptr = this.ptr;
@@ -245,14 +243,13 @@ class App {
         wasm.__wbg_app_free(ptr);
     }
 }
-__exports.App = App;
 /**
 * Wraps our application so that we can return it to the caller of this WebAssembly module.
 * This ensures that our closures that we're holding on to in the App struct don't get dropped.
 *
 * If we we didn't do this our closures would get dropped and wouldn't work.
 */
-class AppWrapper {
+export class AppWrapper {
 
     static __wrap(ptr) {
         const obj = Object.create(AppWrapper.prototype);
@@ -275,7 +272,6 @@ class AppWrapper {
         return AppWrapper.__wrap(ret);
     }
 }
-__exports.AppWrapper = AppWrapper;
 
 async function load(module, imports) {
     if (typeof Response === 'function' && module instanceof Response) {
@@ -312,13 +308,7 @@ async function load(module, imports) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        let src;
-        if (typeof document === 'undefined') {
-            src = location.href;
-        } else {
-            src = document.currentScript.src;
-        }
-        input = src.replace(/\.js$/, '_bg.wasm');
+        input = import.meta.url.replace(/\.js$/, '_bg.wasm');
     }
     const imports = {};
     imports.wbg = {};
@@ -582,16 +572,16 @@ async function init(input) {
         var ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper127 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper131 = function(arg0, arg1, arg2) {
         var ret = makeMutClosure(arg0, arg1, 37, __wbg_adapter_18);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper131 = function(arg0, arg1, arg2) {
-        var ret = makeMutClosure(arg0, arg1, 37, __wbg_adapter_21);
+    imports.wbg.__wbindgen_closure_wrapper127 = function(arg0, arg1, arg2) {
+        var ret = makeMutClosure(arg0, arg1, 37, __wbg_adapter_24);
         return addHeapObject(ret);
     };
     imports.wbg.__wbindgen_closure_wrapper129 = function(arg0, arg1, arg2) {
-        var ret = makeMutClosure(arg0, arg1, 37, __wbg_adapter_24);
+        var ret = makeMutClosure(arg0, arg1, 37, __wbg_adapter_21);
         return addHeapObject(ret);
     };
 
@@ -607,6 +597,5 @@ async function init(input) {
     return wasm;
 }
 
-wasm_bindgen = Object.assign(init, __exports);
+export default init;
 
-})();

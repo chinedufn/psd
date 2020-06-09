@@ -75,7 +75,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="user-guide/index.html"><strong aria-hidden="true">1.</strong> User Guide</a></li><li><ol class="section"><li><a href="layer-groups/index.html"><strong aria-hidden="true">1.1.</strong> Layer Groups</a></li></ol></li><li><a href="contributing/index.html"><strong aria-hidden="true">2.</strong> Contributing</a></li><li><ol class="section"><li><a href="contributing/internal-design/index.html"><strong aria-hidden="true">2.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">2.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li class="spacer"></li><li><a href="user-guide/index.html"><strong aria-hidden="true">1.</strong> User Guide</a></li><li><ol class="section"><li><a href="controlling-exported-layers/index.html"><strong aria-hidden="true">1.1.</strong> Only Exporting Certain Layers</a></li><li><a href="layer-groups/index.html"><strong aria-hidden="true">1.2.</strong> Layer Groups</a></li></ol></li><li><a href="contributing/index.html"><strong aria-hidden="true">2.</strong> Contributing</a></li><li><ol class="section"><li><a href="contributing/internal-design/index.html"><strong aria-hidden="true">2.1.</strong> Internal Design</a></li><li><ol class="section"><li><a href="contributing/internal-design/major-sections/index.html"><strong aria-hidden="true">2.1.1.</strong> Major Sections</a></li></ol></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -152,6 +152,18 @@ is supported.</p>
 <p>Use this chapter to get a higher level introduction to the features of the <code>psd</code> crate.</p>
 <p>After that you can explore the <a href="https://docs.rs/psd">full API documentation</a> to see all of the
 types and functions that are available.</p>
+<a class="header" href="#only-exporting-certain-layers" id="only-exporting-certain-layers"><h1>Only Exporting Certain Layers</h1></a>
+<p>One use case that the <code>psd</code> crate is designed to support is an asset pipeline where you're extracting image data from PSD files in order to convert it into the format that your
+application works with (such as PNG).</p>
+<p>In order to support that use case we grant control over exactly which layers in your PSD get exported via the <a href="https://chinedufn.github.io/psd/api/psd/struct.Psd.html#method.flatten_layers_rgba">flatten_layers_rgba</a> funcion.</p>
+<p>You provide a filter function and any layers that pass your filter (return true) will get blended from top to bottom into a final image.</p>
+<p>Here's an example of compositing a final image from layers that do not have names that begin with an underscore.</p>
+<pre><code class="language-rust no_run ignore">let psd = include_bytes!(&quot;./my-psd-file.psd&quot;);
+
+let pixels: Vec&lt;u8&gt; = psd.flatten_layers_rgba(&amp;|(_idx, layer) {
+   !layer.name().started_with(&quot;_&quot;)
+}).unwrap();
+</code></pre>
 <a class="header" href="#layer-groups" id="layer-groups"><h1>Layer Groups</h1></a>
 <p><code>psd</code> has support for parsing and getting information about layer groups.</p>
 <p>Here are some examples:</p>
