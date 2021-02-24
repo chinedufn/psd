@@ -88,27 +88,27 @@ impl LayerProperties {
         self.visible
     }
 
-	/// The position of the top of the layer
-	pub fn layer_top(&self) -> i32 {
-		self.layer_top
-	}
+    /// The position of the top of the layer
+    pub fn layer_top(&self) -> i32 {
+        self.layer_top
+    }
 
-	/// The position of the left of the layer
-	pub fn layer_left(&self) -> i32 {
-		self.layer_left
-	}
+    /// The position of the left of the layer
+    pub fn layer_left(&self) -> i32 {
+        self.layer_left
+    }
 
-	/// The position of the bottom of the layer
-	pub fn layer_bottom(&self) -> i32 {
-		self.layer_bottom
-	}
+    /// The position of the bottom of the layer
+    pub fn layer_bottom(&self) -> i32 {
+        self.layer_bottom
+    }
 
-	/// The position of the right of the layer
-	pub fn layer_right(&self) -> i32 {
-		self.layer_right
-	}
+    /// The position of the right of the layer
+    pub fn layer_right(&self) -> i32 {
+        self.layer_right
+    }
 
-	/// The opacity of the layer
+    /// The opacity of the layer
     pub fn opacity(&self) -> u8 {
         self.opacity
     }
