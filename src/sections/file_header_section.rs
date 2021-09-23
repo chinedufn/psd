@@ -1,5 +1,6 @@
 use crate::sections::PsdCursor;
-use failure::{Error, Fail};
+use anyhow::Result;
+use thiserror::Error;
 
 /// Bytes representing the string "8BPS".
 pub const EXPECTED_PSD_SIGNATURE: [u8; 4] = [56, 66, 80, 83];
@@ -41,23 +42,20 @@ pub struct FileHeaderSection {
 }
 
 /// Represents an malformed file section header
-#[derive(Debug, PartialEq, Fail)]
+#[derive(Debug, PartialEq, Error)]
 pub enum FileHeaderSectionError {
-    #[fail(
-        display = "A file section header is comprised of 26 bytes, you provided {} bytes.",
-        length
-    )]
+    #[error("A file section header is comprised of 26 bytes, you provided {length} bytes.")]
     IncorrectLength { length: usize },
-    #[fail(
-        display = r#"The first four bytes (indices 0-3) of a PSD must always equal [56, 66, 80, 83],
+    #[error(
+        r#"The first four bytes (indices 0-3) of a PSD must always equal [56, 66, 80, 83],
          which in string form is '8BPS'."#
     )]
     InvalidSignature {},
-    #[fail(
-        display = r#"Bytes 5 and 6 (indices 4-5) must always be [0, 1], Representing a PSD version of 1."#
+    #[error(
+        r#"Bytes 5 and 6 (indices 4-5) must always be [0, 1], Representing a PSD version of 1."#
     )]
     InvalidVersion {},
-    #[fail(display = r#"Bytes 7-12 (indices 6-11) must be zeroes"#)]
+    #[error(r#"Bytes 7-12 (indices 6-11) must be zeroes"#)]
     InvalidReserved {},
 }
 
@@ -67,7 +65,7 @@ impl FileHeaderSection {
     /// TODO: Accept a ColorModeSection along with the bytes so that we can add
     /// any ColorModeSection data to the ColorMode if necessary. Rename this method
     /// to "new" in the process.
-    pub fn from_bytes(bytes: &[u8]) -> Result<FileHeaderSection, Error> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<FileHeaderSection> {
         let mut cursor = PsdCursor::new(bytes);
 
         // File header section must be 26 bytes long
@@ -149,18 +147,15 @@ pub enum PsdVersion {
 pub struct ChannelCount(u8);
 
 /// Represents an incorrect channel count
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum ChannelCountError {
-    #[fail(
-        display = "Invalid channel count: {}. Must be 1 <= channel count <= 56",
-        channel_count
-    )]
+    #[error("Invalid channel count: {channel_count}. Must be 1 <= channel count <= 56")]
     OutOfRange { channel_count: u8 },
 }
 
 impl ChannelCount {
     /// Create a new ChannelCount
-    pub fn new(channel_count: u8) -> Result<ChannelCount, Error> {
+    pub fn new(channel_count: u8) -> Result<ChannelCount> {
         if channel_count < 1 || channel_count > 56 {
             return Err(ChannelCountError::OutOfRange { channel_count }.into());
         }
@@ -175,11 +170,11 @@ impl ChannelCount {
 }
 
 /// Represents an incorrect channel count
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum PsdSizeError {
-    #[fail(display = "Invalid width: {}. Must be 1 <= width <= 30,000", width)]
+    #[error("Invalid width: {width}. Must be 1 <= width <= 30,000")]
     WidthOutOfRange { width: u32 },
-    #[fail(display = "Invalid height: {}. Must be 1 <= height <= 30,000", height)]
+    #[error("Invalid height: {height}. Must be 1 <= height <= 30,000")]
     HeightOutOfRange { height: u32 },
 }
 
@@ -194,7 +189,7 @@ pub struct PsdHeight(pub(in crate) u32);
 
 impl PsdHeight {
     /// Create a new PsdHeight
-    pub fn new(height: u32) -> Result<PsdHeight, Error> {
+    pub fn new(height: u32) -> Result<PsdHeight> {
         if height < 1 || height > 30000 {
             return Err(PsdSizeError::HeightOutOfRange { height }.into());
         }
@@ -214,7 +209,7 @@ pub struct PsdWidth(pub(in crate) u32);
 
 impl PsdWidth {
     /// Create a new PsdWidth
-    pub fn new(width: u32) -> Result<PsdWidth, Error> {
+    pub fn new(width: u32) -> Result<PsdWidth> {
         if width < 1 || width > 30000 {
             return Err(PsdSizeError::WidthOutOfRange { width }.into());
         }
@@ -238,18 +233,20 @@ pub enum PsdDepth {
 }
 
 /// Represents an incorrect PSD depth
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum PsdDepthError {
-    #[fail(display = "Depth {} is invalid. Must be 1, 8, 16 or 32", depth)]
+    #[error("Depth {depth} is invalid. Must be 1, 8, 16 or 32")]
     InvalidDepth { depth: u8 },
-    #[fail(display = r#"Only 8 and 16 bit depths are supported at the moment.
-    If you'd like to see 1 and 32 bit depths supported - please open an issue."#)]
+    #[error(
+        r#"Only 8 and 16 bit depths are supported at the moment.
+    If you'd like to see 1 and 32 bit depths supported - please open an issue."#
+    )]
     UnsupportedDepth,
 }
 
 impl PsdDepth {
     /// Create a new PsdDepth
-    pub fn new(depth: u8) -> Result<PsdDepth, Error> {
+    pub fn new(depth: u8) -> Result<PsdDepth> {
         match depth {
             1 => Ok(PsdDepth::One),
             8 => Ok(PsdDepth::Eight),
@@ -283,18 +280,15 @@ pub enum ColorMode {
 }
 
 /// Represents an incorrect color mode
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum ColorModeError {
-    #[fail(
-        display = "Invalid color mode {}. Must be 0, 1, 2, 3, 4, 7, 8 or 9",
-        color_mode
-    )]
+    #[error("Invalid color mode {color_mode}. Must be 0, 1, 2, 3, 4, 7, 8 or 9")]
     InvalidColorMode { color_mode: u8 },
 }
 
 impl ColorMode {
     /// Create a new ColorMode
-    pub fn new(color_mode: u8) -> Result<ColorMode, Error> {
+    pub fn new(color_mode: u8) -> Result<ColorMode> {
         match color_mode {
             0 => Ok(ColorMode::Bitmap),
             1 => Ok(ColorMode::Grayscale),
@@ -382,7 +376,7 @@ mod tests {
     }
 
     fn downcast_file_section_header_error(
-        error: Result<FileHeaderSection, Error>,
+        error: Result<FileHeaderSection>,
     ) -> FileHeaderSectionError {
         error
             .err()

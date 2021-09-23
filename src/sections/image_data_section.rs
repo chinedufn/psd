@@ -2,7 +2,7 @@ use crate::psd_channel::PsdChannelCompression;
 use crate::sections::file_header_section::PsdDepthError;
 use crate::sections::PsdCursor;
 use crate::PsdDepth;
-use failure::Error;
+use anyhow::Result;
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
 /// of the final PSD image (the one that comes from combining all of the layers).
@@ -40,7 +40,7 @@ impl ImageDataSection {
         depth: PsdDepth,
         psd_height: u32,
         channel_count: u8,
-    ) -> Result<ImageDataSection, Error> {
+    ) -> Result<ImageDataSection> {
         let mut cursor = PsdCursor::new(bytes);
         let channel_count = channel_count as usize;
 

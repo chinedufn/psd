@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::ops::{Deref, Range};
 
-use failure::{Error, Fail};
+use anyhow::Result;
+use thiserror::Error;
 
 use crate::psd_channel::IntoRgba;
 use crate::psd_channel::PsdChannelCompression;
@@ -194,15 +195,14 @@ pub struct PsdLayer {
 }
 
 /// An error when working with a PsdLayer
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum PsdLayerError {
-    #[fail(
-        display = r#"Could not combine Red, Green, Blue and Alpha.
-        This layer is missing channel: {:#?}"#,
-        channel
+    #[error(
+        r#"Could not combine Red, Green, Blue and Alpha.
+        This layer is missing channel: {channel:#?}"#
     )]
     MissingChannels { channel: PsdChannelKind },
-    #[fail(display = r#"Unknown blending mode: {:#?}"#, mode)]
+    #[error(r#"Unknown blending mode: {mode:#?}"#)]
     UnknownBlendingMode { mode: [u8; 4] },
 }
 
@@ -228,7 +228,7 @@ impl PsdLayer {
     }
 
     /// Get the compression level for one of this layer's channels
-    pub fn compression(&self, channel: PsdChannelKind) -> Result<PsdChannelCompression, Error> {
+    pub fn compression(&self, channel: PsdChannelKind) -> Result<PsdChannelCompression> {
         match self.channels.get(&channel) {
             Some(channel) => match channel {
                 ChannelBytes::RawData(_) => Ok(PsdChannelCompression::RawData),
@@ -241,7 +241,7 @@ impl PsdLayer {
     /// Create a vector that interleaves the red, green, blue and alpha channels in this PSD
     ///
     /// vec![R, G, B, A, R, G, B, A, ...]
-    pub fn rgba(&self) -> Result<Vec<u8>, Error> {
+    pub fn rgba(&self) -> Result<Vec<u8>> {
         let rgba = self.generate_rgba()?;
         Ok(rgba)
     }

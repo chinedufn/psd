@@ -1,11 +1,11 @@
-use failure::Error;
+use anyhow::Result;
 use psd::ColorMode;
 use psd::Psd;
 use psd::PsdDepth;
 
 /// cargo test --test channels one_channel_grayscale_raw_data -- --exact
 #[test]
-fn one_channel_grayscale_raw_data() -> Result<(), Error> {
+fn one_channel_grayscale_raw_data() -> Result<()> {
     let psd = include_bytes!("./fixtures/one-channel-1x1.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -32,7 +32,7 @@ fn one_channel_grayscale_raw_data() -> Result<(), Error> {
 ///
 /// cargo test --test channels two_channel_grayscale_raw_data -- --exact
 #[test]
-fn two_channel_grayscale_raw_data() -> Result<(), Error> {
+fn two_channel_grayscale_raw_data() -> Result<()> {
     let psd = include_bytes!("./fixtures/two-channel-8x8.psd");
     let psd = Psd::from_bytes(psd)?;
 

@@ -1,4 +1,4 @@
-use failure::Error;
+use anyhow::Result;
 use psd::Psd;
 use psd::PsdChannelCompression;
 use psd::PsdChannelKind;
@@ -17,7 +17,7 @@ const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 // Test that images that have transparent pixels and don't use compression
 // return the correct RGBA
 #[test]
-fn transparency_raw_data() -> Result<(), failure::Error> {
+fn transparency_raw_data() -> Result<()> {
     let psd = include_bytes!("./fixtures/3x3-opaque-center.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -37,7 +37,7 @@ fn transparency_raw_data() -> Result<(), failure::Error> {
 // Test that images that have transparent pixels and use rle compression
 // return the correct RGBA
 #[test]
-fn transparency_rle_compressed() -> Result<(), failure::Error> {
+fn transparency_rle_compressed() -> Result<()> {
     let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -66,7 +66,7 @@ fn transparency_rle_compressed() -> Result<(), failure::Error> {
 // Fixes an `already borrowed: BorrowMutError` that we were getting in the `flattened_pixel`
 // method when we were recursing into the method and trying to borrow when we'd already borrowed.
 #[test]
-fn transparent_above_opaque() -> Result<(), Error> {
+fn transparent_above_opaque() -> Result<()> {
     let psd = include_bytes!("./fixtures/transparent-above-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
 

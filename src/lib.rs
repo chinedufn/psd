@@ -10,7 +10,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use failure::Error;
+use anyhow::Result;
 
 use crate::psd_channel::IntoRgba;
 pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
@@ -57,7 +57,7 @@ impl Psd {
     ///
     /// let psd = Psd::from_bytes(psd_bytes);
     /// ```
-    pub fn from_bytes(bytes: &[u8]) -> Result<Psd, Error> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Psd> {
         let major_sections = MajorSections::from_bytes(bytes)?;
 
         let file_header_section = FileHeaderSection::from_bytes(major_sections.file_header)?;
@@ -122,7 +122,7 @@ impl Psd {
     }
 
     /// Get a layer by name
-    pub fn layer_by_name(&self, name: &str) -> Result<&PsdLayer, Error> {
+    pub fn layer_by_name(&self, name: &str) -> Result<&PsdLayer> {
         let item = self
             .layer_and_mask_information_section
             .layers
@@ -134,7 +134,7 @@ impl Psd {
     /// Get a layer by index.
     ///
     /// index 0 is the bottom layer, index 1 is the layer above that, etc
-    pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer, Error> {
+    pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer> {
         let item = self
             .layer_and_mask_information_section
             .layers
@@ -185,7 +185,7 @@ impl Psd {
     pub fn flatten_layers_rgba(
         &self,
         filter: &dyn Fn((usize, &PsdLayer)) -> bool,
-    ) -> Result<Vec<u8>, Error> {
+    ) -> Result<Vec<u8>> {
         // When you create a PSD but don't create any new layers the bottom layer might not
         // show up in the layer and mask information section, so we won't see any layers.
         //

@@ -1,6 +1,7 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
-use failure::{format_err, Error, Fail};
+use anyhow::{anyhow, Result};
+use thiserror::Error;
 
 pub trait IntoRgba {
     /// Given an index of a pixel in the current rectangle
@@ -29,7 +30,7 @@ pub trait IntoRgba {
     /// The height of the PSD
     fn psd_height(&self) -> u32;
 
-    fn generate_rgba(&self) -> Result<Vec<u8>, Error> {
+    fn generate_rgba(&self) -> Result<Vec<u8>> {
         let rgba_len = (self.psd_width() * self.psd_height() * 4) as usize;
 
         let red = self.red();
@@ -83,7 +84,7 @@ pub trait IntoRgba {
     /// pixel. We do this by mapping the 16 bits back down to 8 bits.
     ///
     /// The 16 bits are stored across the red and green channels (first and second).
-    fn generate_16_bit_grayscale_rgba(&self) -> Result<Vec<u8>, Error> {
+    fn generate_16_bit_grayscale_rgba(&self) -> Result<Vec<u8>> {
         match self.red() {
             ChannelBytes::RawData(red) => match self.green().unwrap() {
                 ChannelBytes::RawData(green) => Ok(sixteen_to_eight_rgba(red, green)),
@@ -263,7 +264,7 @@ pub enum PsdChannelCompression {
 
 impl PsdChannelCompression {
     /// Create a new PsdLayerChannelCompression
-    pub fn new(compression: u16) -> Result<PsdChannelCompression, Error> {
+    pub fn new(compression: u16) -> Result<PsdChannelCompression> {
         match compression {
             0 => Ok(PsdChannelCompression::RawData),
             1 => Ok(PsdChannelCompression::RleCompressed),
@@ -287,25 +288,19 @@ pub enum PsdChannelKind {
 }
 
 /// Represents an invalid channel
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum PsdChannelError {
-    #[fail(
-        display = "{} is an invalid channel id, must be 0, 1, 2, -1, -2, or -3.",
-        channel_id
-    )]
+    #[error("{channel_id} is an invalid channel id, must be 0, 1, 2, -1, -2, or -3.")]
     InvalidChannel { channel_id: i16 },
-    #[fail(
-        display = "{} is an invalid layer channel compression. Must be 0, 1, 2 or 3",
-        compression
-    )]
+    #[error("{compression} is an invalid layer channel compression. Must be 0, 1, 2 or 3")]
     InvalidCompression { compression: u16 },
-    #[fail(display = "Channel {:#?} not present", channel)]
+    #[error("Channel {channel:#?} not present")]
     ChannelNotFound { channel: PsdChannelKind },
 }
 
 impl PsdChannelKind {
     /// Create a new PsdLayerChannel
-    pub fn new(channel_id: i16) -> Result<PsdChannelKind, Error> {
+    pub fn new(channel_id: i16) -> Result<PsdChannelKind> {
         match channel_id {
             0 => Ok(PsdChannelKind::Red),
             1 => Ok(PsdChannelKind::Green),
@@ -321,13 +316,13 @@ impl PsdChannelKind {
     /// G -> 1
     /// B -> 2
     /// A -> 3
-    pub fn rgba_offset(self) -> Result<usize, Error> {
+    pub fn rgba_offset(self) -> Result<usize> {
         match self {
             PsdChannelKind::Red => Ok(0),
             PsdChannelKind::Green => Ok(1),
             PsdChannelKind::Blue => Ok(2),
             PsdChannelKind::TransparencyMask => Ok(3),
-            _ => Err(format_err!("{:#?} is not an RGBA channel", &self)),
+            _ => Err(anyhow!("{:#?} is not an RGBA channel", &self)),
         }
     }
 }

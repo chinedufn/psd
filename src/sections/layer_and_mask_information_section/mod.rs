@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::ops::Range;
 
-use failure::Error;
+use anyhow::Result;
 
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
@@ -77,7 +77,7 @@ impl LayerAndMaskInformationSection {
         bytes: &[u8],
         psd_width: u32,
         psd_height: u32,
-    ) -> Result<LayerAndMaskInformationSection, Error> {
+    ) -> Result<LayerAndMaskInformationSection> {
         let mut cursor = PsdCursor::new(bytes);
 
         // The first four bytes of the section is the length marker for the layer and mask
@@ -121,7 +121,7 @@ impl LayerAndMaskInformationSection {
         layer_records: Vec<(LayerRecord, LayerChannels)>,
         group_count: usize,
         psd_size: (u32, u32),
-    ) -> Result<LayerAndMaskInformationSection, Error> {
+    ) -> Result<LayerAndMaskInformationSection> {
         let mut layers = NamedItems::with_capacity(layer_records.len());
         let mut groups: NamedItems<PsdGroup> = NamedItems::with_capacity(group_count);
 
@@ -202,7 +202,7 @@ impl LayerAndMaskInformationSection {
     fn read_layer_records(
         cursor: &mut PsdCursor,
         layer_count: u16,
-    ) -> Result<(usize, Vec<(LayerRecord, LayerChannels)>), Error> {
+    ) -> Result<(usize, Vec<(LayerRecord, LayerChannels)>)> {
         let mut groups_count = 0;
 
         let mut layer_records = vec![];
@@ -241,7 +241,7 @@ impl LayerAndMaskInformationSection {
         parent_id: u32,
         psd_size: (u32, u32),
         channels: LayerChannels,
-    ) -> Result<PsdLayer, Error> {
+    ) -> Result<PsdLayer> {
         Ok(PsdLayer::new(
             &layer_record,
             psd_size.0,
@@ -257,7 +257,7 @@ fn read_layer_channels(
     cursor: &mut PsdCursor,
     channel_data_lengths: &Vec<(PsdChannelKind, u32)>,
     scanlines: usize,
-) -> Result<LayerChannels, Error> {
+) -> Result<LayerChannels> {
     let capacity = channel_data_lengths.len();
     let mut channels = HashMap::with_capacity(capacity);
 
@@ -314,7 +314,7 @@ fn read_layer_channels(
 /// | Variable               | Layer mask data: See See Layer mask / adjustment layer data for structure. Can be 40 bytes, 24 bytes, or 4 bytes if no layer mask.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 /// | Variable               | Layer blending ranges: See See Layer blending ranges data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 /// | Variable               | Layer name: Pascal string, padded to a multiple of 4 bytes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
+fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord> {
     let mut channel_data_lengths = vec![];
 
     // FIXME:
