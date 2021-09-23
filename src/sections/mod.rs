@@ -1,7 +1,7 @@
-use std::io::Cursor;
-use anyhow::Result;
-use thiserror::Error;
 use crate::sections::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};
+use anyhow::Result;
+use std::io::Cursor;
+use thiserror::Error;
 
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
