@@ -344,7 +344,6 @@ impl State {
                             .as_mut()
                             .unwrap()
                             .layer_by_idx(*idx)
-                            .unwrap()
                             .name(),
                     )
                     .unwrap();
