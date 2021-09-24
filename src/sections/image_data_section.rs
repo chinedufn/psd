@@ -1,8 +1,20 @@
 use crate::psd_channel::PsdChannelCompression;
-use crate::sections::file_header_section::PsdDepthError;
 use crate::sections::PsdCursor;
 use crate::PsdDepth;
-use failure::Error;
+use thiserror::Error;
+
+/// Represents an malformed image data
+#[derive(Debug, PartialEq, Error)]
+pub enum ImageDataSectionError {
+    #[error(
+        r#"Only 8 and 16 bit depths are supported at the moment.
+    If you'd like to see 1 and 32 bit depths supported - please open an issue."#
+    )]
+    UnsupportedDepth,
+
+    #[error("{compression} is an invalid layer channel compression. Must be 0, 1, 2 or 3")]
+    InvalidCompression { compression: u16 },
+}
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
 /// of the final PSD image (the one that comes from combining all of the layers).
@@ -40,12 +52,13 @@ impl ImageDataSection {
         depth: PsdDepth,
         psd_height: u32,
         channel_count: u8,
-    ) -> Result<ImageDataSection, Error> {
+    ) -> Result<ImageDataSection, ImageDataSectionError> {
         let mut cursor = PsdCursor::new(bytes);
         let channel_count = channel_count as usize;
 
-        let compression = cursor.read_u16()?;
-        let compression = PsdChannelCompression::new(compression)?;
+        let compression = cursor.read_u16();
+        let compression = PsdChannelCompression::new(compression)
+            .ok_or(ImageDataSectionError::InvalidCompression { compression })?;
 
         let (red, green, blue, alpha) = match compression {
             PsdChannelCompression::RawData => {
@@ -100,7 +113,7 @@ impl ImageDataSection {
 
                         (ChannelBytes::RawData(red), green, blue, alpha)
                     }
-                    _ => return Err(PsdDepthError::UnsupportedDepth.into()),
+                    _ => return Err(ImageDataSectionError::UnsupportedDepth),
                 }
             }
             // # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
@@ -117,24 +130,24 @@ impl ImageDataSection {
                 let mut alpha_byte_count = if channel_count == 4 { Some(0) } else { None };
 
                 for _ in 0..psd_height {
-                    red_byte_count += cursor.read_u16()? as usize;
+                    red_byte_count += cursor.read_u16() as usize;
                 }
 
                 if let Some(ref mut green_byte_count) = green_byte_count {
                     for _ in 0..psd_height {
-                        *green_byte_count += cursor.read_u16()? as usize;
+                        *green_byte_count += cursor.read_u16() as usize;
                     }
                 }
 
                 if let Some(ref mut blue_byte_count) = blue_byte_count {
                     for _ in 0..psd_height {
-                        *blue_byte_count += cursor.read_u16()? as usize;
+                        *blue_byte_count += cursor.read_u16() as usize;
                     }
                 }
 
                 if let Some(ref mut alpha_byte_count) = alpha_byte_count {
                     for _ in 0..psd_height {
-                        *alpha_byte_count += cursor.read_u16()? as usize;
+                        *alpha_byte_count += cursor.read_u16() as usize;
                     }
                 }
 

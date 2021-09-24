@@ -13,6 +13,7 @@ Types of changes:
 
 _Here we list notable things that have been merged into the master branch but have not been released yet._
 
+- [added] Public information on the position of each layer (E.g. `layer_top`, `layer_bottom`. `layer_left`, `layer_right`).
 
 ## 0.1.8 - April 23, 2020
 

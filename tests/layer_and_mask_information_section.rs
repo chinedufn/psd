@@ -13,7 +13,7 @@ fn layer_and_mask_information_section() {
 
     let layer = psd.layer_by_name("First Layer").unwrap();
 
-    assert_eq!(&layer.rgba().unwrap()[..], &GREEN_PIXEL);
+    assert_eq!(&layer.rgba()[..], &GREEN_PIXEL);
 }
 
 /// cargo test --test layer_and_mask_information_section layer_with_cyrillic_name -- --exact

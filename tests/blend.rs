@@ -1,7 +1,7 @@
 //! FIXME: Combine these all into one test that iterates through a vector of
 //! (PathBuf, [f32; 4])
 
-use failure::Error;
+use anyhow::Result;
 use psd::Psd;
 
 const BLEND_NORMAL_BLUE_RED_PIXEL: [u8; 4] = [85, 0, 170, 192];
@@ -33,7 +33,7 @@ const BLEND_EXCLUSION_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 170, 192];
 
 /// cargo test --test blend normal -- --exact
 #[test]
-fn normal() -> Result<(), Error> {
+fn normal() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-normal.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -45,7 +45,7 @@ fn normal() -> Result<(), Error> {
 
 /// cargo test --test blend multiply -- --exact
 #[test]
-fn multiply() -> Result<(), Error> {
+fn multiply() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-multiply.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -57,7 +57,7 @@ fn multiply() -> Result<(), Error> {
 
 /// cargo test --test blend screen -- --exact
 #[test]
-fn screen() -> Result<(), Error> {
+fn screen() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-screen.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -69,7 +69,7 @@ fn screen() -> Result<(), Error> {
 
 /// cargo test --test blend overlay -- --exact
 #[test]
-fn overlay() -> Result<(), Error> {
+fn overlay() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-overlay.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -81,7 +81,7 @@ fn overlay() -> Result<(), Error> {
 
 /// cargo test --test blend darken -- --exact
 #[test]
-fn darken() -> Result<(), Error> {
+fn darken() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-darken.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -93,7 +93,7 @@ fn darken() -> Result<(), Error> {
 
 /// cargo test --test blend lighten -- --exact
 #[test]
-fn lighten() -> Result<(), Error> {
+fn lighten() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-lighten.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -105,7 +105,7 @@ fn lighten() -> Result<(), Error> {
 
 /// cargo test --test blend color_burn -- --exact
 #[test]
-fn color_burn() -> Result<(), Error> {
+fn color_burn() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-color-burn.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -117,7 +117,7 @@ fn color_burn() -> Result<(), Error> {
 
 /// cargo test --test blend color_dodge -- --exact
 #[test]
-fn color_dodge() -> Result<(), Error> {
+fn color_dodge() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-color-dodge.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -129,7 +129,7 @@ fn color_dodge() -> Result<(), Error> {
 
 /// cargo test --test blend linear_burn -- --exact
 #[test]
-fn linear_burn() -> Result<(), Error> {
+fn linear_burn() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-linear-burn.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -141,7 +141,7 @@ fn linear_burn() -> Result<(), Error> {
 
 /// cargo test --test blend linear_dodge -- --exact
 #[test]
-fn linear_dodge() -> Result<(), Error> {
+fn linear_dodge() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-linear-dodge.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -153,7 +153,7 @@ fn linear_dodge() -> Result<(), Error> {
 
 /// cargo test --test blend hard_light -- --exact
 #[test]
-fn hard_light() -> Result<(), Error> {
+fn hard_light() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-hard-light.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -165,7 +165,7 @@ fn hard_light() -> Result<(), Error> {
 
 /// cargo test --test blend soft_light -- --exact
 #[test]
-fn soft_light() -> Result<(), Error> {
+fn soft_light() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-soft-light.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -177,7 +177,7 @@ fn soft_light() -> Result<(), Error> {
 
 /// cargo test --test blend divide -- --exact
 #[test]
-fn divide() -> Result<(), Error> {
+fn divide() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-divide.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -189,7 +189,7 @@ fn divide() -> Result<(), Error> {
 
 /// cargo test --test blend subtract -- --exact
 #[test]
-fn subtract() -> Result<(), Error> {
+fn subtract() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-subtract.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -201,7 +201,7 @@ fn subtract() -> Result<(), Error> {
 
 /// cargo test --test blend difference -- --exact
 #[test]
-fn difference() -> Result<(), Error> {
+fn difference() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-difference.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -213,7 +213,7 @@ fn difference() -> Result<(), Error> {
 
 /// cargo test --test blend exclusion -- --exact
 #[test]
-fn exclusion() -> Result<(), Error> {
+fn exclusion() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-exclusion.psd");
     let psd = Psd::from_bytes(psd)?;
 

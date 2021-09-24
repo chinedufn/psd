@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use crate::sections::layer_and_mask_information_section::layer::BlendMode;
 
 // Multiplies the pixel's current alpha by the passed in `opacity`

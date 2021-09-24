@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::{Deref, Range};
 
-use failure::{Error, Fail};
+use thiserror::Error;
 
 use crate::psd_channel::IntoRgba;
 use crate::psd_channel::PsdChannelCompression;
@@ -86,6 +86,26 @@ impl LayerProperties {
     /// If true, the layer is marked as visible
     pub fn visible(&self) -> bool {
         self.visible
+    }
+
+    /// The position of the top of the layer
+    pub fn layer_top(&self) -> i32 {
+        self.layer_top
+    }
+
+    /// The position of the left of the layer
+    pub fn layer_left(&self) -> i32 {
+        self.layer_left
+    }
+
+    /// The position of the bottom of the layer
+    pub fn layer_bottom(&self) -> i32 {
+        self.layer_bottom
+    }
+
+    /// The position of the right of the layer
+    pub fn layer_right(&self) -> i32 {
+        self.layer_right
     }
 
     /// The opacity of the layer
@@ -174,16 +194,19 @@ pub struct PsdLayer {
 }
 
 /// An error when working with a PsdLayer
-#[derive(Debug, Fail)]
+#[derive(Debug, PartialEq, Error)]
 pub enum PsdLayerError {
-    #[fail(
-        display = r#"Could not combine Red, Green, Blue and Alpha.
-        This layer is missing channel: {:#?}"#,
-        channel
+    #[error(
+        r#"Could not combine Red, Green, Blue and Alpha.
+        This layer is missing channel: {channel:#?}"#
     )]
     MissingChannels { channel: PsdChannelKind },
-    #[fail(display = r#"Unknown blending mode: {:#?}"#, mode)]
+    #[error("{channel_id} is an invalid channel id, must be 0, 1, 2, -1, -2, or -3.")]
+    InvalidChannel { channel_id: i16 },
+    #[error(r#"Unknown blending mode: {mode:#?}"#)]
     UnknownBlendingMode { mode: [u8; 4] },
+    #[error("{compression} is an invalid layer channel compression. Must be 0, 1, 2 or 3")]
+    InvalidCompression { compression: u16 },
 }
 
 impl PsdLayer {
@@ -208,22 +231,24 @@ impl PsdLayer {
     }
 
     /// Get the compression level for one of this layer's channels
-    pub fn compression(&self, channel: PsdChannelKind) -> Result<PsdChannelCompression, Error> {
+    pub fn compression(
+        &self,
+        channel: PsdChannelKind,
+    ) -> Result<PsdChannelCompression, PsdChannelError> {
         match self.channels.get(&channel) {
             Some(channel) => match channel {
                 ChannelBytes::RawData(_) => Ok(PsdChannelCompression::RawData),
                 ChannelBytes::RleCompressed(_) => Ok(PsdChannelCompression::RleCompressed),
             },
-            None => Err(PsdChannelError::ChannelNotFound { channel }.into()),
+            None => Err(PsdChannelError::ChannelNotFound { channel }),
         }
     }
 
     /// Create a vector that interleaves the red, green, blue and alpha channels in this PSD
     ///
     /// vec![R, G, B, A, R, G, B, A, ...]
-    pub fn rgba(&self) -> Result<Vec<u8>, Error> {
-        let rgba = self.generate_rgba()?;
-        Ok(rgba)
+    pub fn rgba(&self) -> Vec<u8> {
+        self.generate_rgba()
     }
 
     // Get one of the PsdLayerChannels of this PsdLayer

@@ -1,9 +1,5 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::ops::Range;
-
-use failure::Error;
 
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
@@ -77,7 +73,7 @@ impl LayerAndMaskInformationSection {
         bytes: &[u8],
         psd_width: u32,
         psd_height: u32,
-    ) -> Result<LayerAndMaskInformationSection, Error> {
+    ) -> Result<LayerAndMaskInformationSection, PsdLayerError> {
         let mut cursor = PsdCursor::new(bytes);
 
         // The first four bytes of the section is the length marker for the layer and mask
@@ -87,10 +83,10 @@ impl LayerAndMaskInformationSection {
         // the exact number of bytes in the layer and information mask section of the PSD file,
         // so there's no way for us to accidentally read too many bytes. If we did the program
         // would panic.
-        cursor.read_4()?;
+        cursor.read_4();
 
         // Read the next four bytes to get the length of the layer info section.
-        let _layer_info_section_len = cursor.read_u32()?;
+        let _layer_info_section_len = cursor.read_u32();
 
         // Next 2 bytes is the layer count
         //
@@ -101,7 +97,7 @@ impl LayerAndMaskInformationSection {
         //
         // Layer count. If it is a negative number, its absolute value is the number of layers and
         // the first alpha channel contains the transparency data for the merged result.
-        let layer_count = cursor.read_i16()?;
+        let layer_count = cursor.read_i16();
 
         // TODO: If the layer count was negative we were supposed to treat the first alpha
         // channel as transparency data for the merged result.. So add a new test with a transparent
@@ -121,7 +117,7 @@ impl LayerAndMaskInformationSection {
         layer_records: Vec<(LayerRecord, LayerChannels)>,
         group_count: usize,
         psd_size: (u32, u32),
-    ) -> Result<LayerAndMaskInformationSection, Error> {
+    ) -> Result<LayerAndMaskInformationSection, PsdLayerError> {
         let mut layers = NamedItems::with_capacity(layer_records.len());
         let mut groups: NamedItems<PsdGroup> = NamedItems::with_capacity(group_count);
 
@@ -202,7 +198,7 @@ impl LayerAndMaskInformationSection {
     fn read_layer_records(
         cursor: &mut PsdCursor,
         layer_count: u16,
-    ) -> Result<(usize, Vec<(LayerRecord, LayerChannels)>), Error> {
+    ) -> Result<(usize, Vec<(LayerRecord, LayerChannels)>), PsdLayerError> {
         let mut groups_count = 0;
 
         let mut layer_records = vec![];
@@ -241,7 +237,7 @@ impl LayerAndMaskInformationSection {
         parent_id: u32,
         psd_size: (u32, u32),
         channels: LayerChannels,
-    ) -> Result<PsdLayer, Error> {
+    ) -> Result<PsdLayer, PsdLayerError> {
         Ok(PsdLayer::new(
             &layer_record,
             psd_size.0,
@@ -257,15 +253,16 @@ fn read_layer_channels(
     cursor: &mut PsdCursor,
     channel_data_lengths: &Vec<(PsdChannelKind, u32)>,
     scanlines: usize,
-) -> Result<LayerChannels, Error> {
+) -> Result<LayerChannels, PsdLayerError> {
     let capacity = channel_data_lengths.len();
     let mut channels = HashMap::with_capacity(capacity);
 
     for (channel_kind, channel_length) in channel_data_lengths.iter() {
-        let compression = cursor.read_u16()?;
-        let compression = PsdChannelCompression::new(compression)?;
+        let compression = cursor.read_u16();
+        let compression = PsdChannelCompression::new(compression)
+            .ok_or(PsdLayerError::InvalidCompression { compression })?;
 
-        let channel_data = cursor.read(*channel_length)?;
+        let channel_data = cursor.read(*channel_length);
         let channel_bytes = match compression {
             PsdChannelCompression::RawData => ChannelBytes::RawData(channel_data.into()),
             PsdChannelCompression::RleCompressed => {
@@ -314,7 +311,7 @@ fn read_layer_channels(
 /// | Variable               | Layer mask data: See See Layer mask / adjustment layer data for structure. Can be 40 bytes, 24 bytes, or 4 bytes if no layer mask.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 /// | Variable               | Layer blending ranges: See See Layer blending ranges data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 /// | Variable               | Layer name: Pascal string, padded to a multiple of 4 bytes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
+fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerError> {
     let mut channel_data_lengths = vec![];
 
     // FIXME:
@@ -325,29 +322,30 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // Photoshop.
 
     // Read the rectangle that encloses the layer mask.
-    let top = cursor.read_i32()?;
+    let top = cursor.read_i32();
 
-    let left = cursor.read_i32()?;
+    let left = cursor.read_i32();
 
     // Subtract one in order to zero index. If a layer is fully transparent it's bottom will
     // already be 0 so we don't subtract
-    let bottom = cursor.read_i32()?;
+    let bottom = cursor.read_i32();
     let bottom = if bottom == 0 { 0 } else { bottom - 1 };
 
     // Subtract one in order to zero index. If a layer is fully transparent it's right will
     // already be zero so we don't subtract.
-    let right = cursor.read_i32()?;
+    let right = cursor.read_i32();
     let right = if right == 0 { 0 } else { right - 1 };
 
     // Get the number of channels in the layer
-    let channel_count = cursor.read_u16()?;
+    let channel_count = cursor.read_u16();
 
     // Read the channel information
     for _ in 0..channel_count {
-        let channel_id = cursor.read_i16()?;
-        let channel_id = PsdChannelKind::new(channel_id)?;
+        let channel_id = cursor.read_i16();
+        let channel_id =
+            PsdChannelKind::new(channel_id).ok_or(PsdLayerError::InvalidChannel { channel_id })?;
 
-        let channel_length = cursor.read_u32()?;
+        let channel_length = cursor.read_u32();
         // The first two bytes encode the compression, the rest of the bytes
         // are the channel data.
         let channel_data_length = channel_length - 2;
@@ -356,18 +354,18 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     }
 
     // We do not currently parse the blend mode signature, skip it
-    cursor.read_4()?;
+    cursor.read_4();
 
     let mut key = [0; 4];
-    key.copy_from_slice(cursor.read_4()?);
+    key.copy_from_slice(cursor.read_4());
     let blend_mode = match BlendMode::match_mode(key) {
         Some(v) => v,
-        None => return Err(PsdLayerError::UnknownBlendingMode { mode: key }.into()),
+        None => return Err(PsdLayerError::UnknownBlendingMode { mode: key }),
     };
 
-    let opacity = cursor.read_u8()?;
+    let opacity = cursor.read_u8();
 
-    let clipping_base = cursor.read_u8()?;
+    let clipping_base = cursor.read_u8();
     let clipping_base = clipping_base == 0;
 
     // We do not currently parse all flags, only visible
@@ -377,25 +375,25 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     //  - bit 2 = obsolete;
     //  - bit 3 = 1 for Photoshop 5.0 and later, tells if bit 4 has useful information;
     //  - bit 4 = pixel data irrelevant to appearance of document
-    let visible = cursor.read_u8()? & (1 << 1) != 0; // here we get second bit - visible
+    let visible = cursor.read_u8() & (1 << 1) != 0; // here we get second bit - visible
 
     // We do not currently parse the filter, skip it
-    cursor.read_1()?;
+    cursor.read_1();
 
     // We do not currently use the length of the extra data field, skip it
-    cursor.read_4()?;
+    cursor.read_4();
 
     // We do not currently use the layer mask data, skip it
-    let layer_mask_data_len = cursor.read_u32()?;
-    cursor.read(layer_mask_data_len)?;
+    let layer_mask_data_len = cursor.read_u32();
+    cursor.read(layer_mask_data_len);
 
     // We do not currently use the layer blending range, skip it
-    let layer_blending_range_data_len = cursor.read_u32()?;
-    cursor.read(layer_blending_range_data_len)?;
+    let layer_blending_range_data_len = cursor.read_u32();
+    cursor.read(layer_blending_range_data_len);
 
     // Read the layer name
-    let name_len = cursor.read_u8()?;
-    let name = cursor.read(name_len as u32)?;
+    let name_len = cursor.read_u8();
+    let name = cursor.read(name_len as u32);
     let name = String::from_utf8_lossy(name);
     let mut name = name.to_string();
 
@@ -406,39 +404,39 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, Error> {
     // The 1 is the 1 byte that we read for the name length
     let bytes_mod_4 = (name_len + 1) % 4;
     let padding = (4 - bytes_mod_4) % 4;
-    cursor.read(padding as u32)?;
+    cursor.read(padding as u32);
 
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
-    while cursor.peek_4()? == SIGNATURE_EIGHT_BIM || cursor.peek_4()? == SIGNATURE_EIGHT_B64 {
-        let _signature = cursor.read_4()?;
+    while cursor.peek_4() == SIGNATURE_EIGHT_BIM || cursor.peek_4() == SIGNATURE_EIGHT_B64 {
+        let _signature = cursor.read_4();
         let mut key = [0; 4];
-        key.copy_from_slice(cursor.read_4()?);
-        let additional_layer_info_len = cursor.read_u32()?;
+        key.copy_from_slice(cursor.read_4());
+        let additional_layer_info_len = cursor.read_u32();
 
         match &key {
             KEY_UNICODE_LAYER_NAME => {
-                name = cursor.read_unicode_string()?;
+                name = cursor.read_unicode_string();
             }
             KEY_SECTION_DIVIDER_SETTING => {
-                divider_type = GroupDivider::match_divider(cursor.read_i32()?);
+                divider_type = GroupDivider::match_divider(cursor.read_i32());
 
                 // data present only if length >= 12
                 if additional_layer_info_len >= 12 {
-                    let _signature = cursor.read_4()?;
-                    let _key = cursor.read_4()?;
+                    let _signature = cursor.read_4();
+                    let _key = cursor.read_4();
                 }
 
                 // data present only if length >= 16
                 if additional_layer_info_len >= 16 {
-                    cursor.read_4()?;
+                    cursor.read_4();
                 }
             }
 
             // TODO: Skipping other keys until we implement parsing for them
             _ => {
-                cursor.read(additional_layer_info_len)?;
+                cursor.read(additional_layer_info_len);
             }
         }
     }
