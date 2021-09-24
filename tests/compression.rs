@@ -1,4 +1,4 @@
-use failure::Error;
+use anyhow::Result;
 use psd::{Psd, PsdChannelCompression};
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
@@ -7,7 +7,7 @@ const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 
 /// cargo test --test compression rle_decompress_final_image -- --exact
 #[test]
-fn rle_decompress_final_image() -> Result<(), Error> {
+fn rle_decompress_final_image() -> Result<()> {
     let psd = include_bytes!("./fixtures/rle-3-layer-8x8.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -23,7 +23,7 @@ fn rle_decompress_final_image() -> Result<(), Error> {
 
 /// cargo test --test compression rle_decompress_layer -- --exact
 #[test]
-fn rle_decompress_layer() -> Result<(), Error> {
+fn rle_decompress_layer() -> Result<()> {
     let psd = include_bytes!("./fixtures/rle-3-layer-8x8.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -42,7 +42,7 @@ fn rle_decompress_layer() -> Result<(), Error> {
 
 fn test_rle_layer(psd: &Psd, layer_name: &str, expected_pixels: &[u8]) {
     let layer = psd.layer_by_name(layer_name).unwrap();
-    assert_eq!(&layer.rgba().unwrap().as_slice(), &expected_pixels);
+    assert_eq!(&layer.rgba().as_slice(), &expected_pixels);
 }
 
 // Below are methods to make different expected final pixels so that we can text our generated

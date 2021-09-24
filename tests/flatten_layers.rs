@@ -1,3 +1,4 @@
+use anyhow::Result;
 use psd::Psd;
 
 const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
@@ -8,7 +9,7 @@ const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 ///
 /// cargo test --test flatten_layers flatten_fully_transparent_pixel_replaced_by_pixel_below -- --exact
 #[test]
-fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<(), failure::Error> {
+fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<()> {
     let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");
     let psd = Psd::from_bytes(psd)?;
 
@@ -27,7 +28,7 @@ fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<(), failu
 ///
 /// cargo test --test flatten_layers no_matching_layers -- --exact
 #[test]
-fn no_matching_layers() -> Result<(), failure::Error> {
+fn no_matching_layers() -> Result<()> {
     let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");
     let psd = Psd::from_bytes(psd)?;
 
