@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use psd::Psd;
 use psd::PsdChannelCompression;
 use psd::PsdChannelKind;
@@ -26,7 +26,9 @@ fn transparency_raw_data() -> Result<()> {
     assert_colors(psd.rgba(), &psd, &blue_pixels);
 
     assert_colors(
-        psd.layer_by_name("OpaqueCenter")?.rgba()?,
+        psd.layer_by_name("OpaqueCenter")
+            .ok_or(anyhow!("layer not found"))?
+            .rgba(),
         &psd,
         &blue_pixels,
     );
@@ -53,12 +55,19 @@ fn transparency_rle_compressed() -> Result<()> {
     assert_colors(psd.rgba(), &psd, &red_block);
 
     assert_eq!(
-        psd.layer_by_name("OpaqueCenter")?
+        psd.layer_by_name("OpaqueCenter")
+            .ok_or(anyhow!("layer not found"))?
             .compression(PsdChannelKind::Red)?,
         PsdChannelCompression::RleCompressed
     );
 
-    assert_colors(psd.layer_by_name("OpaqueCenter")?.rgba()?, &psd, &red_block);
+    assert_colors(
+        psd.layer_by_name("OpaqueCenter")
+            .ok_or(anyhow!("layer not found"))?
+            .rgba(),
+        &psd,
+        &red_block,
+    );
 
     Ok(())
 }

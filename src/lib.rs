@@ -10,7 +10,12 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use anyhow::Result;
+use thiserror::Error;
+
+use sections::file_header_section::FileHeaderSectionError;
+use sections::image_data_section::ImageDataSectionError;
+use sections::image_resources_section::ImageResourcesSectionError;
+use sections::layer_and_mask_information_section::layer::PsdLayerError;
 
 use crate::psd_channel::IntoRgba;
 pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
@@ -18,8 +23,8 @@ pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
 pub use crate::sections::image_resources_section::ImageResource;
+use crate::sections::image_resources_section::ImageResourcesSection;
 pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
-use crate::sections::image_resources_section::{DescriptorStructure, ImageResourcesSection};
 pub use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
@@ -30,6 +35,25 @@ use self::sections::file_header_section::FileHeaderSection;
 mod blend;
 mod psd_channel;
 mod sections;
+
+/// An list of errors returned when processing PSD file.
+///
+/// This list is intended to grow over time and it is not recommended to exhaustively match against it.
+#[derive(PartialEq, Debug, Error)]
+pub enum PsdError {
+    /// Failed to parse PSD header
+    #[error("Failed to parse PSD header: '{0}'.")]
+    HeaderError(FileHeaderSectionError),
+    /// Failed to parse PSD layer
+    #[error("Failed to parse PSD layer: '{0}'.")]
+    LayerError(PsdLayerError),
+    /// Failed to parse PSD data section
+    #[error("Failed to parse PSD data section: '{0}'.")]
+    ImageError(ImageDataSectionError),
+    /// Failed to parse PSD resource section
+    #[error("Failed to parse PSD resource section: '{0}'.")]
+    ResourceError(ImageResourcesSectionError),
+}
 
 /// Represents the contents of a PSD file
 ///
@@ -57,10 +81,11 @@ impl Psd {
     ///
     /// let psd = Psd::from_bytes(psd_bytes);
     /// ```
-    pub fn from_bytes(bytes: &[u8]) -> Result<Psd> {
-        let major_sections = MajorSections::from_bytes(bytes)?;
+    pub fn from_bytes(bytes: &[u8]) -> Result<Psd, PsdError> {
+        let major_sections = MajorSections::from_bytes(bytes).map_err(PsdError::HeaderError)?;
 
-        let file_header_section = FileHeaderSection::from_bytes(major_sections.file_header)?;
+        let file_header_section = FileHeaderSection::from_bytes(major_sections.file_header)
+            .map_err(PsdError::HeaderError)?;
 
         let psd_width = file_header_section.width.0;
         let psd_height = file_header_section.height.0;
@@ -70,17 +95,20 @@ impl Psd {
             major_sections.layer_and_mask,
             psd_width,
             psd_height,
-        )?;
+        )
+        .map_err(PsdError::LayerError)?;
 
         let image_data_section = ImageDataSection::from_bytes(
             major_sections.image_data,
             file_header_section.depth,
             psd_height,
             channel_count,
-        )?;
+        )
+        .map_err(PsdError::ImageError)?;
 
         let image_resources_section =
-            ImageResourcesSection::from_bytes(major_sections.image_resources)?;
+            ImageResourcesSection::from_bytes(major_sections.image_resources)
+                .map_err(PsdError::ResourceError)?;
 
         Ok(Psd {
             file_header_section,
@@ -122,25 +150,20 @@ impl Psd {
     }
 
     /// Get a layer by name
-    pub fn layer_by_name(&self, name: &str) -> Result<&PsdLayer> {
-        let item = self
-            .layer_and_mask_information_section
+    pub fn layer_by_name(&self, name: &str) -> Option<&PsdLayer> {
+        self.layer_and_mask_information_section
             .layers
             .item_by_name(name)
-            .unwrap();
-        Ok(item)
     }
 
     /// Get a layer by index.
     ///
     /// index 0 is the bottom layer, index 1 is the layer above that, etc
-    pub fn layer_by_idx(&self, idx: usize) -> Result<&PsdLayer> {
-        let item = self
-            .layer_and_mask_information_section
+    pub fn layer_by_idx(&self, idx: usize) -> &PsdLayer {
+        self.layer_and_mask_information_section
             .layers
             .item_by_idx(idx)
-            .unwrap();
-        Ok(item)
+            .unwrap()
     }
 
     /// Get a group by id.
@@ -185,7 +208,7 @@ impl Psd {
     pub fn flatten_layers_rgba(
         &self,
         filter: &dyn Fn((usize, &PsdLayer)) -> bool,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, PsdError> {
         // When you create a PSD but don't create any new layers the bottom layer might not
         // show up in the layer and mask information section, so we won't see any layers.
         //
@@ -289,8 +312,7 @@ impl Psd {
         {
             let pixels = layers_to_flatten_top_down[flattened_layer_top_down_idx]
                 .1
-                .rgba()
-                .unwrap();
+                .rgba();
             cached_layer_rgba
                 .borrow_mut()
                 .insert(flattened_layer_top_down_idx, pixels);
@@ -343,7 +365,7 @@ impl Psd {
     /// Get the RGBA pixels for the PSD
     /// [ R,G,B,A, R,G,B,A, R,G,B,A, ...]
     pub fn rgba(&self) -> Vec<u8> {
-        self.generate_rgba().unwrap()
+        self.generate_rgba()
     }
 
     /// Get the compression level for the flattened image data
@@ -409,8 +431,10 @@ mod tests {
         let psd = include_bytes!("../tests/fixtures/green-1x1.png");
 
         let err = Psd::from_bytes(psd).expect_err("Psd::from_bytes() didn't catch the PNG file");
-        let err = err.downcast_ref::<FileHeaderSectionError>();
 
-        assert_eq!(err, Some(&FileHeaderSectionError::InvalidSignature {}));
+        assert_eq!(
+            err,
+            PsdError::HeaderError(FileHeaderSectionError::InvalidSignature {})
+        );
     }
 }

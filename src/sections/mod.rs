@@ -1,7 +1,6 @@
-use crate::sections::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};
-use anyhow::Result;
 use std::io::Cursor;
-use thiserror::Error;
+
+use self::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};
 
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
@@ -57,13 +56,12 @@ impl<'a> MajorSections<'a> {
     /// A 4-byte length field, representing the number of characters in the string (not bytes).
     ///
     /// The string of Unicode values, two bytes per character.
-    pub fn from_bytes(bytes: &[u8]) -> Result<MajorSections> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<MajorSections, FileHeaderSectionError> {
         // File header section must be 26 bytes long.
         if bytes.len() < FILE_HEADER_SECTION_LEN {
-            return Err(NotEnoughBytesError::FileHeader {
-                total_bytes: bytes.len(),
-            }
-            .into());
+            return Err(FileHeaderSectionError::IncorrectLength {
+                length: bytes.len(),
+            });
         }
 
         let mut cursor = PsdCursor::new(bytes);
@@ -71,7 +69,7 @@ impl<'a> MajorSections<'a> {
         // First four bytes must be '8BPS'
         let signature = cursor.peek_4();
         if signature != EXPECTED_PSD_SIGNATURE {
-            return Err(FileHeaderSectionError::InvalidSignature {}.into());
+            return Err(FileHeaderSectionError::InvalidSignature {});
         }
 
         // File Header Section
@@ -103,20 +101,6 @@ fn read_major_section_start_end(cursor: &mut PsdCursor) -> (usize, usize) {
     let end = cursor.position() as usize;
 
     (start, end)
-}
-
-/// A section specified that it had more bytes than were provided.
-///
-/// For example, the FileHeaderSection requires 26 bytes, so if we only see
-/// 25 bytes we'll return an error.
-#[derive(Debug, Error)]
-pub enum NotEnoughBytesError {
-    #[error(
-        r#"Could not parse the file header section.
-    The file header section is comprised of the first 26 bytes (indices 0-25)
-    of a PSD file, but only {total_bytes} total bytes were provided."#
-    )]
-    FileHeader { total_bytes: usize },
 }
 
 /// A Cursor wrapping bytes from a PSD file.
@@ -173,7 +157,7 @@ impl<'a> PsdCursor<'a> {
         let start = self.cursor.position() as usize;
         let end = start + n as usize;
         let bytes = &self.cursor.get_ref()[start..end];
-        &bytes
+        bytes
     }
 
     /// Read 1 byte

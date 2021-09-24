@@ -1,8 +1,20 @@
 use crate::psd_channel::PsdChannelCompression;
-use crate::sections::file_header_section::PsdDepthError;
 use crate::sections::PsdCursor;
 use crate::PsdDepth;
-use anyhow::Result;
+use thiserror::Error;
+
+/// Represents an malformed image data
+#[derive(Debug, PartialEq, Error)]
+pub enum ImageDataSectionError {
+    #[error(
+        r#"Only 8 and 16 bit depths are supported at the moment.
+    If you'd like to see 1 and 32 bit depths supported - please open an issue."#
+    )]
+    UnsupportedDepth,
+
+    #[error("{compression} is an invalid layer channel compression. Must be 0, 1, 2 or 3")]
+    InvalidCompression { compression: u16 },
+}
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
 /// of the final PSD image (the one that comes from combining all of the layers).
@@ -40,12 +52,14 @@ impl ImageDataSection {
         depth: PsdDepth,
         psd_height: u32,
         channel_count: u8,
-    ) -> Result<ImageDataSection> {
+    ) -> Result<ImageDataSection, ImageDataSectionError> {
+        // PsdChannelError, PsdDepthError
         let mut cursor = PsdCursor::new(bytes);
         let channel_count = channel_count as usize;
 
         let compression = cursor.read_u16();
-        let compression = PsdChannelCompression::new(compression)?;
+        let compression = PsdChannelCompression::new(compression)
+            .ok_or(ImageDataSectionError::InvalidCompression { compression })?;
 
         let (red, green, blue, alpha) = match compression {
             PsdChannelCompression::RawData => {
@@ -100,7 +114,7 @@ impl ImageDataSection {
 
                         (ChannelBytes::RawData(red), green, blue, alpha)
                     }
-                    _ => return Err(PsdDepthError::UnsupportedDepth.into()),
+                    _ => return Err(ImageDataSectionError::UnsupportedDepth),
                 }
             }
             // # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)

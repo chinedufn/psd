@@ -1,5 +1,4 @@
 use crate::sections::PsdCursor;
-use anyhow::Result;
 use thiserror::Error;
 
 /// Bytes representing the string "8BPS".
@@ -57,6 +56,16 @@ pub enum FileHeaderSectionError {
     InvalidVersion {},
     #[error(r#"Bytes 7-12 (indices 6-11) must be zeroes"#)]
     InvalidReserved {},
+    #[error("Invalid channel count: {channel_count}. Must be 1 <= channel count <= 56")]
+    ChannelCountOutOfRange { channel_count: u8 },
+    #[error("Invalid width: {width}. Must be 1 <= width <= 30,000")]
+    WidthOutOfRange { width: u32 },
+    #[error("Invalid height: {height}. Must be 1 <= height <= 30,000")]
+    HeightOutOfRange { height: u32 },
+    #[error("Depth {depth} is invalid. Must be 1, 8, 16 or 32")]
+    InvalidDepth { depth: u8 },
+    #[error("Invalid color mode {color_mode}. Must be 0, 1, 2, 3, 4, 7, 8 or 9")]
+    InvalidColorMode { color_mode: u8 },
 }
 
 impl FileHeaderSection {
@@ -65,7 +74,7 @@ impl FileHeaderSection {
     /// TODO: Accept a ColorModeSection along with the bytes so that we can add
     /// any ColorModeSection data to the ColorMode if necessary. Rename this method
     /// to "new" in the process.
-    pub fn from_bytes(bytes: &[u8]) -> Result<FileHeaderSection> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<FileHeaderSection, FileHeaderSectionError> {
         let mut cursor = PsdCursor::new(bytes);
 
         // File header section must be 26 bytes long
@@ -73,46 +82,50 @@ impl FileHeaderSection {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
             }
-            .into());
+            );
         }
 
         // First four bytes must be '8BPS'
         let signature = cursor.read_4();
         if signature != EXPECTED_PSD_SIGNATURE {
-            return Err(FileHeaderSectionError::InvalidSignature {}.into());
+            return Err(FileHeaderSectionError::InvalidSignature {});
         }
 
         // The next 2 bytes represent the version
         let version = cursor.read_2();
         if version != EXPECTED_VERSION {
-            return Err(FileHeaderSectionError::InvalidVersion {}.into());
+            return Err(FileHeaderSectionError::InvalidVersion {});
         }
 
         // The next 6 bytes are reserved and should always be 0
         let reserved = cursor.read_6();
         if reserved != EXPECTED_RESERVED {
-            return Err(FileHeaderSectionError::InvalidReserved {}.into());
+            return Err(FileHeaderSectionError::InvalidReserved {});
         }
 
         // The next 2 bytes represent the channel count
-        let channel = cursor.read_u16();
-        let channel_count = ChannelCount::new(channel as u8)?;
+        let channel_count = cursor.read_u16() as u8;
+        let channel_count = ChannelCount::new(channel_count)
+            .ok_or(FileHeaderSectionError::ChannelCountOutOfRange { channel_count })?;
 
         // 4 bytes for the height
         let height = cursor.read_u32();
-        let height = PsdHeight::new(height)?;
+        let height =
+            PsdHeight::new(height).ok_or(FileHeaderSectionError::HeightOutOfRange { height })?;
 
         // 4 bytes for the width
         let width = cursor.read_u32();
-        let width = PsdWidth::new(width)?;
+        let width =
+            PsdWidth::new(width).ok_or(FileHeaderSectionError::WidthOutOfRange { width })?;
 
         // 2 bytes for depth
-        let depth = cursor.read_2();
-        let depth = PsdDepth::new(depth[1])?;
+        let depth = cursor.read_2()[1];
+        let depth = PsdDepth::new(depth).ok_or(FileHeaderSectionError::InvalidDepth { depth })?;
 
         // 2 bytes for color mode
-        let color_mode = cursor.read_2();
-        let color_mode = ColorMode::new(color_mode[1])?;
+        let color_mode = cursor.read_2()[1];
+        let color_mode = ColorMode::new(color_mode)
+            .ok_or(FileHeaderSectionError::InvalidColorMode { color_mode })?;
 
         let file_header_section = FileHeaderSection {
             version: PsdVersion::One,
@@ -146,36 +159,20 @@ pub enum PsdVersion {
 #[derive(Debug)]
 pub struct ChannelCount(u8);
 
-/// Represents an incorrect channel count
-#[derive(Debug, Error)]
-pub enum ChannelCountError {
-    #[error("Invalid channel count: {channel_count}. Must be 1 <= channel count <= 56")]
-    OutOfRange { channel_count: u8 },
-}
-
 impl ChannelCount {
     /// Create a new ChannelCount
-    pub fn new(channel_count: u8) -> Result<ChannelCount> {
+    pub fn new(channel_count: u8) -> Option<ChannelCount> {
         if channel_count < 1 || channel_count > 56 {
-            return Err(ChannelCountError::OutOfRange { channel_count }.into());
+            return None;
         }
 
-        Ok(ChannelCount(channel_count))
+        Some(ChannelCount(channel_count))
     }
 
     /// Return the channel count
     pub fn count(&self) -> u8 {
         self.0
     }
-}
-
-/// Represents an incorrect channel count
-#[derive(Debug, Error)]
-pub enum PsdSizeError {
-    #[error("Invalid width: {width}. Must be 1 <= width <= 30,000")]
-    WidthOutOfRange { width: u32 },
-    #[error("Invalid height: {height}. Must be 1 <= height <= 30,000")]
-    HeightOutOfRange { height: u32 },
 }
 
 /// # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
@@ -189,12 +186,12 @@ pub struct PsdHeight(pub(in crate) u32);
 
 impl PsdHeight {
     /// Create a new PsdHeight
-    pub fn new(height: u32) -> Result<PsdHeight> {
+    pub fn new(height: u32) -> Option<PsdHeight> {
         if height < 1 || height > 30000 {
-            return Err(PsdSizeError::HeightOutOfRange { height }.into());
+            return None;
         }
 
-        Ok(PsdHeight(height))
+        Some(PsdHeight(height))
     }
 }
 
@@ -209,12 +206,12 @@ pub struct PsdWidth(pub(in crate) u32);
 
 impl PsdWidth {
     /// Create a new PsdWidth
-    pub fn new(width: u32) -> Result<PsdWidth> {
+    pub fn new(width: u32) -> Option<PsdWidth> {
         if width < 1 || width > 30000 {
-            return Err(PsdSizeError::WidthOutOfRange { width }.into());
+            return None;
         }
 
-        Ok(PsdWidth(width))
+        Some(PsdWidth(width))
     }
 }
 
@@ -232,27 +229,15 @@ pub enum PsdDepth {
     ThirtyTwo = 32,
 }
 
-/// Represents an incorrect PSD depth
-#[derive(Debug, Error)]
-pub enum PsdDepthError {
-    #[error("Depth {depth} is invalid. Must be 1, 8, 16 or 32")]
-    InvalidDepth { depth: u8 },
-    #[error(
-        r#"Only 8 and 16 bit depths are supported at the moment.
-    If you'd like to see 1 and 32 bit depths supported - please open an issue."#
-    )]
-    UnsupportedDepth,
-}
-
 impl PsdDepth {
     /// Create a new PsdDepth
-    pub fn new(depth: u8) -> Result<PsdDepth> {
+    pub fn new(depth: u8) -> Option<PsdDepth> {
         match depth {
-            1 => Ok(PsdDepth::One),
-            8 => Ok(PsdDepth::Eight),
-            16 => Ok(PsdDepth::Sixteen),
-            32 => Ok(PsdDepth::ThirtyTwo),
-            _ => Err(PsdDepthError::InvalidDepth { depth }.into()),
+            1 => Some(PsdDepth::One),
+            8 => Some(PsdDepth::Eight),
+            16 => Some(PsdDepth::Sixteen),
+            32 => Some(PsdDepth::ThirtyTwo),
+            _ => None,
         }
     }
 }
@@ -279,26 +264,19 @@ pub enum ColorMode {
     Lab = 9,
 }
 
-/// Represents an incorrect color mode
-#[derive(Debug, Error)]
-pub enum ColorModeError {
-    #[error("Invalid color mode {color_mode}. Must be 0, 1, 2, 3, 4, 7, 8 or 9")]
-    InvalidColorMode { color_mode: u8 },
-}
-
 impl ColorMode {
     /// Create a new ColorMode
-    pub fn new(color_mode: u8) -> Result<ColorMode> {
+    pub fn new(color_mode: u8) -> Option<ColorMode> {
         match color_mode {
-            0 => Ok(ColorMode::Bitmap),
-            1 => Ok(ColorMode::Grayscale),
-            2 => Ok(ColorMode::Indexed),
-            3 => Ok(ColorMode::Rgb),
-            4 => Ok(ColorMode::Cmyk),
-            7 => Ok(ColorMode::Multichannel),
-            8 => Ok(ColorMode::Duotone),
-            9 => Ok(ColorMode::Lab),
-            _ => Err(ColorModeError::InvalidColorMode { color_mode }.into()),
+            0 => Some(ColorMode::Bitmap),
+            1 => Some(ColorMode::Grayscale),
+            2 => Some(ColorMode::Indexed),
+            3 => Some(ColorMode::Rgb),
+            4 => Some(ColorMode::Cmyk),
+            7 => Some(ColorMode::Multichannel),
+            8 => Some(ColorMode::Duotone),
+            9 => Some(ColorMode::Lab),
+            _ => None,
         }
     }
 }
@@ -312,7 +290,7 @@ mod tests {
     #[test]
     fn valid_channel_count() {
         for channel_count in 1..=56 {
-            assert!(ChannelCount::new(channel_count).is_ok());
+            assert!(ChannelCount::new(channel_count).is_some());
         }
     }
 
@@ -320,8 +298,8 @@ mod tests {
     //   < 1, > 56
     #[test]
     fn invalid_channel_count() {
-        assert!(ChannelCount::new(0).is_err());
-        assert!(ChannelCount::new(57).is_err());
+        assert!(ChannelCount::new(0).is_none());
+        assert!(ChannelCount::new(57).is_none());
     }
 
     // We're passing in 25 bytes even though we're supposed to pass in 26 bytes
@@ -371,18 +349,7 @@ mod tests {
     }
 
     fn error_from_bytes(bytes: &[u8]) -> FileHeaderSectionError {
-        let error = FileHeaderSection::from_bytes(&bytes);
-        downcast_file_section_header_error(error)
-    }
-
-    fn downcast_file_section_header_error(
-        error: Result<FileHeaderSection>,
-    ) -> FileHeaderSectionError {
-        error
-            .err()
-            .unwrap()
-            .downcast::<FileHeaderSectionError>()
-            .unwrap()
+        FileHeaderSection::from_bytes(&bytes).expect_err("error")
     }
 
     // [0, 1, 2, ..., 25]

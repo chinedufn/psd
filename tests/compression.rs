@@ -42,7 +42,7 @@ fn rle_decompress_layer() -> Result<()> {
 
 fn test_rle_layer(psd: &Psd, layer_name: &str, expected_pixels: &[u8]) {
     let layer = psd.layer_by_name(layer_name).unwrap();
-    assert_eq!(&layer.rgba().unwrap().as_slice(), &expected_pixels);
+    assert_eq!(&layer.rgba().as_slice(), &expected_pixels);
 }
 
 // Below are methods to make different expected final pixels so that we can text our generated
