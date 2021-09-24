@@ -44,7 +44,7 @@ impl ImageDataSection {
         let mut cursor = PsdCursor::new(bytes);
         let channel_count = channel_count as usize;
 
-        let compression = cursor.read_u16()?;
+        let compression = cursor.read_u16();
         let compression = PsdChannelCompression::new(compression)?;
 
         let (red, green, blue, alpha) = match compression {
@@ -117,24 +117,24 @@ impl ImageDataSection {
                 let mut alpha_byte_count = if channel_count == 4 { Some(0) } else { None };
 
                 for _ in 0..psd_height {
-                    red_byte_count += cursor.read_u16()? as usize;
+                    red_byte_count += cursor.read_u16() as usize;
                 }
 
                 if let Some(ref mut green_byte_count) = green_byte_count {
                     for _ in 0..psd_height {
-                        *green_byte_count += cursor.read_u16()? as usize;
+                        *green_byte_count += cursor.read_u16() as usize;
                     }
                 }
 
                 if let Some(ref mut blue_byte_count) = blue_byte_count {
                     for _ in 0..psd_height {
-                        *blue_byte_count += cursor.read_u16()? as usize;
+                        *blue_byte_count += cursor.read_u16() as usize;
                     }
                 }
 
                 if let Some(ref mut alpha_byte_count) = alpha_byte_count {
                     for _ in 0..psd_height {
-                        *alpha_byte_count += cursor.read_u16()? as usize;
+                        *alpha_byte_count += cursor.read_u16() as usize;
                     }
                 }
 

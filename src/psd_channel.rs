@@ -152,13 +152,13 @@ pub trait IntoRgba {
         let offset = channel_kind.rgba_offset().unwrap();
 
         while cursor.position() != cursor.get_ref().len() as u64 {
-            let header = cursor.read_i8().unwrap() as i16;
+            let header = cursor.read_i8() as i16;
 
             if header == -128 {
                 continue;
             } else if header >= 0 {
                 let bytes_to_read = 1 + header;
-                for byte in cursor.read(bytes_to_read as u32).unwrap() {
+                for byte in cursor.read(bytes_to_read as u32) {
                     let rgba_idx = self.rgba_idx(idx);
                     rgba[rgba_idx * 4 + offset] = *byte;
 
@@ -166,7 +166,7 @@ pub trait IntoRgba {
                 }
             } else {
                 let repeat = 1 - header;
-                let byte = cursor.read_1().unwrap()[0];
+                let byte = cursor.read_1()[0];
                 for _ in 0..repeat as usize {
                     let rgba_idx = self.rgba_idx(idx);
                     rgba[rgba_idx * 4 + offset] = byte;
@@ -185,18 +185,18 @@ fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
     let mut decompressed = vec![];
 
     while cursor.position() != cursor.get_ref().len() as u64 {
-        let header = cursor.read_i8().unwrap() as i16;
+        let header = cursor.read_i8() as i16;
 
         if header == -128 {
             continue;
         } else if header >= 0 {
             let bytes_to_read = 1 + header;
-            for byte in cursor.read(bytes_to_read as u32).unwrap() {
+            for byte in cursor.read(bytes_to_read as u32) {
                 decompressed.push(*byte);
             }
         } else {
             let repeat = 1 - header;
-            let byte = cursor.read_1().unwrap()[0];
+            let byte = cursor.read_1()[0];
             for _ in 0..repeat as usize {
                 decompressed.push(byte);
             }

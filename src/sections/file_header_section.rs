@@ -77,41 +77,41 @@ impl FileHeaderSection {
         }
 
         // First four bytes must be '8BPS'
-        let signature = cursor.read_4()?;
+        let signature = cursor.read_4();
         if signature != EXPECTED_PSD_SIGNATURE {
             return Err(FileHeaderSectionError::InvalidSignature {}.into());
         }
 
         // The next 2 bytes represent the version
-        let version = cursor.read_2()?;
+        let version = cursor.read_2();
         if version != EXPECTED_VERSION {
             return Err(FileHeaderSectionError::InvalidVersion {}.into());
         }
 
         // The next 6 bytes are reserved and should always be 0
-        let reserved = cursor.read_6()?;
+        let reserved = cursor.read_6();
         if reserved != EXPECTED_RESERVED {
             return Err(FileHeaderSectionError::InvalidReserved {}.into());
         }
 
         // The next 2 bytes represent the channel count
-        let channel = cursor.read_u16()?;
+        let channel = cursor.read_u16();
         let channel_count = ChannelCount::new(channel as u8)?;
 
         // 4 bytes for the height
-        let height = cursor.read_u32()?;
+        let height = cursor.read_u32();
         let height = PsdHeight::new(height)?;
 
         // 4 bytes for the width
-        let width = cursor.read_u32()?;
+        let width = cursor.read_u32();
         let width = PsdWidth::new(width)?;
 
         // 2 bytes for depth
-        let depth = cursor.read_2()?;
+        let depth = cursor.read_2();
         let depth = PsdDepth::new(depth[1])?;
 
         // 2 bytes for color mode
-        let color_mode = cursor.read_2()?;
+        let color_mode = cursor.read_2();
         let color_mode = ColorMode::new(color_mode[1])?;
 
         let file_header_section = FileHeaderSection {
