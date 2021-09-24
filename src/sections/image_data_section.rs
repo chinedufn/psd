@@ -53,7 +53,6 @@ impl ImageDataSection {
         psd_height: u32,
         channel_count: u8,
     ) -> Result<ImageDataSection, ImageDataSectionError> {
-        // PsdChannelError, PsdDepthError
         let mut cursor = PsdCursor::new(bytes);
         let channel_count = channel_count as usize;
 

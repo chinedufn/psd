@@ -40,6 +40,7 @@ mod sections;
 ///
 /// This list is intended to grow over time and it is not recommended to exhaustively match against it.
 #[derive(PartialEq, Debug, Error)]
+#[non_exhaustive]
 pub enum PsdError {
     /// Failed to parse PSD header
     #[error("Failed to parse PSD header: '{0}'.")]
