@@ -1,5 +1,19 @@
-use psd::Psd;
+use psd::{Psd, PsdGroup};
 const TOP_LEVEL_ID: u32 = 1;
+
+/// Verify that we can get a group by it's ID.
+#[test]
+fn group_by_id() {
+    let psd = include_bytes!("fixtures/groups/green-1x1-one-group-inside-another.psd");
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    assert!(psd.groups().get(&0).is_none());
+
+    assert_eq!(psd.group_ids_in_order(), &[2, 1]);
+
+    assert_eq!(psd.groups().get(&1).unwrap().name(), "group outside");
+    assert_eq!(psd.groups().get(&2).unwrap().name(), "group inside");
+}
 
 /// group structure
 /// +---------------+----------+---------+
@@ -27,11 +41,11 @@ fn one_group_inside_another() {
     assert_eq!(psd.groups().len(), 2);
 
     // Check group
-    let group = psd.group_by_name("group outside").unwrap();
+    let group = group_by_name(&psd, "group outside");
     assert_eq!(group.id(), TOP_LEVEL_ID);
 
     // Check subgroup
-    let children_group = psd.group_by_name("group inside").unwrap();
+    let children_group = group_by_name(&psd, "group inside");
     assert_eq!(children_group.parent_id().unwrap(), group.id());
 
     let layer = psd.layer_by_name("First Layer").unwrap();
@@ -67,22 +81,22 @@ fn one_group_with_two_subgroups() {
     assert_eq!(6, psd.groups().len());
 
     // Check first top-level group
-    let outside_group = psd.group_by_name("outside group").unwrap();
+    let outside_group = group_by_name(&psd, "outside group");
     assert_eq!(outside_group.id(), 1);
 
     // Check first subgroup
-    let children_group = psd.group_by_name("first group inside").unwrap();
+    let children_group = group_by_name(&psd, "first group inside");
     assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
 
     let layer = psd.layer_by_name("First Layer").unwrap();
     assert_eq!(children_group.id(), layer.parent_id().unwrap());
 
     // Check second subgroup
-    let children_group = psd.group_by_name("second group inside").unwrap();
+    let children_group = group_by_name(&psd, "second group inside");
     assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
 
     // Check `sub sub group`
-    let sub_sub_group = psd.group_by_name("sub sub group").unwrap();
+    let sub_sub_group = group_by_name(&psd, "sub sub group");
     assert_eq!(sub_sub_group.parent_id().unwrap(), children_group.id());
 
     let layer = psd.layer_by_name("Second Layer").unwrap();
@@ -92,7 +106,7 @@ fn one_group_with_two_subgroups() {
     assert_eq!(children_group.id(), layer.parent_id().unwrap());
 
     // Check third subgroup
-    let children_group = psd.group_by_name("third group inside").unwrap();
+    let children_group = group_by_name(&psd, "third group inside");
     assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
 
     let layer = psd.layer_by_name("Fourth Layer").unwrap();
@@ -103,9 +117,17 @@ fn one_group_with_two_subgroups() {
     assert_eq!(layer.parent_id(), None);
 
     // Check second top-level group
-    let outside_group = psd.group_by_name("outside group 2").unwrap();
+    let outside_group = group_by_name(&psd, "outside group 2");
     assert_eq!(outside_group.id(), 6);
 
     let layer = psd.layer_by_name("Sixth Layer").unwrap();
     assert_eq!(layer.parent_id().unwrap(), outside_group.id());
+}
+
+fn group_by_name<'a>(psd: &'a Psd, name: &str) -> &'a PsdGroup {
+    psd.groups()
+        .iter()
+        .find(|group| group.1.name() == name)
+        .unwrap()
+        .1
 }

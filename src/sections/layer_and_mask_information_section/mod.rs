@@ -4,10 +4,11 @@ use std::ops::Range;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::layer_and_mask_information_section::container::NamedItems;
+use crate::sections::layer_and_mask_information_section::groups::Groups;
 use crate::sections::layer_and_mask_information_section::layer::{
     BlendMode, GroupDivider, LayerChannels, LayerRecord, PsdGroup, PsdLayer, PsdLayerError,
 };
+use crate::sections::layer_and_mask_information_section::layers::Layers;
 use crate::sections::PsdCursor;
 
 /// One of the possible additional layer block signatures
@@ -21,8 +22,9 @@ const KEY_UNICODE_LAYER_NAME: &[u8; 4] = b"luni";
 /// Key of `Section divider setting (Photoshop 6.0)`, "lsct"
 const KEY_SECTION_DIVIDER_SETTING: &[u8; 4] = b"lsct";
 
-pub mod container;
+pub mod groups;
 pub mod layer;
+pub mod layers;
 
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
@@ -53,8 +55,8 @@ pub mod layer;
 /// | Variable | (Photoshop 4.0 and later) <br> Series of tagged blocks containing various types of data. See See Additional Layer Information for the list of the types of data that can be included here. |
 #[derive(Debug)]
 pub struct LayerAndMaskInformationSection {
-    pub(crate) layers: NamedItems<PsdLayer>,
-    pub(crate) groups: NamedItems<PsdGroup>,
+    pub(crate) layers: Layers,
+    pub(crate) groups: Groups,
 }
 
 /// Frame represents a group stack frame
@@ -118,8 +120,8 @@ impl LayerAndMaskInformationSection {
         group_count: usize,
         psd_size: (u32, u32),
     ) -> Result<LayerAndMaskInformationSection, PsdLayerError> {
-        let mut layers = NamedItems::with_capacity(layer_records.len());
-        let mut groups: NamedItems<PsdGroup> = NamedItems::with_capacity(group_count);
+        let mut layers = Layers::with_capacity(layer_records.len());
+        let mut groups = Groups::with_capacity(group_count);
 
         // Create stack with root-level
         let mut stack: Vec<Frame> = vec![Frame {
@@ -161,22 +163,19 @@ impl LayerAndMaskInformationSection {
                         end: layers.len(),
                     };
 
-                    groups.push(
-                        frame.name.clone(),
-                        PsdGroup::new(
-                            frame.name,
-                            frame.group_id,
-                            range,
-                            &layer_record,
-                            psd_size.0,
-                            psd_size.1,
-                            if frame.parent_group_id > 0 {
-                                Some(frame.parent_group_id)
-                            } else {
-                                None
-                            },
-                        ),
-                    );
+                    groups.push(PsdGroup::new(
+                        frame.name,
+                        frame.group_id,
+                        range,
+                        &layer_record,
+                        psd_size.0,
+                        psd_size.1,
+                        if frame.parent_group_id > 0 {
+                            Some(frame.parent_group_id)
+                        } else {
+                            None
+                        },
+                    ));
                 }
 
                 _ => {
