@@ -1,4 +1,4 @@
-use psd::Psd;
+use psd::{Psd, PsdGroup};
 
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
 
@@ -69,7 +69,7 @@ fn one_group_one_layer_inside() {
     assert_eq!(psd.groups().len(), 1);
 
     // Check group
-    let group = psd.group_by_name("group").unwrap();
+    let group = group_by_name(&psd, "group");
     assert_eq!(group.id(), TOP_LEVEL_ID);
 
     let layer_parent_id = psd.layers().get(0).unwrap().parent_id().unwrap();
@@ -93,7 +93,7 @@ fn one_group_one_layer_inside_one_outside() {
     assert!(layer.parent_id().is_none());
 
     // Check group
-    let group = psd.group_by_name("group").unwrap();
+    let group = group_by_name(&psd, "group");
     assert_eq!(group.id(), TOP_LEVEL_ID);
 
     // Check layer inside group
@@ -111,7 +111,7 @@ fn two_groups_two_layers_inside() {
     assert_eq!(psd.groups().len(), 2);
 
     // Check first group
-    let group = psd.group_by_name("group").unwrap();
+    let group = group_by_name(&psd, "group");
     assert_eq!(group.id(), TOP_LEVEL_ID);
 
     // Check layer inside group
@@ -119,7 +119,7 @@ fn two_groups_two_layers_inside() {
     assert_eq!(layer.parent_id().unwrap(), group.id());
 
     // Check second group
-    let group = psd.group_by_name("group2").unwrap();
+    let group = group_by_name(&psd, "group2");
     assert_eq!(group.id(), TOP_LEVEL_ID + 1);
 }
 
@@ -148,11 +148,11 @@ fn one_group_inside_another() {
     assert_eq!(psd.groups().len(), 2);
 
     // Check group
-    let group = psd.group_by_name("group outside").unwrap();
+    let group = group_by_name(&psd, "group outside");
     assert_eq!(group.id(), TOP_LEVEL_ID);
 
     // Check subgroup
-    let children_group = psd.group_by_name("group inside").unwrap();
+    let children_group = group_by_name(&psd, "group inside");
     assert_eq!(children_group.parent_id().unwrap(), group.id());
 
     let layer = psd.layer_by_name("First Layer").unwrap();
@@ -188,22 +188,22 @@ fn one_group_with_two_subgroups() {
     assert_eq!(6, psd.groups().len());
 
     // Check first top-level group
-    let outside_group = psd.group_by_name("outside group").unwrap();
+    let outside_group = group_by_name(&psd, "outside group");
     assert_eq!(outside_group.id(), 1);
 
     // Check first subgroup
-    let children_group = psd.group_by_name("first group inside").unwrap();
+    let children_group = group_by_name(&psd, "first group inside");
     assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
 
     let layer = psd.layer_by_name("First Layer").unwrap();
     assert_eq!(children_group.id(), layer.parent_id().unwrap());
 
     // Check second subgroup
-    let children_group = psd.group_by_name("second group inside").unwrap();
+    let children_group = group_by_name(&psd, "second group inside");
     assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
 
     // Check `sub sub group`
-    let sub_sub_group = psd.group_by_name("sub sub group").unwrap();
+    let sub_sub_group = group_by_name(&psd, "sub sub group");
     assert_eq!(sub_sub_group.parent_id().unwrap(), children_group.id());
 
     let layer = psd.layer_by_name("Second Layer").unwrap();
@@ -213,7 +213,7 @@ fn one_group_with_two_subgroups() {
     assert_eq!(children_group.id(), layer.parent_id().unwrap());
 
     // Check third subgroup
-    let children_group = psd.group_by_name("third group inside").unwrap();
+    let children_group = group_by_name(&psd, "third group inside");
     assert_eq!(children_group.parent_id().unwrap(), outside_group.id());
 
     let layer = psd.layer_by_name("Fourth Layer").unwrap();
@@ -224,9 +224,17 @@ fn one_group_with_two_subgroups() {
     assert_eq!(layer.parent_id(), None);
 
     // Check second top-level group
-    let outside_group = psd.group_by_name("outside group 2").unwrap();
+    let outside_group = group_by_name(&psd, "outside group 2");
     assert_eq!(outside_group.id(), 6);
 
     let layer = psd.layer_by_name("Sixth Layer").unwrap();
     assert_eq!(layer.parent_id().unwrap(), outside_group.id());
+}
+
+fn group_by_name<'a>(psd: &'a Psd, name: &str) -> &'a PsdGroup {
+    psd.groups()
+        .iter()
+        .find(|group| group.1.name() == name)
+        .unwrap()
+        .1
 }

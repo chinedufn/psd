@@ -9,6 +9,7 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use thiserror::Error;
 
@@ -147,7 +148,7 @@ impl Psd {
 impl Psd {
     /// Get all of the layers in the PSD
     pub fn layers(&self) -> &Vec<PsdLayer> {
-        &self.layer_and_mask_information_section.layers.items()
+        &self.layer_and_mask_information_section.layers
     }
 
     /// Get a layer by name
@@ -163,35 +164,30 @@ impl Psd {
     pub fn layer_by_idx(&self, idx: usize) -> &PsdLayer {
         self.layer_and_mask_information_section
             .layers
-            .item_by_idx(idx)
+            .get(idx)
             .unwrap()
     }
 
-    /// Get a group by id.
-    pub fn group_by_id(&self, id: usize) -> Option<&PsdGroup> {
-        self.layer_and_mask_information_section
-            .groups
-            .item_by_idx(id)
+    /// Get all of the groups in the PSD, in the order that they appear in the PSD file.
+    pub fn groups(&self) -> &HashMap<u32, PsdGroup> {
+        &self.layer_and_mask_information_section.groups
     }
 
-    /// Get a group by name
-    pub fn group_by_name(&self, name: &str) -> Option<&PsdGroup> {
+    /// Get the group ID's in the order that they appear in Photoshop.
+    /// (i.e. from the bottom of layers view to the top of the layers view).
+    pub fn group_ids_in_order(&self) -> &Vec<u32> {
         self.layer_and_mask_information_section
             .groups
-            .item_by_name(name)
-    }
-
-    /// Get all of the groups in the PSD
-    pub fn groups(&self) -> &Vec<PsdGroup> {
-        &self.layer_and_mask_information_section.groups.items()
+            .group_ids_in_order()
     }
 
     /// Returns sub layers of group by group id
-    pub fn get_sub_layers(&self, id: usize) -> Option<&[PsdLayer]> {
-        match self.group_by_id(id) {
-            Some(group) => {
-                Some(&self.layer_and_mask_information_section.layers[&group.contained_layers])
-            }
+    pub fn get_group_sub_layers(&self, id: &u32) -> Option<&[PsdLayer]> {
+        match self.groups().get(id) {
+            Some(group) => Some(
+                &self.layer_and_mask_information_section.layers.deref()
+                    [group.contained_layers.clone()],
+            ),
             None => None,
         }
     }
