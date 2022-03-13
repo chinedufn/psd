@@ -1,14 +1,12 @@
-#![feature(proc_macro_hygiene)]
-
 use console_error_panic_hook;
 
+use percy_dom::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 use web_sys::*;
 
 use css_rs_macro::css;
-use virtual_dom_rs::prelude::*;
 
 use psd::Psd;
 use std::cell::RefCell;
@@ -77,7 +75,7 @@ impl AppWrapper {
 #[wasm_bindgen]
 struct App {
     store: Rc<RefCell<Store>>,
-    dom_updater: DomUpdater,
+    dom_updater: PercyDom,
     /// Holds the most recent RAF closure
     raf_closure_holder: Rc<RefCell<Option<Box<dyn AsRef<JsValue>>>>>,
 }
@@ -87,7 +85,7 @@ impl App {
     /// Create a new App
     fn new() -> App {
         let vdom = html! { <div> </div> };
-        let mut dom_updater = DomUpdater::new_append_to_mount(vdom, &body());
+        let mut dom_updater = PercyDom::new_append_to_mount(vdom, &body());
 
         let state = State {
             psd: None,
@@ -254,7 +252,7 @@ impl App {
             })
             .unwrap();
 
-        let psd_pixels = Clamped(&mut psd_pixels[..]);
+        let psd_pixels = Clamped(&psd_pixels[..]);
         let psd_pixels =
             ImageData::new_with_u8_clamped_array_and_sh(psd_pixels, psd.width(), psd.height())?;
 
@@ -339,13 +337,7 @@ impl State {
             Msg::SetLayerVisibility(idx, visible) => {
                 let visibility = self
                     .layer_visibility
-                    .get_mut(
-                        self.psd
-                            .as_mut()
-                            .unwrap()
-                            .layer_by_idx(*idx)
-                            .name(),
-                    )
+                    .get_mut(self.psd.as_mut().unwrap().layer_by_idx(*idx).name())
                     .unwrap();
 
                 *visibility = *visible;
