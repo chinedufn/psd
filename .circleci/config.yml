@@ -86,7 +86,7 @@ jobs:
           name: Install mdbook
           command: >
             (test -x $CARGO_HOME/bin/cargo-install-update || cargo install cargo-update)
-            && (test -x $CARGO_HOME/bin/mdbook || cargo install --vers "^0.2" mdbook)
+            && (test -x $CARGO_HOME/bin/mdbook || cargo install --vers "^0.4" mdbook)
             && mv ~/.gitconfig ~/.gitconfig.disabled  # Workaround for https://github.com/nabijaczleweli/cargo-update/issues/100
             && cargo install-update -a
             && mv ~/.gitconfig.disabled ~/.gitconfig
