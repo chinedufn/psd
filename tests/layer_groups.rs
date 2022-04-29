@@ -54,22 +54,22 @@ fn one_group_inside_another() {
 
 /// PSD file structure
 /// group: outside group, parent: `None`
-/// 	group: first group inside, parent: `outside group`
-/// 		layer: First Layer, parent: `first group inside`
+///     group: first group inside, parent: `outside group`
+///         layer: First Layer, parent: `first group inside`
 ///
-/// 	group: second group inside, parent: `outside group`
-/// 		group: sub sub group, parent: `second group inside`
-/// 			layer: Second Layer, parent: `sub sub group`
+///     group: second group inside, parent: `outside group`
+///         group: sub sub group, parent: `second group inside`
+///             layer: Second Layer, parent: `sub sub group`
 ///
-/// 		layer: Third Layer, parent: `second group inside`
+///         layer: Third Layer, parent: `second group inside`
 ///
-/// 	group: third group inside, parent: `outside group`
+///     group: third group inside, parent: `outside group`
 ///
-/// 	layer: Fourth Layer, parent: `outside group`
+///     layer: Fourth Layer, parent: `outside group`
 /// layer: Firth Layer, parent: `None`
 ///
 /// group: outside group 2, parent: `None`
-/// 	layer: Sixth Layer, parent: `outside group 2`
+///     layer: Sixth Layer, parent: `outside group 2`
 ///
 /// cargo test --test layer_and_mask_information_section one_group_with_two_subgroups -- --exact
 #[test]
@@ -122,6 +122,14 @@ fn one_group_with_two_subgroups() {
 
     let layer = psd.layer_by_name("Sixth Layer").unwrap();
     assert_eq!(layer.parent_id().unwrap(), outside_group.id());
+}
+
+/// Verify that we can properly load an RLEcompressed empty channel (caused by a group from GIMP)
+#[test]
+fn rle_compressed_empty_channel() {
+    let psd = include_bytes!("fixtures/groups/rle-compressed-empty-channel.psd");
+    let psd = Psd::from_bytes(psd);
+    assert!(psd.is_ok());
 }
 
 fn group_by_name<'a>(psd: &'a Psd, name: &str) -> &'a PsdGroup {

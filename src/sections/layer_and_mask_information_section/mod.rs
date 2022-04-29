@@ -261,6 +261,12 @@ fn read_layer_channels(
         let compression = PsdChannelCompression::new(compression)
             .ok_or(PsdLayerError::InvalidCompression { compression })?;
 
+        let compression = if *channel_length > 0 {
+            compression
+        } else {
+            PsdChannelCompression::RawData
+        };
+
         let channel_data = cursor.read(*channel_length);
         let channel_bytes = match compression {
             PsdChannelCompression::RawData => ChannelBytes::RawData(channel_data.into()),
@@ -272,7 +278,6 @@ fn read_layer_channels(
                 // Compressed bytes per scanline are encoded at the beginning as 2 bytes
                 // per scanline
                 let channel_data = &channel_data[2 * scanlines..];
-
                 ChannelBytes::RleCompressed(channel_data.into())
             }
             _ => unimplemented!("Zip compression currently unsupported"),
