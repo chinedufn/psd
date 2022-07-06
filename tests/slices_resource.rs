@@ -1,5 +1,5 @@
 use anyhow::Result;
-use psd::{ImageResource, Psd};
+use psd::{DescriptorField, ImageResource, Psd};
 use std::path::PathBuf;
 
 /// Verify that we properly read the name of a slices resources section.
@@ -42,8 +42,33 @@ fn fixtures_dir() -> PathBuf {
 #[test]
 fn slices_v7_8() -> Result<()> {
     let psd = include_bytes!("./fixtures/slices-v8.psd");
+    let psd = Psd::from_bytes(psd)?;
 
-    Psd::from_bytes(psd)?;
+    match &psd.resources()[0] {
+        ImageResource::Slices(slices) => {
+            assert_eq!(slices.name().as_str(), "\u{0}");
+        }
+    };
+
+    let descriptors = match &psd.resources()[0] {
+        ImageResource::Slices(s) => s.descriptors(),
+    };
+    let descriptor = descriptors.get(0).unwrap();
+    let bounds = descriptor.fields.get("bounds").unwrap();
+
+    if let DescriptorField::Descriptor(d) = bounds {
+        match d.fields.get("Rght").unwrap() {
+            DescriptorField::Integer(v) => assert_eq!(*v, 2000),
+            _ => panic!("expected integer"),
+        }
+
+        match d.fields.get("Btom").unwrap() {
+            DescriptorField::Integer(v) => assert_eq!(*v, 9700),
+            _ => panic!("expected integer"),
+        }
+    } else {
+        panic!("expected descriptor");
+    }
 
     Ok(())
 }
