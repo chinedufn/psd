@@ -32,6 +32,8 @@ use crate::sections::MajorSections;
 
 use self::sections::file_header_section::FileHeaderSection;
 
+use serde::Serialize;
+
 mod blend;
 mod psd_channel;
 mod render;
@@ -63,11 +65,12 @@ pub enum PsdError {
 ///
 /// We do not currently support PSB since the original authors didn't need it, but adding
 /// support should be trivial. If you'd like to support PSB please open an issue.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Psd {
     file_header_section: FileHeaderSection,
     image_resources_section: ImageResourcesSection,
     layer_and_mask_information_section: LayerAndMaskInformationSection,
+    #[serde(skip_serializing)]
     image_data_section: ImageDataSection,
 }
 

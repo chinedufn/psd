@@ -1,8 +1,9 @@
 use crate::PsdGroup;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::Deref;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct Groups {
     groups: HashMap<u32, PsdGroup>,
     group_ids_in_order: Vec<u32>,

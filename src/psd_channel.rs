@@ -1,5 +1,6 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
+use serde::Serialize;
 use thiserror::Error;
 
 pub trait IntoRgba {
@@ -248,7 +249,7 @@ fn sixteen_to_eight_rgba(channel1: &[u8], channel2: &[u8]) -> Vec<u8> {
 }
 
 /// Indicates how a channe'sl data is compressed
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[allow(missing_docs)]
 pub enum PsdChannelCompression {
     /// Not compressed
@@ -275,7 +276,7 @@ impl PsdChannelCompression {
 }
 
 /// The different kinds of channels in a layer (red, green, blue, ...).
-#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Serialize)]
 #[allow(missing_docs)]
 pub enum PsdChannelKind {
     Red = 0,

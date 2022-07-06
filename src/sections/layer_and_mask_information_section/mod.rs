@@ -11,6 +11,8 @@ use crate::sections::layer_and_mask_information_section::layer::{
 use crate::sections::layer_and_mask_information_section::layers::Layers;
 use crate::sections::PsdCursor;
 
+use serde::Serialize;
+
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_BIM: [u8; 4] = [56, 66, 73, 77];
 /// One of the possible additional layer block signatures
@@ -53,14 +55,14 @@ pub mod layers;
 /// | Variable | Layer info (see See Layer info for details).                                                                                                                                               |
 /// | Variable | Global layer mask info (see See Global layer mask info for details).                                                                                                                       |
 /// | Variable | (Photoshop 4.0 and later) <br> Series of tagged blocks containing various types of data. See See Additional Layer Information for the list of the types of data that can be included here. |
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct LayerAndMaskInformationSection {
     pub(crate) layers: Layers,
     pub(crate) groups: Groups,
 }
 
 /// Frame represents a group stack frame
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct Frame {
     start_idx: usize,
     name: String,

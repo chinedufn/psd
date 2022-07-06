@@ -1,4 +1,5 @@
 use crate::sections::PsdCursor;
+use serde::Serialize;
 use thiserror::Error;
 
 /// Bytes representing the string "8BPS".
@@ -30,7 +31,7 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 /// | 4      | The width of the image in pixels. Supported range is 1 to 30,000.<br> (**PSB** max of 300,000)                                                       |
 /// | 2      | Depth: the number of bits per channel. Supported values are 1, 8, 16 and 32.                                                                         |
 /// | 2      | The color mode of the file. Supported values are: Bitmap = 0; Grayscale = 1; Indexed = 2; RGB = 3; CMYK = 4; Multichannel = 7; Duotone = 8; Lab = 9. |
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct FileHeaderSection {
     pub(in crate) version: PsdVersion,
     pub(in crate) channel_count: ChannelCount,
@@ -81,8 +82,7 @@ impl FileHeaderSection {
         if bytes.len() != 26 {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
-            }
-            );
+            });
         }
 
         // First four bytes must be '8BPS'
@@ -145,7 +145,7 @@ impl FileHeaderSection {
 /// Version: always equal to 1. Do not try to read the file if the version does not match this value. (**PSB** version is 2.)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum PsdVersion {
     /// Regular PSD (Not a PSB)
     One,
@@ -156,7 +156,7 @@ pub enum PsdVersion {
 /// The number of channels in the image, including any alpha channels. Supported range is 1 to 56.
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ChannelCount(u8);
 
 impl ChannelCount {
@@ -181,7 +181,7 @@ impl ChannelCount {
 /// (**PSB** max of 300,000.)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct PsdHeight(pub(in crate) u32);
 
 impl PsdHeight {
@@ -201,7 +201,7 @@ impl PsdHeight {
 /// (*PSB** max of 300,000)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct PsdWidth(pub(in crate) u32);
 
 impl PsdWidth {
@@ -220,7 +220,7 @@ impl PsdWidth {
 /// Depth: the number of bits per channel. Supported values are 1, 8, 16 and 32.
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
 #[allow(missing_docs)]
 pub enum PsdDepth {
     One = 1,
@@ -247,7 +247,7 @@ impl PsdDepth {
 /// The color mode of the file. Supported values are: Bitmap = 0; Grayscale = 1; Indexed = 2; RGB = 3; CMYK = 4; Multichannel = 7; Duotone = 8; Lab = 9.
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize)]
 #[allow(missing_docs)]
 pub enum ColorMode {
     Bitmap = 0,

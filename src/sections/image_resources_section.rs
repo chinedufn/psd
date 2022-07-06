@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
+use serde::Serialize;
 use thiserror::Error;
 
 pub use crate::sections::image_resources_section::image_resource::ImageResource;
@@ -19,7 +20,7 @@ struct ImageResourcesBlock {
     data_range: Range<usize>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ImageResourcesSection {
     pub(crate) resources: Vec<ImageResource>,
 }
@@ -259,7 +260,7 @@ impl ImageResourcesSection {
 /// |                                                       | 'tdta' = Raw Data                                                                          |
 /// | Variable                                              | Item type: see the tables below for each possible type                                     |
 /// +-------------------------------------------------------+--------------------------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct DescriptorStructure {
     pub name: String,
     pub fields: HashMap<String, DescriptorField>,
@@ -267,7 +268,7 @@ pub struct DescriptorStructure {
 }
 
 /// One of
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum DescriptorField {
     /// Descriptor as field
     Descriptor(DescriptorStructure),
@@ -320,7 +321,7 @@ pub enum DescriptorField {
 /// | Variable | classID: 4 bytes (length), followed either by string or (if length is zero) 4-byte classID |
 /// | Variable | KeyID: 4 bytes (length), followed either by string or (if length is zero) 4-byte keyID     |
 /// +----------+--------------------------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct PropertyStructure {
     pub name: String,
     pub class_id: Vec<u8>,
@@ -339,7 +340,7 @@ pub struct PropertyStructure {
 /// |                                    | '#Pxl' = pixels: tagged unit value                     |
 /// | 8                                  | Actual value (double)                                  |
 /// +------------------------------------+--------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum UnitFloatStructure {
     /// Base degrees
     Angle(f64),
@@ -375,7 +376,7 @@ const UNIT_FLOAT_PIXELS: &[u8; 4] = b"#Pxl";
 /// | Variable | Unicode string: name from classID                                                          |
 /// | Variable | ClassID: 4 bytes (length), followed either by string or (if length is zero) 4-byte classID |
 /// +----------+--------------------------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ClassStructure {
     pub name: String,
     pub class_id: Vec<u8>,
@@ -389,7 +390,7 @@ pub struct ClassStructure {
 /// | Variable | TypeID: 4 bytes (length), followed either by string or (if length is zero) 4-byte typeID   |
 /// | Variable | enum: 4 bytes (length), followed either by string or (if length is zero) 4-byte enum       |
 /// +----------+--------------------------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct EnumeratedReference {
     pub name: String,
     pub class_id: Vec<u8>,
@@ -404,7 +405,7 @@ pub struct EnumeratedReference {
 /// | Variable | ClassID: 4 bytes (length), followed either by string or (if length is zero) 4-byte classID |
 /// | 4        | Value of the offset                                                                        |
 /// +----------+--------------------------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct OffsetStructure {
     pub name: String,
     pub class_id: Vec<u8>,
@@ -417,7 +418,7 @@ pub struct OffsetStructure {
 /// | 4        | Length of data to follow                                                 |
 /// | Variable | FSSpec for Macintosh or a handle to a string to the full path on Windows |
 /// +----------+--------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct AliasStructure {
     pub data: Vec<u8>,
 }
@@ -428,7 +429,7 @@ pub struct AliasStructure {
 /// | Variable | Type: 4 bytes (length), followed either by string or (if length is zero) 4-byte typeID |
 /// | Variable | Enum: 4 bytes (length), followed either by string or (if length is zero) 4-byte enum   |
 /// +----------+----------------------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct EnumeratedDescriptor {
     pub type_field: Vec<u8>,
     pub enum_field: Vec<u8>,
@@ -444,7 +445,7 @@ pub struct EnumeratedDescriptor {
 /// | Variable | ClassID: 4 bytes (length), followed either by string or (if length is zero) 4-byte classID |
 /// | Variable | Unicode string: value                                                                      |
 /// +----------+--------------------------------------------------------------------------------------------+
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct NameStructure {
     pub name: String,
     pub class_id: Vec<u8>,

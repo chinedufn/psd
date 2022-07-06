@@ -1,6 +1,7 @@
 use crate::psd_channel::PsdChannelCompression;
 use crate::sections::PsdCursor;
 use crate::PsdDepth;
+use serde::Serialize;
 use thiserror::Error;
 
 /// Represents an malformed image data
@@ -29,7 +30,7 @@ pub enum ImageDataSectionError {
 /// |----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 /// | 2        | Compression method: <br> 0 = Raw image data <br> 1 = RLE compressed the image data starts with the byte counts for all the scan lines (rows * channels), with each count stored as a two-byte value. The RLE compressed data follows, with each scan line compressed separately. The RLE compression is the same compression algorithm used by the Macintosh ROM routine PackBits , and the TIFF standard. <br> 2 = ZIP without prediction <br> 3 = ZIP with prediction. |
 /// | Variable | The image data. Planar order = RRR GGG BBB, etc.                                                                                                                                                                                                                                                                                                                                                                                                                         |
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ImageDataSection {
     /// The compression method for the image.
     pub(in crate) compression: PsdChannelCompression,
@@ -219,7 +220,7 @@ impl ImageDataSection {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum ChannelBytes {
     RawData(Vec<u8>),
     RleCompressed(Vec<u8>),

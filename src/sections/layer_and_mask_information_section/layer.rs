@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::{Deref, Range};
 
+use serde::Serialize;
 use thiserror::Error;
 
 use crate::psd_channel::IntoRgba;
@@ -14,7 +15,7 @@ use crate::sections::image_data_section::ChannelBytes;
 /// TODO: I set all of these pub during a late evening of getting to get things working.
 /// Replace with private and accessor methods so that this crate is as locked down as possible
 /// (to allow us to be strict).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LayerProperties {
     /// The name of this layer
     pub(super) name: String,
@@ -130,7 +131,7 @@ impl LayerProperties {
 }
 
 /// PsdGroup represents a group of layers
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PsdGroup {
     /// Group unique identifier
     pub(in crate) id: u32,
@@ -179,7 +180,7 @@ impl Deref for PsdGroup {
 pub type LayerChannels = HashMap<PsdChannelKind, ChannelBytes>;
 
 /// PsdLayer represents a pixel layer
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PsdLayer {
     /// The channels of the layer, stored separately.
     ///
@@ -188,6 +189,7 @@ pub struct PsdLayer {
     /// channel, or you might make use of the layer masks.
     ///
     /// Storing the channels separately allows for this flexability.
+    #[serde(skip_serializing)]
     pub(super) channels: LayerChannels,
     /// Common layer properties
     pub(in crate) layer_properties: LayerProperties,
@@ -291,7 +293,7 @@ impl GroupDivider {
 }
 
 /// Describes how to blend a layer with the layer below it
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 #[allow(missing_docs)]
 pub enum BlendMode {
     PassThrough = 0,

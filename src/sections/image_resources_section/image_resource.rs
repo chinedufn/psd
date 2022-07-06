@@ -1,14 +1,15 @@
 use crate::sections::image_resources_section::DescriptorStructure;
+use serde::Serialize;
 
 /// An image resource from the image resources section
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 #[allow(missing_docs)]
 pub enum ImageResource {
     Slices(SlicesImageResource),
 }
 
 /// Comes from a slices resource block
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct SlicesImageResource {
     pub(crate) name: String,
     pub(crate) descriptors: Vec<DescriptorStructure>,

@@ -1,10 +1,11 @@
 use crate::PsdLayer;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, Range};
 
 /// `NamedItems` is immutable container for storing items with order-preservation
 /// and indexing by id and name
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct Layers {
     items: Vec<PsdLayer>,
     // TODO: This is incorrect since layers can have the same name. Perhaps a Vec<u32> instead of
