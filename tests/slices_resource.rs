@@ -1,3 +1,4 @@
+use anyhow::Result;
 use psd::{ImageResource, Psd};
 use std::path::PathBuf;
 
@@ -35,4 +36,14 @@ fn name_of_slices_resource_group() {
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/slices-resource")
+}
+
+/// cargo test --test slices_resource slices_v7_8 -- --exact
+#[test]
+fn slices_v7_8() -> Result<()> {
+    let psd = include_bytes!("./fixtures/slices-v8.psd");
+
+    Psd::from_bytes(psd)?;
+
+    Ok(())
 }
