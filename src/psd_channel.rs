@@ -159,7 +159,10 @@ pub trait IntoRgba {
                 let bytes_to_read = 1 + header;
                 for byte in cursor.read(bytes_to_read as u32) {
                     let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = *byte;
+                    let target = rgba_idx * 4 + offset;
+                    if target < rgba.len() {
+                        rgba[target] = *byte;
+                    }
 
                     idx += 1;
                 }
@@ -168,7 +171,10 @@ pub trait IntoRgba {
                 let byte = cursor.read_1()[0];
                 for _ in 0..repeat as usize {
                     let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = byte;
+                    let target = rgba_idx * 4 + offset;
+                    if target < rgba.len() {
+                        rgba[target] = byte;
+                    }
 
                     idx += 1;
                 }

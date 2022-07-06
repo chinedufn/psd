@@ -35,6 +35,7 @@ use self::sections::file_header_section::FileHeaderSection;
 
 mod blend;
 mod psd_channel;
+mod render;
 mod sections;
 
 /// An list of errors returned when processing PSD file.
@@ -217,7 +218,7 @@ impl Psd {
         }
 
         // Filter out layers based on the passed in filter.
-        let layers_to_flatten_top_to_bottom: Vec<(usize, &PsdLayer)> = self
+        let layers_to_flatten_top_down: Vec<(usize, &PsdLayer)> = self
             .layers()
             .iter()
             .enumerate()
@@ -229,7 +230,7 @@ impl Psd {
         let pixel_count = self.width() * self.height();
 
         // If there aren't any layers left after filtering we return a complete transparent image.
-        if layers_to_flatten_top_to_bottom.is_empty() {
+        if layers_to_flatten_top_down.is_empty() {
             return Ok(vec![0; pixel_count as usize * 4]);
         }
 
@@ -238,7 +239,7 @@ impl Psd {
         //
         // Anytime we need to calculate the RGBA for a layer we cache it so that we don't need
         // to perform that operation again.
-        let cached_layer_rgba = RefCell::new(HashMap::new());
+        let renderer = render::Renderer::new(&layers_to_flatten_top_down, self.width() as usize);
 
         let mut flattened_pixels = Vec::with_capacity((pixel_count * 4) as usize);
 
@@ -249,12 +250,7 @@ impl Psd {
             let top = pixel_idx / self.width() as usize;
             let pixel_coord = (left, top);
 
-            let blended_pixel = self.flattened_pixel(
-                0,
-                pixel_coord,
-                &layers_to_flatten_top_to_bottom,
-                &cached_layer_rgba,
-            );
+            let blended_pixel = renderer.flattened_pixel(pixel_coord);
 
             flattened_pixels.push(blended_pixel[0]);
             flattened_pixels.push(blended_pixel[1]);
@@ -263,97 +259,6 @@ impl Psd {
         }
 
         Ok(flattened_pixels)
-    }
-
-    /// Get the pixel at a coordinate within this image.
-    ///
-    /// If that pixel has transparency, recursively blending it with the pixel
-    /// below it until we reach a pixel with no transparency or the bottom of the stack.
-    fn flattened_pixel(
-        &self,
-        // Top is 0, below that is 1, ... etc
-        flattened_layer_top_down_idx: usize,
-        // (left, top)
-        pixel_coord: (usize, usize),
-        layers_to_flatten_top_down: &[(usize, &PsdLayer)],
-        cached_layer_rgba: &RefCell<HashMap<usize, Vec<u8>>>,
-    ) -> [u8; 4] {
-        let layer = layers_to_flatten_top_down[flattened_layer_top_down_idx].1;
-
-        let (pixel_left, pixel_top) = pixel_coord;
-
-        // If this pixel is out of bounds of this layer we return the pixel below it.
-        // If there is no pixel below it we return a transparent pixel
-        if pixel_left < layer.layer_properties.layer_left as usize
-            || pixel_left > layer.layer_properties.layer_right as usize
-            || pixel_top < layer.layer_properties.layer_top as usize
-            || pixel_top > layer.layer_properties.layer_bottom as usize
-        {
-            if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
-                return self.flattened_pixel(
-                    flattened_layer_top_down_idx + 1,
-                    pixel_coord,
-                    layers_to_flatten_top_down,
-                    cached_layer_rgba,
-                );
-            } else {
-                return [0; 4];
-            }
-        }
-
-        // If we haven't already calculated the RGBA for this layer, calculate and cache it
-        if cached_layer_rgba
-            .borrow()
-            .get(&flattened_layer_top_down_idx)
-            .is_none()
-        {
-            let pixels = layers_to_flatten_top_down[flattened_layer_top_down_idx]
-                .1
-                .rgba();
-            cached_layer_rgba
-                .borrow_mut()
-                .insert(flattened_layer_top_down_idx, pixels);
-        }
-
-        let pixel = {
-            let cache = cached_layer_rgba.borrow();
-            let layer_rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
-
-            let pixel_idx = ((self.width() as usize * pixel_top) + pixel_left) * 4;
-
-            let (start, end) = (pixel_idx, pixel_idx + 4);
-
-            let pixel = &layer_rgba[start..end];
-            let mut copy = [0; 4];
-            copy.copy_from_slice(pixel);
-
-            blend::apply_opacity(&mut copy, layer.opacity);
-            copy
-        };
-
-        // This pixel is fully opaque, return it
-        let pixel = if pixel[3] == 255 && layer.opacity == 255 {
-            pixel
-        } else {
-            // If this pixel has some transparency, blend it with the layer below it
-            if flattened_layer_top_down_idx + 1 < layers_to_flatten_top_down.len() {
-                let mut final_pixel = [0; 4];
-                // This pixel has some transparency and there is a pixel below it, blend them
-                let pixel_below = self.flattened_pixel(
-                    flattened_layer_top_down_idx + 1,
-                    pixel_coord,
-                    layers_to_flatten_top_down,
-                    cached_layer_rgba,
-                );
-
-                blend::blend_pixels(pixel, pixel_below, layer.blend_mode, &mut final_pixel);
-                final_pixel
-            } else {
-                // There is no pixel below this layer, so use it even though it has transparency
-                pixel
-            }
-        };
-        pixel
     }
 }
 

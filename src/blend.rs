@@ -58,6 +58,7 @@ pub(crate) fn blend_pixels(
         composite(b_s, alpha_s, b_b, alpha_b, blend_f) * 255.,
     );
 
+    // NOTE: make all assignmants _after_ all reads to avoid issues when top or bottom is out
     out[0] = (r.round() / alpha_output) as u8;
     out[1] = (g.round() / alpha_output) as u8;
     out[2] = (b.round() / alpha_output) as u8;
