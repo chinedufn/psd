@@ -91,10 +91,6 @@ impl<'a> Renderer<'a> {
             }
         }
 
-        if pixels.len() == 0 {
-            return [0; 4];
-        }
-
         match pixels.pop() {
             Some((bottom_pixel, _)) => {
                 pixels
