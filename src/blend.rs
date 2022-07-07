@@ -1,7 +1,9 @@
 use crate::sections::layer_and_mask_information_section::layer::BlendMode;
 
+pub(crate) type Pixel = [u8; 4];
+
 // Multiplies the pixel's current alpha by the passed in `opacity`
-pub(crate) fn apply_opacity(pixel: &mut [u8; 4], opacity: u8) {
+pub(crate) fn apply_opacity(pixel: &mut Pixel, opacity: u8) {
     let alpha = opacity as f32 / 255.;
     pixel[3] = (pixel[3] as f32 * alpha) as u8;
 }
@@ -29,12 +31,7 @@ pub(crate) fn apply_opacity(pixel: &mut [u8; 4], opacity: u8) {
 /// `Co = co / αo`
 ///
 /// *The backdrop is the content behind the element and is what the element is composited with. This means that the backdrop is the result of compositing all previous elements.
-pub(crate) fn blend_pixels(
-    top: [u8; 4],
-    bottom: [u8; 4],
-    blend_mode: BlendMode,
-    out: &mut [u8; 4],
-) {
+pub(crate) fn blend_pixels(top: Pixel, bottom: Pixel, blend_mode: BlendMode, out: &mut Pixel) {
     // TODO: make some optimizations
     let alpha_s = top[3] as f32 / 255.;
     let alpha_b = bottom[3] as f32 / 255.;

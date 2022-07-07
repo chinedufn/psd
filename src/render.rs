@@ -27,7 +27,7 @@ impl<'a> Renderer<'a> {
         &'a self,
         flattened_layer_top_down_idx: usize,
         pixel_coord: (usize, usize),
-    ) -> [u8; 4] {
+    ) -> blend::Pixel {
         let layer = self.layers_to_flatten_top_down[flattened_layer_top_down_idx];
 
         // If we haven't already calculated the RGBA for this layer, calculate and cache it
@@ -40,23 +40,20 @@ impl<'a> Renderer<'a> {
             self.cached_layer_rgba[flattened_layer_top_down_idx].replace(Some(pixels));
         }
 
-        self.cached_layer_rgba[flattened_layer_top_down_idx]
-            .borrow()
-            .as_deref()
-            .map(|layer_rgba| {
-                let (pixel_left, pixel_top) = pixel_coord;
-                let pixel_idx = ((self.width * pixel_top) + pixel_left) * 4;
+        let cached_layer_rgba = self.cached_layer_rgba[flattened_layer_top_down_idx].borrow();
+        let layer_rgba = cached_layer_rgba.as_deref().unwrap();
 
-                let (start, end) = (pixel_idx, pixel_idx + 4);
+        let (pixel_left, pixel_top) = pixel_coord;
+        let pixel_idx = ((self.width * pixel_top) + pixel_left) * 4;
 
-                let pixel = &layer_rgba[start..end];
-                let mut copy = [0; 4];
-                copy.copy_from_slice(pixel);
+        let (start, end) = (pixel_idx, pixel_idx + 4);
 
-                blend::apply_opacity(&mut copy, layer.opacity);
-                copy
-            })
-            .unwrap()
+        let pixel = &layer_rgba[start..end];
+        let mut copy = [0; 4];
+        copy.copy_from_slice(pixel);
+
+        blend::apply_opacity(&mut copy, layer.opacity);
+        copy
     }
 
     /// Get the pixel at a coordinate within this image.
