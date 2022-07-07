@@ -218,13 +218,14 @@ impl Psd {
         }
 
         // Filter out layers based on the passed in filter.
-        let layers_to_flatten_top_down: Vec<(usize, &PsdLayer)> = self
+        let layers_to_flatten_top_down: Vec<&PsdLayer> = self
             .layers()
             .iter()
             .enumerate()
             // here we filter transparent layers and invisible layers
             .filter(|(_, layer)| (layer.opacity > 0 && layer.visible) || layer.clipping_mask)
             .filter(|(idx, layer)| filter((*idx, layer)))
+            .map(|(_, layer)| layer)
             .collect();
 
         let pixel_count = self.width() * self.height();

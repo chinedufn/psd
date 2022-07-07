@@ -5,14 +5,14 @@ use std::collections::HashMap;
 use crate::blend;
 
 pub(crate) struct Renderer<'a> {
-    layers_to_flatten_top_down: &'a [(usize, &'a PsdLayer)],
+    layers_to_flatten_top_down: &'a [&'a PsdLayer],
     cached_layer_rgba: RefCell<HashMap<usize, Vec<u8>>>,
     width: usize,
 }
 
 impl<'a> Renderer<'a> {
     pub(crate) fn new(
-        layers_to_flatten_top_down: &'a [(usize, &'a PsdLayer)],
+        layers_to_flatten_top_down: &'a [&'a PsdLayer],
         width: usize,
     ) -> Renderer<'a> {
         Renderer {
@@ -27,7 +27,7 @@ impl<'a> Renderer<'a> {
         flattened_layer_top_down_idx: usize,
         pixel_coord: (usize, usize),
     ) -> [u8; 4] {
-        let layer = self.layers_to_flatten_top_down[flattened_layer_top_down_idx].1;
+        let layer = self.layers_to_flatten_top_down[flattened_layer_top_down_idx];
 
         let (pixel_left, pixel_top) = pixel_coord;
 
@@ -38,9 +38,7 @@ impl<'a> Renderer<'a> {
             .get(&flattened_layer_top_down_idx)
             .is_none()
         {
-            let pixels = self.layers_to_flatten_top_down[flattened_layer_top_down_idx]
-                .1
-                .rgba();
+            let pixels = layer.rgba();
 
             self.cached_layer_rgba
                 .borrow_mut()
@@ -74,8 +72,6 @@ impl<'a> Renderer<'a> {
         let (pixel_left, pixel_top) = pixel_coord;
         let mut pixels = vec![];
         for (idx, layer) in self.layers_to_flatten_top_down.iter().enumerate() {
-            let layer = layer.1;
-
             // If this pixel is out of bounds of this layer we return the pixel below it.
             // If there is no pixel below it we return a transparent pixel
             if pixel_left < layer.layer_properties.layer_left as usize
