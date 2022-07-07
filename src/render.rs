@@ -1,12 +1,11 @@
+use crate::blend;
 use crate::PsdLayer;
 use std::cell::RefCell;
-use std::collections::HashMap;
-
-use crate::blend;
+use std::iter::repeat_with;
 
 pub(crate) struct Renderer<'a> {
     layers_to_flatten_top_down: &'a [&'a PsdLayer],
-    cached_layer_rgba: RefCell<HashMap<usize, Vec<u8>>>,
+    cached_layer_rgba: Vec<RefCell<Option<Vec<u8>>>>,
     width: usize,
 }
 
@@ -17,7 +16,9 @@ impl<'a> Renderer<'a> {
     ) -> Renderer<'a> {
         Renderer {
             layers_to_flatten_top_down: layers_to_flatten_top_down,
-            cached_layer_rgba: RefCell::new(HashMap::new()),
+            cached_layer_rgba: repeat_with(|| RefCell::new(None))
+                .take(layers_to_flatten_top_down.len())
+                .collect(),
             width: width,
         }
     }
@@ -29,35 +30,33 @@ impl<'a> Renderer<'a> {
     ) -> [u8; 4] {
         let layer = self.layers_to_flatten_top_down[flattened_layer_top_down_idx];
 
-        let (pixel_left, pixel_top) = pixel_coord;
-
         // If we haven't already calculated the RGBA for this layer, calculate and cache it
-        if self
-            .cached_layer_rgba
+        if self.cached_layer_rgba[flattened_layer_top_down_idx]
             .borrow()
-            .get(&flattened_layer_top_down_idx)
             .is_none()
         {
             let pixels = layer.rgba();
 
-            self.cached_layer_rgba
-                .borrow_mut()
-                .insert(flattened_layer_top_down_idx, pixels);
+            self.cached_layer_rgba[flattened_layer_top_down_idx].replace(Some(pixels));
         }
 
-        let cache = self.cached_layer_rgba.borrow();
-        let layer_rgba = cache.get(&flattened_layer_top_down_idx).unwrap();
+        self.cached_layer_rgba[flattened_layer_top_down_idx]
+            .borrow()
+            .as_deref()
+            .map(|layer_rgba| {
+                let (pixel_left, pixel_top) = pixel_coord;
+                let pixel_idx = ((self.width * pixel_top) + pixel_left) * 4;
 
-        let pixel_idx = ((self.width * pixel_top) + pixel_left) * 4;
+                let (start, end) = (pixel_idx, pixel_idx + 4);
 
-        let (start, end) = (pixel_idx, pixel_idx + 4);
+                let pixel = &layer_rgba[start..end];
+                let mut copy = [0; 4];
+                copy.copy_from_slice(pixel);
 
-        let pixel = &layer_rgba[start..end];
-        let mut copy = [0; 4];
-        copy.copy_from_slice(pixel);
-
-        blend::apply_opacity(&mut copy, layer.opacity);
-        return copy;
+                blend::apply_opacity(&mut copy, layer.opacity);
+                copy
+            })
+            .unwrap()
     }
 
     /// Get the pixel at a coordinate within this image.
