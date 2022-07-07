@@ -1,4 +1,5 @@
 use crate::blend;
+use crate::sections::layer_and_mask_information_section::layer::BlendMode;
 use crate::PsdLayer;
 use std::cell::RefCell;
 use std::iter::repeat_with;
@@ -7,6 +8,7 @@ pub(crate) struct Renderer<'a> {
     layers_to_flatten_top_down: &'a [&'a PsdLayer],
     cached_layer_rgba: Vec<RefCell<Option<Vec<u8>>>>,
     width: usize,
+    pixel_cache: RefCell<Vec<(blend::Pixel, BlendMode)>>,
 }
 
 impl<'a> Renderer<'a> {
@@ -20,6 +22,7 @@ impl<'a> Renderer<'a> {
                 .take(layers_to_flatten_top_down.len())
                 .collect(),
             width: width,
+            pixel_cache: RefCell::new(Vec::with_capacity(layers_to_flatten_top_down.len())),
         }
     }
 
@@ -66,7 +69,8 @@ impl<'a> Renderer<'a> {
         pixel_coord: (usize, usize),
     ) -> [u8; 4] {
         let (pixel_left, pixel_top) = pixel_coord;
-        let mut pixels = vec![];
+        let mut pixels = self.pixel_cache.borrow_mut();
+        pixels.clear();
         for (idx, layer) in self.layers_to_flatten_top_down.iter().enumerate() {
             // If this pixel is out of bounds of this layer we return the pixel below it.
             // If there is no pixel below it we return a transparent pixel
