@@ -1,3 +1,4 @@
+use crate::compression::RLECompressed;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
 use thiserror::Error;
@@ -145,34 +146,17 @@ pub trait IntoRgba {
         channel_kind: PsdChannelKind,
         channel_bytes: &[u8],
     ) {
-        let mut cursor = PsdCursor::new(&channel_bytes[..]);
-
-        let mut idx = 0;
+        println!("{channel_bytes:?}");
+        let compressed = RLECompressed::new(channel_bytes);
         let offset = channel_kind.rgba_offset().unwrap();
 
-        while cursor.position() != cursor.get_ref().len() as u64 {
-            let header = cursor.read_i8() as i16;
-
-            if header == -128 {
-                continue;
-            } else if header >= 0 {
-                let bytes_to_read = 1 + header;
-                for byte in cursor.read(bytes_to_read as u32) {
-                    let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = *byte;
-
-                    idx += 1;
-                }
-            } else {
-                let repeat = 1 - header;
-                let byte = cursor.read_1()[0];
-                for _ in 0..repeat as usize {
-                    let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = byte;
-
-                    idx += 1;
-                }
-            };
+        for (idx, byte) in compressed.enumerate() {
+            let rgba_idx = self.rgba_idx(idx);
+            let target = rgba_idx * 4 + offset;
+            if target >= rgba.len() {
+                break;
+            }
+            rgba[target] = byte;
         }
     }
 }
