@@ -138,8 +138,6 @@ pub trait IntoRgba {
     ///
     /// We use the channels offset to know where to put it.. So red would go in 0, 4, 8..
     /// blue would go in 1, 5, 9.. etc
-    ///
-    /// https://en.wikipedia.org/wiki/PackBits - algorithm used for decompression
     fn insert_rle_channel(
         &self,
         rgba: &mut Vec<u8>,

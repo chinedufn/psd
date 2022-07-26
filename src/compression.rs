@@ -2,8 +2,8 @@ use crate::sections::PsdCursor;
 
 pub(crate) struct RLECompressed<'a> {
     cursor: PsdCursor<'a>,
-    repeat: usize,
-    literal: Option<u8>,
+    repeat: usize,       // 0 signifies end of current section
+    literal: Option<u8>, // None - next repeat bytes are literal, Some(byte) - repeat this byte
 }
 
 impl<'a> RLECompressed<'a> {
@@ -16,6 +16,7 @@ impl<'a> RLECompressed<'a> {
     }
 }
 
+/// https://en.wikipedia.org/wiki/PackBits - algorithm used for decompression
 impl<'a> Iterator for RLECompressed<'a> {
     type Item = u8;
 
@@ -34,9 +35,13 @@ impl<'a> Iterator for RLECompressed<'a> {
 
         if self.repeat == 0 {
             let header = self.cursor.read_i8() as i16;
-            if header == -128 || self.cursor.position() == self.cursor.get_ref().len() as u64 {
+            if header == -128 {
                 return self.next();
             }
+            // TODO: do we need this?
+            // if self.cursor.position() == self.cursor.get_ref().len() as u64 {
+            //     return None;
+            // }
 
             if header >= 0 {
                 self.literal = None;
