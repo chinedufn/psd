@@ -146,16 +146,12 @@ pub trait IntoRgba {
         channel_kind: PsdChannelKind,
         channel_bytes: &[u8],
     ) {
-        println!("{channel_bytes:?}");
         let compressed = RLECompressed::new(channel_bytes);
         let offset = channel_kind.rgba_offset().unwrap();
 
         for (idx, byte) in compressed.enumerate() {
             let rgba_idx = self.rgba_idx(idx);
             let target = rgba_idx * 4 + offset;
-            if target >= rgba.len() {
-                break;
-            }
             rgba[target] = byte;
         }
     }
@@ -163,30 +159,8 @@ pub trait IntoRgba {
 
 /// Rle decompress a channel
 fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
-    let mut cursor = PsdCursor::new(&bytes[..]);
-
-    let mut decompressed = vec![];
-
-    while cursor.position() != cursor.get_ref().len() as u64 {
-        let header = cursor.read_i8() as i16;
-
-        if header == -128 {
-            continue;
-        } else if header >= 0 {
-            let bytes_to_read = 1 + header;
-            for byte in cursor.read(bytes_to_read as u32) {
-                decompressed.push(*byte);
-            }
-        } else {
-            let repeat = 1 - header;
-            let byte = cursor.read_1()[0];
-            for _ in 0..repeat as usize {
-                decompressed.push(byte);
-            }
-        };
-    }
-
-    decompressed
+    let compressed = RLECompressed::new(bytes);
+    compressed.collect()
 }
 
 /// Take two 8 bit channels that together represent a 16 bit channel and convert them down
