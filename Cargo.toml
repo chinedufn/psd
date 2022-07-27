@@ -10,22 +10,17 @@ edition = "2018"
 
 [dependencies]
 thiserror = "1.0"
-serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-image = "0.24.3"
 
 [dev-dependencies]
 anyhow = "1.0"
 
 [workspace]
 members = [
-    "examples/drag-drop-browser"
+    "examples/drag-drop-browser",
+    "examples/read-psd"
 ]
 
 [profile.release]
 # We can re-enable lto for the demo when wasm-pack 0.2.38 is released. There's a bug in 0.2.37
 # lto = true
-
-[[bin]]
-name = "read-psd"
-path = "examples/read-psd/main.rs"

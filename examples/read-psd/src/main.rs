@@ -11,7 +11,7 @@ fn main() -> Result<(), String> {
         for argument in env::args_os().skip(1) {
                 let path = PathBuf::from(argument);
 
-                let mut objdir = PathBuf::from("/home/lczaplinski/Sync/Photoshop/psd-rs/");
+                let mut objdir = PathBuf::from("/tmp/");
                 let file_name = path.file_name().ok_or("Not a file name")?;
                 objdir.push(file_name);
                 let bytes = read(&path).map_err(|err| format!("error opening file: {err}"))?;
@@ -23,7 +23,7 @@ fn main() -> Result<(), String> {
 
                 let mut generator = objdir.clone();
 
-                generator.push("generator.json");
+                generator.push("layout.json");
 
                 std::fs::write(
                         generator.as_path(),

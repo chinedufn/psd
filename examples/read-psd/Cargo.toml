@@ -1,0 +1,14 @@
+[package]
+name = "read-psd"
+version = "0.1.0"
+authors = ["Chinedu Francis Nwafili <frankie.nwafili@gmail.com>", "Lucas Czaplinski <git@scoiatael.dev>"]
+edition = "2018"
+
+[dependencies]
+psd = {path = "../../"}
+serde_json = "1.0"
+image = "0.24.3"
+
+[[bin]]
+name = "read-psd"
+path = "src/main.rs"
