@@ -36,6 +36,17 @@ fn layer_with_chinese_name() {
     psd.layer_by_name("圆角矩形").unwrap();
 }
 
+/// cargo test --test layer_and_mask_information_section layer_unicode_string -- --exact
+#[test]
+fn layer_unicode_string() {
+    let psd = include_bytes!("fixtures/luni.psd");
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    let mut layer_names: Vec<&str> = psd.layers().iter().map(|l| l.name()).collect();
+    layer_names.sort();
+    assert_eq!(&layer_names[..], &["1\u{0}", "2 のコピー\u{0}", "3"]);
+}
+
 /// cargo test --test layer_and_mask_information_section layer_with_clipping -- --exact
 #[test]
 fn layer_with_clipping() {

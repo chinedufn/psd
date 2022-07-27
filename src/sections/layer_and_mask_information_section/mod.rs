@@ -381,7 +381,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     //  - bit 4 = pixel data irrelevant to appearance of document
     let visible = cursor.read_u8() & (1 << 1) != 0; // here we get second bit - visible
 
-    // We do not currently parse the filter, skip it
+    // We do not currently parse the filler, skip it
     cursor.read_1();
 
     // We do not currently use the length of the extra data field, skip it
@@ -421,7 +421,9 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
 
         match &key {
             KEY_UNICODE_LAYER_NAME => {
-                name = cursor.read_unicode_string();
+                let pos = cursor.position();
+                name = cursor.read_unicode_string_padding(1);
+                cursor.seek(pos + additional_layer_info_len as u64);
             }
             KEY_SECTION_DIVIDER_SETTING => {
                 divider_type = GroupDivider::match_divider(cursor.read_i32());
