@@ -58,12 +58,12 @@ fn slices_v7_8() -> Result<()> {
 
     if let DescriptorField::Descriptor(d) = bounds {
         match d.fields.get("Rght").unwrap() {
-            DescriptorField::Integer(v) => assert_eq!(*v, 2000),
+            DescriptorField::Integer(v) => assert_eq!(*v, 1),
             _ => panic!("expected integer"),
         }
 
         match d.fields.get("Btom").unwrap() {
-            DescriptorField::Integer(v) => assert_eq!(*v, 9700),
+            DescriptorField::Integer(v) => assert_eq!(*v, 1),
             _ => panic!("expected integer"),
         }
     } else {
