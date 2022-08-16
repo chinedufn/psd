@@ -120,34 +120,44 @@ impl ImageResourcesSection {
         let mut cursor = PsdCursor::new(bytes);
 
         let version = cursor.read_i32();
-        if version != 6 {
-            unimplemented!(
-                "Only the Adobe Photoshop 6.0 slices resource format is currently supported"
-            );
-        }
+        if version == 6 {
+            let _top = cursor.read_i32();
+            let _left = cursor.read_i32();
+            let _bottom = cursor.read_i32();
+            let _right = cursor.read_i32();
 
-        let _top = cursor.read_i32();
-        let _left = cursor.read_i32();
-        let _bottom = cursor.read_i32();
-        let _right = cursor.read_i32();
+            let group_of_slices_name = cursor.read_unicode_string_padding(1);
 
-        let group_of_slices_name = cursor.read_unicode_string_padding(1);
+            let number_of_slices = cursor.read_u32();
 
-        let number_of_slices = cursor.read_u32();
+            let mut descriptors = Vec::new();
 
-        let mut descriptors = Vec::new();
-
-        for _ in 0..number_of_slices {
-            match ImageResourcesSection::read_slice_body(&mut cursor)? {
-                Some(v) => descriptors.push(v),
-                None => {}
+            for _ in 0..number_of_slices {
+                match ImageResourcesSection::read_slice_body(&mut cursor)? {
+                    Some(v) => descriptors.push(v),
+                    None => {}
+                }
             }
-        }
 
-        Ok(SlicesImageResource {
-            name: group_of_slices_name,
-            descriptors,
-        })
+            return Ok(SlicesImageResource {
+                name: group_of_slices_name,
+                descriptors,
+            });
+        }
+        if version == 7 || version == 8 {
+            let descriptor_version = cursor.read_i32();
+            if descriptor_version != 16 {
+                unimplemented!(
+                    "Only the version 16 (descriptors) resource format for slices is currently supported"
+                );
+            }
+            let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor)?;
+            return Ok(SlicesImageResource {
+                name: descriptor.name.clone(),
+                descriptors: vec![descriptor],
+            });
+        }
+        unimplemented!("Slices resource format {version} is currently not supported");
     }
 
     /// Slices resource block
