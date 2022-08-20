@@ -1,3 +1,4 @@
+use crate::compression::RLECompressed;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
 use thiserror::Error;
@@ -137,72 +138,27 @@ pub trait IntoRgba {
     ///
     /// We use the channels offset to know where to put it.. So red would go in 0, 4, 8..
     /// blue would go in 1, 5, 9.. etc
-    ///
-    /// https://en.wikipedia.org/wiki/PackBits - algorithm used for decompression
     fn insert_rle_channel(
         &self,
         rgba: &mut Vec<u8>,
         channel_kind: PsdChannelKind,
         channel_bytes: &[u8],
     ) {
-        let mut cursor = PsdCursor::new(&channel_bytes[..]);
-
-        let mut idx = 0;
+        let compressed = RLECompressed::new(channel_bytes);
         let offset = channel_kind.rgba_offset().unwrap();
 
-        while cursor.position() != cursor.get_ref().len() as u64 {
-            let header = cursor.read_i8() as i16;
-
-            if header == -128 {
-                continue;
-            } else if header >= 0 {
-                let bytes_to_read = 1 + header;
-                for byte in cursor.read(bytes_to_read as u32) {
-                    let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = *byte;
-
-                    idx += 1;
-                }
-            } else {
-                let repeat = 1 - header;
-                let byte = cursor.read_1()[0];
-                for _ in 0..repeat as usize {
-                    let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = byte;
-
-                    idx += 1;
-                }
-            };
+        for (idx, byte) in compressed.enumerate() {
+            let rgba_idx = self.rgba_idx(idx);
+            let target = rgba_idx * 4 + offset;
+            rgba[target] = byte;
         }
     }
 }
 
 /// Rle decompress a channel
 fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
-    let mut cursor = PsdCursor::new(&bytes[..]);
-
-    let mut decompressed = vec![];
-
-    while cursor.position() != cursor.get_ref().len() as u64 {
-        let header = cursor.read_i8() as i16;
-
-        if header == -128 {
-            continue;
-        } else if header >= 0 {
-            let bytes_to_read = 1 + header;
-            for byte in cursor.read(bytes_to_read as u32) {
-                decompressed.push(*byte);
-            }
-        } else {
-            let repeat = 1 - header;
-            let byte = cursor.read_1()[0];
-            for _ in 0..repeat as usize {
-                decompressed.push(byte);
-            }
-        };
-    }
-
-    decompressed
+    let compressed = RLECompressed::new(bytes);
+    compressed.collect()
 }
 
 /// Take two 8 bit channels that together represent a 16 bit channel and convert them down
