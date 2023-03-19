@@ -302,8 +302,11 @@ impl<'a> PsdCursor<'a> {
         let data = self.read(len as u32);
         let result = String::from_utf8_lossy(data).into_owned();
 
-        // read null byte
-        self.read_u8();
+        if len % 2 == 0 {
+            // If the total length is odd, read an extra null byte
+            self.read_u8();
+        }
+
         result
     }
 }
