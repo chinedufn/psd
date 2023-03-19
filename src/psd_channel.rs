@@ -149,14 +149,18 @@ pub trait IntoRgba {
 
         let mut idx = 0;
         let offset = channel_kind.rgba_offset().unwrap();
+        let len = cursor.get_ref().len() as u64;
 
-        while cursor.position() != cursor.get_ref().len() as u64 {
+        while cursor.position() < len {
             let header = cursor.read_i8() as i16;
 
             if header == -128 {
                 continue;
             } else if header >= 0 {
                 let bytes_to_read = 1 + header;
+                if cursor.position() + bytes_to_read as u64 > len {
+                    break;
+                }
                 for byte in cursor.read(bytes_to_read as u32) {
                     let rgba_idx = self.rgba_idx(idx);
                     rgba[rgba_idx * 4 + offset] = *byte;
@@ -165,6 +169,9 @@ pub trait IntoRgba {
                 }
             } else {
                 let repeat = 1 - header;
+                if cursor.position() + 1 > len {
+                    break;
+                }
                 let byte = cursor.read_1()[0];
                 for _ in 0..repeat as usize {
                     let rgba_idx = self.rgba_idx(idx);
