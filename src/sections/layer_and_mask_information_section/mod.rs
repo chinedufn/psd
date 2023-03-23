@@ -85,7 +85,14 @@ impl LayerAndMaskInformationSection {
         // the exact number of bytes in the layer and information mask section of the PSD file,
         // so there's no way for us to accidentally read too many bytes. If we did the program
         // would panic.
-        cursor.read_4();
+        let len = cursor.read_u32();
+
+        if len == 0 {
+            return Ok(LayerAndMaskInformationSection {
+                layers: Layers::new(),
+                groups: Groups::with_capacity(0),
+            });
+        }
 
         // Read the next four bytes to get the length of the layer info section.
         let _layer_info_section_len = cursor.read_u32();
