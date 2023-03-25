@@ -61,3 +61,14 @@ fn image_check_16x16p_bound_field() {
         panic!("expected descriptor");
     }
 }
+
+/// The image contains a non-UTF-8 Pascal string of even length in its image resource block.
+///
+/// cargo test --test image_resources_section image_pascal_string -- --exact
+#[test]
+fn image_pascal_string() {
+    let psd = include_bytes!("./fixtures/non-utf8-no-layer-and-mask-info.psd");
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    assert!(psd.layers().is_empty());
+}
