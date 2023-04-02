@@ -17,7 +17,7 @@ use crate::sections::image_data_section::ChannelBytes;
 #[derive(Debug, Clone)]
 pub struct LayerProperties {
     /// The name of this layer
-    pub(super) name: String,
+    pub(crate) name: String,
     /// The position of the top of the layer
     pub(crate) layer_top: i32,
     /// The position of the left of the layer
@@ -188,7 +188,7 @@ pub struct PsdLayer {
     /// channel, or you might make use of the layer masks.
     ///
     /// Storing the channels separately allows for this flexability.
-    pub(super) channels: LayerChannels,
+    pub(in crate) channels: LayerChannels,
     /// Common layer properties
     pub(in crate) layer_properties: LayerProperties,
 }

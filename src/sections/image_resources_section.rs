@@ -541,7 +541,7 @@ impl DescriptorStructure {
 
         for n in 0..count {
             let key = DescriptorStructure::read_key_length(cursor);
-            let key = String::from_utf8(key.to_vec()).unwrap();
+            let key = String::from_utf8_lossy(key).into_owned();
 
             m.insert(key, DescriptorStructure::read_descriptor_field(cursor)?);
         }

@@ -149,14 +149,18 @@ pub trait IntoRgba {
 
         let mut idx = 0;
         let offset = channel_kind.rgba_offset().unwrap();
+        let len = cursor.get_ref().len() as u64;
 
-        while cursor.position() != cursor.get_ref().len() as u64 {
+        while cursor.position() < len {
             let header = cursor.read_i8() as i16;
 
             if header == -128 {
                 continue;
             } else if header >= 0 {
                 let bytes_to_read = 1 + header;
+                if cursor.position() + bytes_to_read as u64 > len {
+                    break;
+                }
                 for byte in cursor.read(bytes_to_read as u32) {
                     let rgba_idx = self.rgba_idx(idx);
                     rgba[rgba_idx * 4 + offset] = *byte;
@@ -165,6 +169,9 @@ pub trait IntoRgba {
                 }
             } else {
                 let repeat = 1 - header;
+                if cursor.position() + 1 > len {
+                    break;
+                }
                 let byte = cursor.read_1()[0];
                 for _ in 0..repeat as usize {
                     let rgba_idx = self.rgba_idx(idx);
@@ -319,5 +326,49 @@ impl PsdChannelKind {
             PsdChannelKind::TransparencyMask => Ok(3),
             _ => Err(format!("{:#?} is not an RGBA channel", &self)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::sections::layer_and_mask_information_section::layer::{
+        BlendMode, LayerChannels, LayerProperties,
+    };
+    use crate::PsdLayer;
+
+    use super::*;
+
+    /// Verify that when inserting an RLE channel's bytes into an RGBA byte vec we do not attempt to
+    /// read beyond the channel's length.
+    #[test]
+    fn does_not_read_beyond_rle_channels_bytes() {
+        let layer_properties = LayerProperties {
+            name: "".into(),
+            layer_top: 0,
+            layer_left: 0,
+            layer_bottom: 0,
+            layer_right: 0,
+            visible: true,
+            opacity: 0,
+            clipping_mask: false,
+            psd_width: 1,
+            psd_height: 1,
+            blend_mode: BlendMode::Normal,
+            group_id: None,
+        };
+
+        let layer = PsdLayer {
+            channels: LayerChannels::from([(
+                PsdChannelKind::Red,
+                ChannelBytes::RleCompressed(vec![0, 0, 0]),
+            )]),
+            layer_properties,
+        };
+
+        let mut rgba = vec![0; (layer.width() * layer.height() * 4) as usize];
+
+        layer.insert_channel_bytes(&mut rgba, PsdChannelKind::Red, layer.red());
+
+        assert_eq!(rgba, vec![0; 4]);
     }
 }

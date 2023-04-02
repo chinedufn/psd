@@ -300,10 +300,13 @@ impl<'a> PsdCursor<'a> {
     pub fn read_pascal_string(&mut self) -> String {
         let len = self.read_u8();
         let data = self.read(len as u32);
-        let result = String::from_utf8(data.to_vec()).unwrap();
+        let result = String::from_utf8_lossy(data).into_owned();
 
-        // read null byte
-        self.read_u8();
+        if len % 2 == 0 {
+            // If the total length is odd, read an extra null byte
+            self.read_u8();
+        }
+
         result
     }
 }
