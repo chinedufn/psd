@@ -1,3 +1,4 @@
+use crate::i_to_usize::SignedInteger;
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
 use thiserror::Error;
@@ -173,7 +174,7 @@ pub trait IntoRgba {
                     break;
                 }
                 let byte = cursor.read_1()[0];
-                for _ in 0..repeat as usize {
+                for _ in 0..repeat.to_usize_or_zero() {
                     let rgba_idx = self.rgba_idx(idx);
                     rgba[rgba_idx * 4 + offset] = byte;
 
@@ -203,7 +204,7 @@ fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
         } else {
             let repeat = 1 - header;
             let byte = cursor.read_1()[0];
-            for _ in 0..repeat as usize {
+            for _ in 0..repeat.to_usize_or_zero() {
                 decompressed.push(byte);
             }
         };

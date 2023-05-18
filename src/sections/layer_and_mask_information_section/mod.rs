@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
+use crate::i_to_usize::SignedInteger;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
 use crate::sections::image_data_section::ChannelBytes;
@@ -227,7 +228,7 @@ impl LayerAndMaskInformationSection {
             let channels = read_layer_channels(
                 cursor,
                 &layer_record.channel_data_lengths,
-                layer_record.height() as usize,
+                layer_record.height().to_usize_or_zero(),
             )?;
 
             result.push((layer_record, channels));

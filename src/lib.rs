@@ -33,6 +33,7 @@ use crate::sections::MajorSections;
 use self::sections::file_header_section::FileHeaderSection;
 
 mod blend;
+mod i_to_usize;
 mod psd_channel;
 mod render;
 mod sections;

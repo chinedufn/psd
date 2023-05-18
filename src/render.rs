@@ -1,4 +1,5 @@
 use crate::blend;
+use crate::i_to_usize::SignedInteger;
 use crate::sections::layer_and_mask_information_section::layer::BlendMode;
 use crate::PsdLayer;
 use std::cell::RefCell;
@@ -74,10 +75,10 @@ impl<'a> Renderer<'a> {
         for (idx, layer) in self.layers_to_flatten_top_down.iter().enumerate() {
             // If this pixel is out of bounds of this layer we return the pixel below it.
             // If there is no pixel below it we return a transparent pixel
-            if pixel_left < layer.layer_properties.layer_left as usize
-                || pixel_left > layer.layer_properties.layer_right as usize
-                || pixel_top < layer.layer_properties.layer_top as usize
-                || pixel_top > layer.layer_properties.layer_bottom as usize
+            if pixel_left < layer.layer_properties.layer_left.to_usize_or_zero()
+                || pixel_left > layer.layer_properties.layer_right.to_usize_or_zero()
+                || pixel_top < layer.layer_properties.layer_top.to_usize_or_zero()
+                || pixel_top > layer.layer_properties.layer_bottom.to_usize_or_zero()
             {
                 continue;
             }

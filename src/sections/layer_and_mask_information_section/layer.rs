@@ -3,6 +3,7 @@ use std::ops::{Deref, Range};
 
 use thiserror::Error;
 
+use crate::i_to_usize::SignedInteger;
 use crate::psd_channel::IntoRgba;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelError;
@@ -133,11 +134,11 @@ impl LayerProperties {
 #[derive(Debug, Clone)]
 pub struct PsdGroup {
     /// Group unique identifier
-    pub(in crate) id: u32,
+    pub(crate) id: u32,
     /// Idx range of contained layers
-    pub(in crate) contained_layers: Range<usize>,
+    pub(crate) contained_layers: Range<usize>,
     /// Common layer properties
-    pub(in crate) layer_properties: LayerProperties,
+    pub(crate) layer_properties: LayerProperties,
 }
 
 impl PsdGroup {
@@ -188,9 +189,9 @@ pub struct PsdLayer {
     /// channel, or you might make use of the layer masks.
     ///
     /// Storing the channels separately allows for this flexability.
-    pub(in crate) channels: LayerChannels,
+    pub(crate) channels: LayerChannels,
     /// Common layer properties
-    pub(in crate) layer_properties: LayerProperties,
+    pub(crate) layer_properties: LayerProperties,
 }
 
 /// An error when working with a PsdLayer
@@ -431,9 +432,10 @@ impl IntoRgba for PsdLayer {
     /// position within the PSD.
     fn rgba_idx(&self, idx: usize) -> usize {
         let left_in_layer = idx % self.width() as usize;
-        let left_in_psd = self.layer_properties.layer_left as usize + left_in_layer;
+        let left_in_psd = self.layer_properties.layer_left.to_usize_or_zero() + left_in_layer;
 
-        let top_in_psd = idx / self.width() as usize + self.layer_properties.layer_top as usize;
+        let top_in_psd =
+            idx / self.width() as usize + self.layer_properties.layer_top.to_usize_or_zero();
 
         (top_in_psd * self.layer_properties.psd_width as usize) + left_in_psd
     }
