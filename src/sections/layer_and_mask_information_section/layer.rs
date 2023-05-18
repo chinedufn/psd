@@ -430,10 +430,10 @@ impl IntoRgba for PsdLayer {
     /// So we transform the pixel's index based on the layer's left and top
     /// position within the PSD.
     fn rgba_idx(&self, idx: usize) -> Option<usize> {
-        let left_in_layer = idx as u16 % self.width();
+        let left_in_layer = idx % self.width() as usize;
         let left_in_psd = self.layer_properties.layer_left + left_in_layer as i32;
 
-        let top_in_layer = idx as u16 / self.width();
+        let top_in_layer = idx / self.width() as usize;
         let top_in_psd = self.layer_properties.layer_top + top_in_layer as i32;
 
         let idx = (top_in_psd * self.layer_properties.psd_width as i32) + left_in_psd;
