@@ -180,15 +180,7 @@ pub trait IntoRgba {
                 let byte = cursor.read_1()[0];
                 for _ in 0..repeat {
                     if let Some(rgba_idx) = self.rgba_idx(idx) {
-                        let Some(at) = rgba.get_mut(rgba_idx * 4 + offset) else {
-                            panic!(format!("header: {header}
-    repeat: {repeat}
-    idx: {idx}
-    rgba_idx: {rgba_idx:?}
-    offset: {offset}"));
-                        };
-                        *at = byte;
-                        // rgba[rgba_idx * 4 + offset] = byte;
+                        rgba[rgba_idx * 4 + offset] = byte;
                     }
 
                     idx += 1;
