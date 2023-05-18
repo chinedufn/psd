@@ -3,7 +3,6 @@ use std::ops::{Deref, Range};
 
 use thiserror::Error;
 
-use crate::i_to_usize::SignedInteger;
 use crate::psd_channel::IntoRgba;
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelError;
@@ -430,14 +429,20 @@ impl IntoRgba for PsdLayer {
     ///
     /// So we transform the pixel's index based on the layer's left and top
     /// position within the PSD.
-    fn rgba_idx(&self, idx: usize) -> usize {
-        let left_in_layer = idx % self.width() as usize;
-        let left_in_psd = self.layer_properties.layer_left.to_usize_or_zero() + left_in_layer;
+    fn rgba_idx(&self, idx: usize) -> Option<usize> {
+        let left_in_layer = idx as u16 % self.width();
+        let left_in_psd = self.layer_properties.layer_left + left_in_layer as i32;
 
-        let top_in_psd =
-            idx / self.width() as usize + self.layer_properties.layer_top.to_usize_or_zero();
+        let top_in_layer = idx as u16 / self.width();
+        let top_in_psd = self.layer_properties.layer_top + top_in_layer as i32;
 
-        (top_in_psd * self.layer_properties.psd_width as usize) + left_in_psd
+        let idx = (top_in_psd * self.layer_properties.psd_width as i32) + left_in_psd;
+
+        if idx < 0 {
+            None
+        } else {
+            Some(idx as usize)
+        }
     }
 
     fn red(&self) -> &ChannelBytes {

@@ -33,7 +33,6 @@ use crate::sections::MajorSections;
 use self::sections::file_header_section::FileHeaderSection;
 
 mod blend;
-mod i_to_usize;
 mod psd_channel;
 mod render;
 mod sections;
@@ -288,8 +287,8 @@ impl Psd {
 impl IntoRgba for Psd {
     /// The PSD's final image is always the same size as the PSD so we don't need to transform
     /// indices like we do with layers.
-    fn rgba_idx(&self, idx: usize) -> usize {
-        idx
+    fn rgba_idx(&self, idx: usize) -> Option<usize> {
+        Some(idx)
     }
 
     fn red(&self) -> &ChannelBytes {
