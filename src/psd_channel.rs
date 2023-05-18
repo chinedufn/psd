@@ -169,14 +169,24 @@ pub trait IntoRgba {
                     idx += 1;
                 }
             } else {
-                let repeat = (1 - header) as usize; // intended overflow
+                let repeat = 1 - header;
+
                 if cursor.position() + 1 > len {
                     break;
                 }
                 let byte = cursor.read_1()[0];
                 for _ in 0..repeat {
                     let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = byte;
+
+                    let Some(at) = rgba.get_mut(rgba_idx * 4 + offset) else {
+                        panic!(format!("header: {header}
+repeat: {repeat}
+idx: {idx}
+rgba_idx: {rgba_idx}
+offset: {offset}"));
+                    };
+                    *at = byte;
+                    // rgba[rgba_idx * 4 + offset] = byte;
 
                     idx += 1;
                 }
