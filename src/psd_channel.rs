@@ -11,6 +11,8 @@ pub trait IntoRgba {
     /// otherwise it will get transformed.
     ///
     /// index could be `None` if layer's top or left is negative.
+    ///
+    /// index could be bigger than the size of the image if layer's bottom, right, width, height is bigger than image.
     fn rgba_idx(&self, idx: usize) -> Option<usize>;
 
     /// The first channel
@@ -166,7 +168,9 @@ pub trait IntoRgba {
                 }
                 for byte in cursor.read(bytes_to_read as u32) {
                     if let Some(rgba_idx) = self.rgba_idx(idx) {
-                        rgba[rgba_idx * 4 + offset] = *byte;
+                        if let Some(buffer) = rgba.get_mut(rgba_idx * 4 + offset) {
+                            *buffer = *byte;
+                        }
                     }
 
                     idx += 1;
@@ -180,7 +184,9 @@ pub trait IntoRgba {
                 let byte = cursor.read_1()[0];
                 for _ in 0..repeat {
                     if let Some(rgba_idx) = self.rgba_idx(idx) {
-                        rgba[rgba_idx * 4 + offset] = byte;
+                        if let Some(buffer) = rgba.get_mut(rgba_idx * 4 + offset) {
+                            *buffer = byte;
+                        }
                     }
 
                     idx += 1;
