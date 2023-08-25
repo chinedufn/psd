@@ -1,3 +1,4 @@
+use core::str::Utf8Error;
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -10,6 +11,7 @@ use crate::sections::PsdCursor;
 const EXPECTED_RESOURCE_BLOCK_SIGNATURE: [u8; 4] = [56, 66, 73, 77];
 const EXPECTED_DESCRIPTOR_VERSION: u32 = 16;
 const RESOURCE_SLICES_INFO: i16 = 1050;
+const RESOURCE_XMP_INFO: i16 = 1060;
 
 mod image_resource;
 
@@ -32,6 +34,9 @@ pub enum ImageResourcesSectionError {
          which in string form is '8BIM'."#
     )]
     InvalidSignature {},
+
+    #[error("Invalid utf8 in xmp definition: {0}")]
+    InvalidXmpText(Utf8Error),
 
     #[error("Invalid resource descriptor: {0}")]
     InvalidResource(ImageResourcesDescriptorError),
@@ -56,6 +61,11 @@ impl ImageResourcesSection {
                     )
                     .map_err(ImageResourcesSectionError::InvalidResource)?;
                     resources.push(ImageResource::Slices(slices_image_resource));
+                }
+                _ if rid == RESOURCE_XMP_INFO => {
+                    let xml = std::str::from_utf8(&cursor.get_ref()[block.data_range])
+                        .map_err(ImageResourcesSectionError::InvalidXmpText)?;
+                    resources.push(ImageResource::Xmp(xml.to_string()));
                 }
                 _ => {}
             }
