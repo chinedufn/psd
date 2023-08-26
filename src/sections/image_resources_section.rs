@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+use crate::sections::image_resources_section::image_resource::TimelineImageResource;
 use core::str::Utf8Error;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -10,12 +12,40 @@ use crate::sections::PsdCursor;
 
 const EXPECTED_RESOURCE_BLOCK_SIGNATURE: [u8; 4] = [56, 66, 73, 77];
 const EXPECTED_DESCRIPTOR_VERSION: u32 = 16;
+const RESOURCE_RESOLUTION_INFO: i16 = 1005;
+const RESOURCE_PRINT_FLAGS: i16 = 1011;
+const RESOURCE_COLOR_HALFTONE_INFO: i16 = 1013;
+const RESOURCE_DUOTONE_HALFTONE_INFO: i16 = 1014;
+const RESOURCE_COLOR_TRANSFER_FUNCTIONS: i16 = 1016;
+const RESOURCE_LAYER_STATE_INFO: i16 = 1024;
+const RESOURCE_LAYER_GROUPS_INFO: i16 = 1026;
+const RESOURCE_GRID_AND_GUIDES_INFO: i16 = 1032;
+const RESOURCE_THUMBNAIL: i16 = 1036;
+const RESOURCE_GLOBAL_ANGLE: i16 = 1037;
+const RESOURCE_ICC_PROFILE: i16 = 1039;
+const RESOURCE_ICC_UNTAGGED_PROFILE: i16 = 1041;
+const RESOURCE_ID_SEED_NUMBER: i16 = 1044;
+const RESOURCE_GLOBAL_ALTITUDE: i16 = 1049;
 const RESOURCE_SLICES_INFO: i16 = 1050;
+const RESOURCE_URL_LIST: i16 = 1054;
+const RESOURCE_VERSION_INFO: i16 = 1057;
+const RESOURCE_EXIF_DATA_1: i16 = 1058;
+const RESOURCE_EXIF_DATA_3: i16 = 1059;
+const RESOURCE_CAPTION_DIGEST: i16 = 1061;
 const RESOURCE_XMP_INFO: i16 = 1060;
+const RESOURCE_PRINT_SCALE: i16 = 1062;
+const RESOURCE_PIXEL_ASPECT_RATION: i16 = 1064;
+const RESOURCE_LAYER_SELECTION_IDS: i16 = 1069;
+const RESOURCE_LAYER_GROUPS_ENABLED_ID: i16 = 1072;
+const RESOURCE_TIMELINE_INFO: i16 = 1075;
+const RESOURCE_PRINT_INFO: i16 = 1082; // descriptors
+const RESOURCE_PRINT_STYLE: i16 = 1083; // descriptors
+const RESOURCE_PRINT_FLAGS_INFO: i16 = 10000;
 
 mod image_resource;
 
-struct ImageResourcesBlock {
+#[derive(Debug)]
+pub struct ImageResourcesBlock {
     resource_id: i16,
     name: String,
     data_range: Range<usize>,
@@ -62,12 +92,90 @@ impl ImageResourcesSection {
                     .map_err(ImageResourcesSectionError::InvalidResource)?;
                     resources.push(ImageResource::Slices(slices_image_resource));
                 }
+                _ if rid == RESOURCE_TIMELINE_INFO => {
+                    println!("GOT TIMELINE SECTION {:?}", block);
+                    resources.push(ImageResource::Timeline(TimelineImageResource { block }));
+                }
                 _ if rid == RESOURCE_XMP_INFO => {
                     let xml = std::str::from_utf8(&cursor.get_ref()[block.data_range])
                         .map_err(ImageResourcesSectionError::InvalidXmpText)?;
                     resources.push(ImageResource::Xmp(xml.to_string()));
                 }
-                _ => {}
+                _ if rid == RESOURCE_RESOLUTION_INFO => (),
+                _ if rid == RESOURCE_PRINT_SCALE => (),
+                _ if rid == RESOURCE_PRINT_FLAGS => (),
+                _ if rid == RESOURCE_COLOR_HALFTONE_INFO => (),
+                _ if rid == RESOURCE_DUOTONE_HALFTONE_INFO => (),
+                _ if rid == RESOURCE_COLOR_TRANSFER_FUNCTIONS => (),
+                _ if rid == RESOURCE_LAYER_STATE_INFO => (),
+                _ if rid == RESOURCE_LAYER_GROUPS_INFO => (),
+                _ if rid == RESOURCE_GRID_AND_GUIDES_INFO => (),
+                _ if rid == RESOURCE_THUMBNAIL => (),
+                _ if rid == RESOURCE_GLOBAL_ANGLE => (),
+                _ if rid == RESOURCE_ICC_PROFILE => (),
+                _ if rid == RESOURCE_ICC_UNTAGGED_PROFILE => (),
+                _ if rid == RESOURCE_ID_SEED_NUMBER => (),
+                _ if rid == RESOURCE_GLOBAL_ALTITUDE => (),
+                _ if rid == RESOURCE_URL_LIST => (),
+                _ if rid == RESOURCE_VERSION_INFO => (),
+                _ if rid == RESOURCE_CAPTION_DIGEST => (),
+                _ if rid == RESOURCE_EXIF_DATA_1 => (),
+                _ if rid == RESOURCE_EXIF_DATA_3 => (),
+                _ if rid == RESOURCE_PIXEL_ASPECT_RATION => (),
+                _ if rid == RESOURCE_LAYER_SELECTION_IDS => (),
+                _ if rid == RESOURCE_LAYER_GROUPS_ENABLED_ID => (),
+                _ if rid == RESOURCE_PRINT_INFO => {
+                    // let bytes = &cursor.get_ref()[block.data_range];
+                    // let mut cursor2 = PsdCursor::new(bytes);
+                    // if cursor2.read_i32() != 16 {
+                    //     panic!("Wrong descriptor version");
+                    // }
+                    // let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor2);
+                    // println!("RESOURCE_PRINT_INFO {:?}", descriptor);
+                },
+                _ if rid == RESOURCE_PRINT_STYLE => {
+                    // let bytes = &cursor.get_ref()[block.data_range];
+                    // let mut cursor2 = PsdCursor::new(bytes);
+                    // if cursor2.read_i32() != 16 {
+                    //     panic!("Wrong descriptor version");
+                    // }
+                    // let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor2);
+                    // println!("RESOURCE_PRINT_STYLE {:?}", descriptor);
+                },
+                _ if rid >= 4000 && rid <= 4999 => {
+                    println!("rid: {:?}", rid);
+                    let bytes = &cursor.get_ref()[block.data_range.clone()];
+                    let mut cursor2 = PsdCursor::new(bytes);
+                    let tag = std::str::from_utf8(cursor2.peek_4()).unwrap().to_string();
+                    println!("WORKING ON TAG: {:?}", std::str::from_utf8(cursor2.read_4()).unwrap());
+                    if tag == "mfri" {
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("NUM_FRAMES: {:?}", cursor2.read_i32());
+                        println!("SELECTED_INDEX: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                        println!("?: {:?}", cursor2.read_i32());
+                    } else {
+                        println!("SECOND TAG: {:?}", std::str::from_utf8(cursor2.read_6()).unwrap());
+                        // println!("DURATION ???: {:?}", cursor2.read_i32());
+                        let bytes = cursor2.read((block.data_range.len() - cursor2.position() as usize).try_into().unwrap());
+                        println!("NEXT BYTES: {:?}", bytes);
+                        println!("AS STR: {:?}", String::from_utf8_lossy(bytes));
+                    }
+                },
+                _ if rid == RESOURCE_PRINT_FLAGS_INFO => (),
+                _ => {
+                    println!("GOT UNKOWN RESOURCE SECTION {:?}", block);
+                }
             }
         }
 
@@ -532,6 +640,7 @@ impl DescriptorStructure {
         cursor: &mut PsdCursor,
     ) -> Result<DescriptorStructure, ImageResourcesDescriptorError> {
         let name = cursor.read_unicode_string_padding(1);
+        println!("DESCRIPTOR NAME: {}", name);
         let class_id = DescriptorStructure::read_key_length(cursor).to_vec();
         let fields = DescriptorStructure::read_fields(cursor, false)?;
 

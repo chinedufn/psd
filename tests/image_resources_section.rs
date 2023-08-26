@@ -12,7 +12,7 @@ fn image_check_1x1p_bound_field() {
 
     let descriptors = match &psd.resources()[1] {
         ImageResource::Slices(s) => s.descriptors(),
-        ImageResource::Xmp(..) => panic!("unexpected resource ordering"),
+        _ => panic!("unexpected resource ordering"),
     };
     let descriptor = descriptors.get(0).unwrap();
     let bounds = descriptor.fields.get("bounds").unwrap();
@@ -44,7 +44,7 @@ fn image_check_16x16p_bound_field() {
 
     let descriptors = match &psd.resources()[1] {
         ImageResource::Slices(s) => s.descriptors(),
-        ImageResource::Xmp(..) => panic!("unexpected resource ordering"),
+        _ => panic!("unexpected resource ordering"),
     };
     let descriptor = descriptors.get(0).unwrap();
     let bounds = descriptor.fields.get("bounds").unwrap();
@@ -97,7 +97,7 @@ fn xmp_check_parsed_as_string() {
 
     let xmp_string = match &psd.resources()[0] {
         ImageResource::Xmp(s) => s,
-        ImageResource::Slices(..) => panic!("unexpected resource ordering"),
+        _ => panic!("unexpected resource ordering"),
     };
     assert_eq!(xmp_string, "<?xpacket begin=\"\u{feff}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>
 <x:xmpmeta xmlns:x=\"adobe:ns:meta/\" x:xmptk=\"Adobe XMP Core 5.6-c140 79.160451, 2017/05/06-01:08:21        \">

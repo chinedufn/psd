@@ -30,7 +30,7 @@ fn name_of_slices_resource_group() {
             ImageResource::Slices(slices) => {
                 assert_eq!(slices.name().as_str(), expected_slices_name);
             }
-            ImageResource::Xmp(..) => panic!("unexpected resource ordering"),
+            _ => panic!("unexpected resource ordering"),
         };
     }
 }
@@ -50,7 +50,7 @@ fn slices_v7_8() -> Result<()> {
             assert_eq!(s.name().as_str(), "\u{0}");
             s.descriptors()
         }
-        ImageResource::Xmp(..) => panic!("unexpected resource ordering"),
+        _ => panic!("unexpected resource ordering"),
     };
     let descriptor = descriptors.get(0).unwrap();
     let bounds = descriptor.fields.get("bounds").unwrap();
