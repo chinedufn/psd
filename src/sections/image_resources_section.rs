@@ -165,10 +165,49 @@ impl ImageResourcesSection {
                         println!("?: {:?}", cursor2.read_i32());
                         println!("?: {:?}", cursor2.read_i32());
                     } else {
-                        println!("SECOND TAG: {:?}", std::str::from_utf8(cursor2.read_6()).unwrap());
-                        // println!("DURATION ???: {:?}", cursor2.read_i32());
+                        const DESCRIPTOR_START: u64 = 42;
+                        println!("SECOND TAG: {:?}", std::str::from_utf8(cursor2.read_4()).unwrap());
+                        let length = cursor2.read_i32();
+                        println!("LENGTH @ 8?: {:?} (REMAINING BYTE LENGTH: {:?})", length, (block.data_range.len() - cursor2.position() as usize));
+                        cursor2.seek(20);
+                        let length2 = cursor2.read_i32();
+                        println!("LENGTH @ 20?: {:?} (REMAINING BYTE LENGTH: {:?})", length2, (block.data_range.len() - cursor2.position() as usize));
+                        cursor2.seek(0);
+                        for i in 0..(48 / 4) {
+                        // for i in 0..((block.data_range.len() - cursor2.position() as usize) / 4) {
+                            let p = cursor2.position();
+                            let bytes = cursor2.read_4().to_vec();
+                            cursor2.seek(p);
+                            let asi32 = cursor2.read_i32();
+                            cursor2.seek(p);
+                            let asu32 = cursor2.read_u32();
+                            println!("Chunk: {:?} p {:?} {:?} {:?} i32: {:?} u32: {:?}", i, p, bytes, String::from_utf8_lossy(&bytes), asi32, asu32);
+                        }
+                        cursor2.seek(6);
+                        for i in 0..(42 / 4) {
+                        // for i in 0..((block.data_range.len() - cursor2.position() as usize) / 4) {
+                            let p = cursor2.position();
+                            let bytes = cursor2.read_4().to_vec();
+                            cursor2.seek(p);
+                            let asi32 = cursor2.read_i32();
+                            cursor2.seek(p);
+                            let asu32 = cursor2.read_u32();
+                            println!("Chunk: {:?} p {:?} {:?} {:?} i32: {:?} u32: {:?}", i, p, bytes, String::from_utf8_lossy(&bytes), asi32, asu32);
+                        }
+                        cursor2.seek(DESCRIPTOR_START);
+                        // let p = cursor2.position();
+                        // let bytes = cursor2.read((block.data_range.len() - cursor2.position() as usize).try_into().unwrap());
+                        // println!("NEXT BYTES: {:?}", bytes);
+                        // println!("AS STR: {:?}", String::from_utf8_lossy(bytes));
+                        // cursor2.seek(p);
+                        let fields = DescriptorStructure::read_fields(&mut cursor2, false).unwrap();
+                        println!("FIELDS: {:#?}", fields);
+                        let p = cursor2.position();
+                        println!("FIELDS FINISHED AT: {:?}..{:?} (len: {:?})", DESCRIPTOR_START, p, p - DESCRIPTOR_START);
+                        println!("SKIPPING TO: {:?}", length2 + 24);
+                        cursor2.seek(length2 as u64 + 24);
                         let bytes = cursor2.read((block.data_range.len() - cursor2.position() as usize).try_into().unwrap());
-                        println!("NEXT BYTES: {:?}", bytes);
+                        println!("TRAILING SECTION (len {:?}): {:?}", bytes.len(), bytes);
                         println!("AS STR: {:?}", String::from_utf8_lossy(bytes));
                     }
                 },
@@ -640,7 +679,7 @@ impl DescriptorStructure {
         cursor: &mut PsdCursor,
     ) -> Result<DescriptorStructure, ImageResourcesDescriptorError> {
         let name = cursor.read_unicode_string_padding(1);
-        println!("DESCRIPTOR NAME: {}", name);
+        // println!("DESCRIPTOR NAME: {}", name);
         let class_id = DescriptorStructure::read_key_length(cursor).to_vec();
         let fields = DescriptorStructure::read_fields(cursor, false)?;
 
