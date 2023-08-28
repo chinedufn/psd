@@ -19,6 +19,7 @@ const RESOURCE_DUOTONE_HALFTONE_INFO: i16 = 1014;
 const RESOURCE_COLOR_TRANSFER_FUNCTIONS: i16 = 1016;
 const RESOURCE_LAYER_STATE_INFO: i16 = 1024;
 const RESOURCE_LAYER_GROUPS_INFO: i16 = 1026;
+const RESOURCE_IPTC_NAA_RECORD: i16 = 1028;
 const RESOURCE_GRID_AND_GUIDES_INFO: i16 = 1032;
 const RESOURCE_THUMBNAIL: i16 = 1036;
 const RESOURCE_GLOBAL_ANGLE: i16 = 1037;
@@ -109,6 +110,7 @@ impl ImageResourcesSection {
                 _ if rid == RESOURCE_COLOR_TRANSFER_FUNCTIONS => (),
                 _ if rid == RESOURCE_LAYER_STATE_INFO => (),
                 _ if rid == RESOURCE_LAYER_GROUPS_INFO => (),
+                _ if rid == RESOURCE_IPTC_NAA_RECORD => (),
                 _ if rid == RESOURCE_GRID_AND_GUIDES_INFO => (),
                 _ if rid == RESOURCE_THUMBNAIL => (),
                 _ if rid == RESOURCE_GLOBAL_ANGLE => (),

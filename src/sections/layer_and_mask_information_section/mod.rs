@@ -95,7 +95,7 @@ impl LayerAndMaskInformationSection {
         }
 
         // Read the next four bytes to get the length of the layer info section.
-        let _layer_info_section_len = cursor.read_u32();
+        let layer_info_section_len = cursor.read_u32();
 
         // Next 2 bytes is the layer count
         //
@@ -115,11 +115,25 @@ impl LayerAndMaskInformationSection {
         let (group_count, layer_records) =
             LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
 
+        // println!("SEEKING FROM {:?} to {:?}", cursor.position(), layer_info_section_len + 8);
+        cursor.seek(layer_info_section_len as u64 + 8);
+        let mask_info_section_len = cursor.read_u32();
+        cursor.seek(cursor.position() + mask_info_section_len as u64);
+
+        while cursor.position() < bytes.len() as u64 {
+            println!("Additional Layer Info Start: {:?}", String::from_utf8_lossy(cursor.read_4()));
+            println!(" Type: {:?}", String::from_utf8_lossy(cursor.read_4()));
+            let ali_entry_len = cursor.read_u32();
+            println!(" Len {:?}", ali_entry_len);
+            cursor.seek(cursor.position() + ali_entry_len as u64);
+        }
+
         LayerAndMaskInformationSection::decode_layers(
             layer_records,
             group_count,
             (psd_width, psd_height),
         )
+
     }
 
     fn decode_layers(
