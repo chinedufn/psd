@@ -21,6 +21,8 @@ const SIGNATURE_EIGHT_B64: [u8; 4] = [56, 66, 54, 52];
 const KEY_UNICODE_LAYER_NAME: &[u8; 4] = b"luni";
 /// Key of `Section divider setting (Photoshop 6.0)`, "lsct"
 const KEY_SECTION_DIVIDER_SETTING: &[u8; 4] = b"lsct";
+// Key of some timeline related information?
+const KEY_TIMELINE_INFO: &[u8; 4] = b"shmd";
 
 pub mod groups;
 pub mod layer;
@@ -431,6 +433,8 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     let padding = (4 - bytes_mod_4) % 4;
     cursor.read(padding as u32);
 
+    println!("NEW LAYER");
+
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
@@ -460,9 +464,15 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
                     cursor.read_4();
                 }
             }
+            KEY_TIMELINE_INFO => {
+                let bytes = cursor.read(additional_layer_info_len);
+                println!("  {:?}", String::from_utf8_lossy(&bytes));
+                println!("  {:?}", bytes);
+            },
 
             // TODO: Skipping other keys until we implement parsing for them
             _ => {
+                println!("  {:?} {:?} len={:?}", key, String::from_utf8_lossy(&key), additional_layer_info_len);
                 cursor.read(additional_layer_info_len);
             }
         }
