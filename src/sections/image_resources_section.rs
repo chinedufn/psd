@@ -168,6 +168,7 @@ impl ImageResourcesSection {
                         println!("?: {:?}", cursor2.read_i32());
                     } else {
                         const DESCRIPTOR_START: u64 = 42;
+                        println!("PEEK 48: {:?}", String::from_utf8_lossy(cursor2.peek(48)));
                         println!("SECOND TAG: {:?}", std::str::from_utf8(cursor2.read_4()).unwrap());
                         let length = cursor2.read_i32();
                         println!("LENGTH @ 8?: {:?} (REMAINING BYTE LENGTH: {:?})", length, (block.data_range.len() - cursor2.position() as usize));
@@ -203,7 +204,7 @@ impl ImageResourcesSection {
                         // println!("AS STR: {:?}", String::from_utf8_lossy(bytes));
                         // cursor2.seek(p);
                         let fields = DescriptorStructure::read_fields(&mut cursor2, false).unwrap();
-                        println!("FIELDS: {:#?}", fields);
+                        // println!("FIELDS: {:#?}", fields);
                         let p = cursor2.position();
                         println!("FIELDS FINISHED AT: {:?}..{:?} (len: {:?})", DESCRIPTOR_START, p, p - DESCRIPTOR_START);
                         println!("SKIPPING TO: {:?}", length2 + 24);

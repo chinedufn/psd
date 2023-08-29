@@ -465,9 +465,31 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
                 }
             }
             KEY_TIMELINE_INFO => {
-                let bytes = cursor.read(additional_layer_info_len);
-                println!("  {:?}", String::from_utf8_lossy(&bytes));
-                println!("  {:?}", bytes);
+                let num_sections = cursor.read_u32();
+                println!("SECTION LEN {:?} NUM SUB-SECTIONS {:?}", additional_layer_info_len, num_sections);
+                for _ in 0..num_sections {
+                    if cursor.read_4() != b"8BIM" {
+                        panic!("WTF");
+                    }
+                    let sub_section_name = String::from_utf8_lossy(&cursor.read_4()).into_owned();
+                    println!("  SUB-SECTION {:?}", sub_section_name);
+                    let _idk = cursor.read_u32();
+                    let sub_section_len = cursor.read_u32();
+                    match sub_section_name.as_str() {
+                        "mlst" => {
+                            let bytes = cursor.read(sub_section_len);
+                            println!("    {:?}", String::from_utf8_lossy(&bytes));
+                        },
+                        "mdyn" => {
+                            println!("    {:?}", cursor.read_u32());
+                        },
+                        "cust" => {
+                            let bytes = cursor.read(sub_section_len);
+                            println!("    {:?}", String::from_utf8_lossy(&bytes));
+                        }
+                        _ => todo!(),
+                    }
+                }
             },
 
             // TODO: Skipping other keys until we implement parsing for them
