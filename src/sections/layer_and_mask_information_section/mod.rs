@@ -1,3 +1,4 @@
+use crate::sections::image_resources_section::DescriptorStructure;
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -483,8 +484,12 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
                     let sub_section_len = cursor.read_u32();
                     match sub_section_name.as_str() {
                         "mlst" => {
-                            let bytes = cursor.read(sub_section_len);
-                            println!("    {:?}", String::from_utf8_lossy(&bytes));
+                            let start_pos = cursor.position() + 18;
+                            println!("    {:?}", String::from_utf8_lossy(&cursor.read(sub_section_len)));
+                            cursor.seek(start_pos);
+                            // let num_sections = cursor.read_u32();
+                            println!("    {:#?}", DescriptorStructure::read_fields(cursor, false));
+                            cursor.seek(start_pos + (sub_section_len as u64) - 18);
                         },
                         "mdyn" => {
                             println!("    {:?}", cursor.read_u32());
