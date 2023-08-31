@@ -117,17 +117,23 @@ impl LayerAndMaskInformationSection {
         let (group_count, layer_records) =
             LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
 
-        // println!("SEEKING FROM {:?} to {:?}", cursor.position(), layer_info_section_len + 8);
-        cursor.seek(layer_info_section_len as u64 + 8);
-        let mask_info_section_len = cursor.read_u32();
-        cursor.seek(cursor.position() + mask_info_section_len as u64);
+        // println!("SEEKING FROM {:?} to {:?} total_size {:?}", cursor.position(), layer_info_section_len + 8, bytes.len());
+        let mask_info_section_pos = layer_info_section_len as usize + 8;
+        if mask_info_section_pos < bytes.len() {
+            cursor.seek(mask_info_section_pos as u64);
+            let mask_info_section_len = cursor.read_u32();
+            let additional_layer_info_pos = cursor.position() + mask_info_section_len as u64;
+            if additional_layer_info_pos < bytes.len() as u64 {
+                cursor.seek(additional_layer_info_pos as u64);
 
-        while cursor.position() < bytes.len() as u64 {
-            println!("Additional Layer Info Start: {:?}", String::from_utf8_lossy(cursor.read_4()));
-            println!(" Type: {:?}", String::from_utf8_lossy(cursor.read_4()));
-            let ali_entry_len = cursor.read_u32();
-            println!(" Len {:?}", ali_entry_len);
-            cursor.seek(cursor.position() + ali_entry_len as u64);
+                while cursor.position() < (bytes.len() as u64) - 4 {
+                    println!("Additional Layer Info Start: {:?}", String::from_utf8_lossy(cursor.read_4()));
+                    println!(" Type: {:?}", String::from_utf8_lossy(cursor.read_4()));
+                    let ali_entry_len = cursor.read_u32();
+                    println!(" Len {:?}", ali_entry_len);
+                    cursor.seek(cursor.position() + ali_entry_len as u64);
+                }
+            }
         }
 
         LayerAndMaskInformationSection::decode_layers(
