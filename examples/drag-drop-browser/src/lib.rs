@@ -53,7 +53,7 @@ impl AppWrapper {
 
                     store.borrow_mut().msg(&Msg::SetIsRendering(false));
                 };
-                let mut re_render = Closure::wrap(Box::new(re_render) as Box<FnMut()>);
+                let mut re_render = Closure::wrap(Box::new(re_render) as Box<dyn FnMut()>);
 
                 window().request_animation_frame(&re_render.as_ref().unchecked_ref());
 
