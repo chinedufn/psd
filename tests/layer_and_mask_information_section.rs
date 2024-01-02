@@ -249,3 +249,14 @@ fn group_by_name<'a>(psd: &'a Psd, name: &str) -> &'a PsdGroup {
         .unwrap()
         .1
 }
+
+/// cargo test --test layer_and_mask_information_section layer_larger_than_psd -- --exact
+#[test]
+fn layer_larger_than_psd() {
+    let psd = include_bytes!("./fixtures/layer_larger.psd");
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    let larger_layer = psd.layer_by_name("larger").unwrap();
+    let rgba = larger_layer.rgba();
+    assert_eq!(rgba.len(), 16); // 2x2 layer, 4 bytes per pixel
+}
