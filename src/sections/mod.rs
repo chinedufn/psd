@@ -275,7 +275,8 @@ impl<'a> PsdCursor<'a> {
         let length_bytes = length * 2;
 
         let data = self.read(length_bytes as u32);
-        let result = String::from_utf16(&u8_slice_to_u16(data).as_slice()[..length]).unwrap();
+        let result =
+            String::from_utf16(&u8_slice_to_u16(data).as_slice()[..length as usize]).unwrap();
 
         self.read_padding(4 + length_bytes, padding);
 

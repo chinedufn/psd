@@ -32,16 +32,16 @@ pub enum ImageDataSectionError {
 #[derive(Debug)]
 pub struct ImageDataSection {
     /// The compression method for the image.
-    pub(crate) compression: PsdChannelCompression,
+    pub(in crate) compression: PsdChannelCompression,
     /// The red channel of the final image
-    pub(crate) red: ChannelBytes,
+    pub(in crate) red: ChannelBytes,
     /// The green channel of the final image
-    pub(crate) green: Option<ChannelBytes>,
+    pub(in crate) green: Option<ChannelBytes>,
     /// the blue channel of the final image
-    pub(crate) blue: Option<ChannelBytes>,
+    pub(in crate) blue: Option<ChannelBytes>,
     /// the alpha channel of the final image.
     /// If there is no alpha channel then it is a fully opaque image.
-    pub(crate) alpha: Option<ChannelBytes>,
+    pub(in crate) alpha: Option<ChannelBytes>,
 }
 
 impl ImageDataSection {
@@ -161,7 +161,7 @@ impl ImageDataSection {
                 let (red_start, red_end) =
                     (channel_data_start, channel_data_start + red_byte_count);
 
-                let red = bytes[red_start..red_end].into();
+                let red = bytes[red_start as usize..red_end as usize].into();
 
                 let green = match green_byte_count {
                     Some(green_byte_count) => {
@@ -176,8 +176,8 @@ impl ImageDataSection {
 
                 let blue = match blue_byte_count {
                     Some(blue_byte_count) => {
-                        let blue_start = red_end + green_byte_count.unwrap();
-                        let blue_end = blue_start + blue_byte_count;
+                        let blue_start = red_end + green_byte_count.unwrap() as usize;
+                        let blue_end = blue_start + blue_byte_count as usize;
                         Some(ChannelBytes::RleCompressed(
                             bytes[blue_start..blue_end].into(),
                         ))

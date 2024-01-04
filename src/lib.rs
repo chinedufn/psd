@@ -287,8 +287,8 @@ impl Psd {
 impl IntoRgba for Psd {
     /// The PSD's final image is always the same size as the PSD so we don't need to transform
     /// indices like we do with layers.
-    fn rgba_idx(&self, idx: usize) -> Option<usize> {
-        Some(idx)
+    fn rgba_idx(&self, idx: usize) -> usize {
+        idx
     }
 
     fn red(&self) -> &ChannelBytes {

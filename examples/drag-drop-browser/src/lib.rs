@@ -209,7 +209,7 @@ impl App {
                         psd.copy_to(&mut psd_file);
 
                         store.borrow_mut().msg(&Msg::ReplacePsd(&psd_file));
-                    }) as Box<dyn FnMut(_)>);
+                    }) as Box<FnMut(_)>);
 
                     file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
                     onload.forget();
