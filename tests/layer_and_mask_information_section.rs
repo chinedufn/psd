@@ -249,3 +249,23 @@ fn group_by_name<'a>(psd: &'a Psd, name: &str) -> &'a PsdGroup {
         .unwrap()
         .1
 }
+
+/// cargo test --test layer_and_mask_information_section layer_larger_than_psd -- --exact
+#[test]
+fn layer_larger_than_psd() {
+    let psd = include_bytes!("./fixtures/layer-larger.psd");
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    let larger_layer = psd.layer_by_name("larger").unwrap();
+    larger_layer.rgba();
+}
+
+/// cargo test --test layer_and_mask_information_section out_of_bounds_layer -- --exact
+#[test]
+fn out_of_bounds_layer() {
+    let psd = include_bytes!("./fixtures/out-of-bounds-layer.psd");
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    let larger_layer = psd.layer_by_name("out-of-bounds").unwrap();
+    larger_layer.rgba();
+}

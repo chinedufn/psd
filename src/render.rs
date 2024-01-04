@@ -74,10 +74,10 @@ impl<'a> Renderer<'a> {
         for (idx, layer) in self.layers_to_flatten_top_down.iter().enumerate() {
             // If this pixel is out of bounds of this layer we return the pixel below it.
             // If there is no pixel below it we return a transparent pixel
-            if pixel_left < layer.layer_properties.layer_left as usize
-                || pixel_left > layer.layer_properties.layer_right as usize
-                || pixel_top < layer.layer_properties.layer_top as usize
-                || pixel_top > layer.layer_properties.layer_bottom as usize
+            if (pixel_left as i32) < layer.layer_properties.layer_left
+                || (pixel_left as i32) > layer.layer_properties.layer_right
+                || (pixel_top as i32) < layer.layer_properties.layer_top
+                || (pixel_top as i32) > layer.layer_properties.layer_bottom
             {
                 continue;
             }
