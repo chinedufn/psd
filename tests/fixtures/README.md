@@ -94,7 +94,7 @@ https://github.com/chinedufn/psd/issues/45
 https://github.com/chinedufn/psd/issues/43
 
 ## layer-larger.psd
-Contains A layer that is larger 13x9px that than the PSD bounds 1x1.
+Contains a layer that is larger 13x9px that than the PSD bounds 1x1.
 
 https://github.com/chinedufn/psd/issues/45
 https://github.com/chinedufn/psd/issues/43
