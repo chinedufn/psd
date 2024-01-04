@@ -74,7 +74,7 @@ A PSD file with a single layer that has an X,Y position of (-4px, -4px) and a wi
 
 This happened while resizing a PSD from 1024x1024 down to 1x1.
 
-## green-chinese-layer-name-1x1.psd 
+## green-chinese-layer-name-1x1.psd
 
 Support for unicode encoded layer names
 
@@ -85,3 +85,16 @@ https://github.com/chinedufn/psd/issues/4
 Support for unicode layer names
 
 https://github.com/chinedufn/psd/issues/4
+
+
+## out-of-bounds-layer.psd
+Support for layers that are the same size as PSD but is offset negatively on x and y outside of the PSD bounds
+
+https://github.com/chinedufn/psd/issues/45
+https://github.com/chinedufn/psd/issues/43
+
+## layer-larger.psd
+Contains a layer that is larger 13x9px that than the PSD bounds 1x1.
+
+https://github.com/chinedufn/psd/issues/45
+https://github.com/chinedufn/psd/issues/43

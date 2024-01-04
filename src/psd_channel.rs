@@ -9,7 +9,11 @@ pub trait IntoRgba {
     ///
     /// If the final image or layer is the size of the PSD then this will return the same idx,
     /// otherwise it will get transformed.
-    fn rgba_idx(&self, idx: usize) -> usize;
+    ///
+    /// index could be `None` if layer's top or left is negative.
+    ///
+    /// index could be bigger than the size of the image if layer's bottom, right, width, height is bigger than image.
+    fn rgba_idx(&self, idx: usize) -> Option<usize>;
 
     /// The first channel
     fn red(&self) -> &ChannelBytes;
@@ -122,8 +126,9 @@ pub trait IntoRgba {
                 let offset = channel_kind.rgba_offset().unwrap();
 
                 for (idx, byte) in channel_bytes.iter().enumerate() {
-                    let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = *byte;
+                    if let Some(rgba_idx) = self.rgba_idx(idx) {
+                        rgba[rgba_idx * 4 + offset] = *byte;
+                    }
                 }
             }
             // https://en.wikipedia.org/wiki/PackBits
@@ -162,20 +167,27 @@ pub trait IntoRgba {
                     break;
                 }
                 for byte in cursor.read(bytes_to_read as u32) {
-                    let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = *byte;
+                    if let Some(rgba_idx) = self.rgba_idx(idx) {
+                        if let Some(buffer) = rgba.get_mut(rgba_idx * 4 + offset) {
+                            *buffer = *byte;
+                        }
+                    }
 
                     idx += 1;
                 }
             } else {
                 let repeat = 1 - header;
+
                 if cursor.position() + 1 > len {
                     break;
                 }
                 let byte = cursor.read_1()[0];
-                for _ in 0..repeat as usize {
-                    let rgba_idx = self.rgba_idx(idx);
-                    rgba[rgba_idx * 4 + offset] = byte;
+                for _ in 0..repeat {
+                    if let Some(rgba_idx) = self.rgba_idx(idx) {
+                        if let Some(buffer) = rgba.get_mut(rgba_idx * 4 + offset) {
+                            *buffer = byte;
+                        }
+                    }
 
                     idx += 1;
                 }
@@ -203,7 +215,7 @@ fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
         } else {
             let repeat = 1 - header;
             let byte = cursor.read_1()[0];
-            for _ in 0..repeat as usize {
+            for _ in 0..repeat {
                 decompressed.push(byte);
             }
         };
