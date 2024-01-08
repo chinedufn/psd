@@ -27,8 +27,8 @@ use crate::sections::image_resources_section::ImageResourcesSection;
 pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
 pub use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
-use crate::sections::layer_and_mask_information_section::{
-    LayerAndMaskInformationSection, PsdNode,
+pub use crate::sections::layer_and_mask_information_section::{
+    LayerAndMaskInformationSection, NodeAction, PsdNode,
 };
 use crate::sections::MajorSections;
 
@@ -266,6 +266,19 @@ impl Psd {
     /// Returns the PSD group/layer tree
     pub fn tree(&self) -> &PsdNode {
         &self.layer_and_mask_information_section.tree
+    }
+
+    /// execute a function for every node in the tree
+    pub fn traverse_tree<F>(&self, node_index: usize, depth: usize, action: &F)
+    where
+        F: Fn(&PsdNode, usize),
+    {
+        let node = &self.layer_and_mask_information_section.nodes[node_index];
+        action(node, depth);
+
+        for &child_index in node.children() {
+            self.traverse_tree(child_index, depth + 1, action);
+        }
     }
 }
 

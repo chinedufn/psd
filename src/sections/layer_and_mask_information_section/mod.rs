@@ -26,17 +26,33 @@ pub mod groups;
 pub mod layer;
 pub mod layers;
 
-#[derive(Debug)]
-enum NodeType {
+#[derive(Debug, Clone)]
+pub enum NodeType {
     Group(PsdGroup),
     Layer(PsdLayer),
 }
 
-#[derive(Debug)]
+/// Struct used to define PSD tree nodes and children
+#[derive(Default, Debug, Clone)]
 pub struct PsdNode {
     content: Option<NodeType>,
     children: Vec<usize>, // Store indices of children
 }
+impl PsdNode {
+    /// returns PsdNode content
+    pub fn content(&self) -> Option<NodeType> {
+        self.content.clone()
+    }
+    /// returns PsdNode children PsdNode
+    pub fn children(&self) -> &[usize] {
+        &self.children
+    }
+}
+
+// Define a type alias for the closure that will be applied to each node.
+// The closure takes a reference to a PsdNode and returns nothing.
+/// Lmabda type for node traversal
+pub type NodeAction<'a> = Box<dyn Fn(&PsdNode, usize) + 'a>; // Now also takes the depth as an argument
 
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
@@ -69,6 +85,7 @@ pub struct PsdNode {
 pub struct LayerAndMaskInformationSection {
     pub(crate) layers: Layers,
     pub(crate) groups: Groups,
+    pub(crate) nodes: Vec<PsdNode>, // Add this to store all nodes
     pub(crate) tree: PsdNode,
 }
 
@@ -104,6 +121,7 @@ impl LayerAndMaskInformationSection {
             return Ok(LayerAndMaskInformationSection {
                 layers: Layers::new(),
                 groups: Groups::with_capacity(0),
+                nodes: vec![],
                 tree: PsdNode {
                     content: None,
                     children: Vec::new(),
@@ -256,10 +274,14 @@ impl LayerAndMaskInformationSection {
             }
         }
 
+        // Clone the root node before moving the `nodes` vector
+        let root_node = nodes.get(0).cloned().unwrap_or_default(); // Assuming PsdNode implements Default
+
         Ok(LayerAndMaskInformationSection {
             layers,
             groups,
-            tree: nodes.swap_remove(0), // root node
+            nodes,
+            tree: root_node,
         })
     }
 
