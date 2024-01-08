@@ -26,6 +26,18 @@ pub mod groups;
 pub mod layer;
 pub mod layers;
 
+#[derive(Debug)]
+enum NodeType {
+    Group(PsdGroup),
+    Layer(PsdLayer),
+}
+
+#[derive(Debug)]
+pub struct PsdNode {
+    content: Option<NodeType>,
+    children: Vec<usize>, // Store indices of children
+}
+
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
 /// When possible we'll make the data easier to work with by storing it structures such as HashMaps.
@@ -57,10 +69,11 @@ pub mod layers;
 pub struct LayerAndMaskInformationSection {
     pub(crate) layers: Layers,
     pub(crate) groups: Groups,
+    pub(crate) tree: PsdNode,
 }
 
 /// Frame represents a group stack frame
-#[derive(Debug)]
+#[derive(Debug, Clone)] // Add Clone here
 struct Frame {
     start_idx: usize,
     name: String,
@@ -91,6 +104,10 @@ impl LayerAndMaskInformationSection {
             return Ok(LayerAndMaskInformationSection {
                 layers: Layers::new(),
                 groups: Groups::with_capacity(0),
+                tree: PsdNode {
+                    content: None,
+                    children: Vec::new(),
+                },
             });
         }
 
@@ -130,7 +147,12 @@ impl LayerAndMaskInformationSection {
         let mut layers = Layers::with_capacity(layer_records.len());
         let mut groups = Groups::with_capacity(group_count);
 
-        // Create stack with root-level
+        let mut nodes = Vec::new();
+        nodes.push(PsdNode {
+            content: None,
+            children: Vec::new(),
+        }); // root node
+
         let mut stack: Vec<Frame> = vec![Frame {
             start_idx: 0,
             name: String::from("root"),
@@ -138,30 +160,53 @@ impl LayerAndMaskInformationSection {
             parent_group_id: 0,
         }];
 
-        // Viewed group counter
+        let mut tree_stack: Vec<usize> = vec![0]; // Index of the root node
+
         let mut already_viewed = 0;
 
-        // Read each layer's channel image data
         for (layer_record, channels) in layer_records.into_iter() {
-            // get current group from stack
             let current_group_id = stack.last().unwrap().group_id;
 
             match layer_record.divider_type {
-                // open the folder
                 Some(GroupDivider::CloseFolder) | Some(GroupDivider::OpenFolder) => {
-                    already_viewed = already_viewed + 1;
+                    already_viewed += 1;
 
                     let frame = Frame {
                         start_idx: layers.len(),
-                        name: layer_record.name,
+                        name: layer_record.name.clone(),
                         group_id: already_viewed,
                         parent_group_id: current_group_id,
                     };
+                    stack.push(frame.clone());
 
-                    stack.push(frame);
+                    let new_group_node = PsdNode {
+                        content: Some(NodeType::Group(PsdGroup::new(
+                            layer_record.name.clone(),
+                            already_viewed,
+                            Range {
+                                start: layers.len(),
+                                end: 0,
+                            },
+                            &layer_record,
+                            psd_size.0,
+                            psd_size.1,
+                            if frame.parent_group_id > 0 {
+                                Some(frame.parent_group_id)
+                            } else {
+                                None
+                            },
+                        ))),
+                        children: Vec::new(),
+                    };
+
+                    nodes.push(new_group_node);
+                    let new_group_node_index = nodes.len() - 1;
+
+                    let parent_index = *tree_stack.last().unwrap();
+                    nodes[parent_index].children.push(new_group_node_index);
+
+                    tree_stack.push(new_group_node_index);
                 }
-
-                // close the folder
                 Some(GroupDivider::BoundingSection) => {
                     let frame = stack.pop().unwrap();
 
@@ -170,7 +215,7 @@ impl LayerAndMaskInformationSection {
                         end: layers.len(),
                     };
 
-                    groups.push(PsdGroup::new(
+                    let group = PsdGroup::new(
                         frame.name,
                         frame.group_id,
                         range,
@@ -182,9 +227,11 @@ impl LayerAndMaskInformationSection {
                         } else {
                             None
                         },
-                    ));
-                }
+                    );
 
+                    groups.push(group);
+                    tree_stack.pop();
+                }
                 _ => {
                     let psd_layer = LayerAndMaskInformationSection::read_layer(
                         &layer_record,
@@ -193,12 +240,27 @@ impl LayerAndMaskInformationSection {
                         channels,
                     )?;
 
+                    let new_layer_node = PsdNode {
+                        content: Some(NodeType::Layer(psd_layer.clone())),
+                        children: Vec::new(),
+                    };
+
+                    nodes.push(new_layer_node);
+                    let new_layer_node_index = nodes.len() - 1;
+
+                    let parent_index = *tree_stack.last().unwrap();
+                    nodes[parent_index].children.push(new_layer_node_index);
+
                     layers.push(psd_layer.name.clone(), psd_layer);
                 }
-            };
+            }
         }
 
-        Ok(LayerAndMaskInformationSection { layers, groups })
+        Ok(LayerAndMaskInformationSection {
+            layers,
+            groups,
+            tree: nodes.swap_remove(0), // root node
+        })
     }
 
     fn read_layer_records(

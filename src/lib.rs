@@ -27,7 +27,9 @@ use crate::sections::image_resources_section::ImageResourcesSection;
 pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
 pub use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
-use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
+use crate::sections::layer_and_mask_information_section::{
+    LayerAndMaskInformationSection, PsdNode,
+};
 use crate::sections::MajorSections;
 
 use self::sections::file_header_section::FileHeaderSection;
@@ -259,6 +261,11 @@ impl Psd {
         }
 
         Ok(flattened_pixels)
+    }
+
+    /// Returns the PSD group/layer tree
+    pub fn tree(&self) -> &PsdNode {
+        &self.layer_and_mask_information_section.tree
     }
 }
 
