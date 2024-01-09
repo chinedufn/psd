@@ -1,4 +1,4 @@
-use psd::{NodeAction, Psd, PsdGroup, PsdNode};
+use psd::{NodeAction, NodeType, Psd, PsdGroup};
 const TOP_LEVEL_ID: u32 = 1;
 
 /// Verify that we can get a group by it's ID.
@@ -130,9 +130,10 @@ fn tree_one_group_with_two_subgroups() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-with-two-subgroups.psd");
     let psd = Psd::from_bytes(psd).unwrap();
 
+    let tree_output = "";
     let print_node_name: NodeAction = Box::new(|node, depth| {
         let indentation = " ".repeat(depth * 4); // 4 spaces per depth level
-        match &node.content {
+        match &node.content() {
             Some(NodeType::Group(group)) => println!("{}Group: {}", indentation, group.name()),
             Some(NodeType::Layer(layer)) => println!("{}Layer: {}", indentation, layer.name()),
             None => println!("{}Root Node", indentation),
@@ -140,6 +141,7 @@ fn tree_one_group_with_two_subgroups() {
     });
 
     psd.traverse_tree(0, 0, &print_node_name);
+    assert_eq!(psd.tree().children()[0], 420);
 }
 
 /// Verify that we can properly load an RLEcompressed empty channel (caused by a group from GIMP)
