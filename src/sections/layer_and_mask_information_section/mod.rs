@@ -37,17 +37,6 @@ pub enum NodeType {
     Layer(PsdLayer),
 }
 
-// A struct to hold the borrowed data and provide access to the content
-pub struct BorrowedNodeContent<'a> {
-    node_ref: Ref<'a, PsdNode>,
-}
-
-impl<'a> BorrowedNodeContent<'a> {
-    pub fn content(&self) -> Option<&NodeType> {
-        self.node_ref.content.as_ref()
-    }
-}
-
 /// Struct used to define PSD tree nodes and children
 #[derive(Default, Debug, Clone)]
 pub struct PsdNode {
@@ -69,11 +58,6 @@ impl PsdNode {
         self.children.get(index).cloned()
     }
 }
-
-// Define a type alias for the closure that will be applied to each node.
-// The closure takes a reference to a PsdNode and returns nothing.
-/// Lmabda type for node traversal
-pub type NodeAction<'a> = Box<dyn Fn(&PsdNode, usize) + 'a>; // Now also takes the depth as an argument
 
 /// The LayerAndMaskInformationSection comes from the bytes in the fourth section of the PSD.
 ///
