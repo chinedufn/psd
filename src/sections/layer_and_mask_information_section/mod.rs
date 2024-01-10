@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Range;
+use std::rc::Rc;
 
 use crate::psd_channel::PsdChannelCompression;
 use crate::psd_channel::PsdChannelKind;
@@ -39,7 +41,7 @@ pub enum NodeType {
 #[derive(Default, Debug, Clone)]
 pub struct PsdNode {
     content: Option<NodeType>,
-    children: Vec<usize>, // Store indices of children
+    children: Vec<Rc<RefCell<PsdNode>>>,
 }
 impl PsdNode {
     /// returns PsdNode content
@@ -47,8 +49,8 @@ impl PsdNode {
         self.content.clone()
     }
     /// returns PsdNode children PsdNode
-    pub fn children(&self) -> &[usize] {
-        &self.children
+    pub fn children(&self) -> Vec<Rc<RefCell<PsdNode>>> {
+        self.children.clone()
     }
 }
 
@@ -88,8 +90,7 @@ pub type NodeAction<'a> = Box<dyn Fn(&PsdNode, usize) + 'a>; // Now also takes t
 pub struct LayerAndMaskInformationSection {
     pub(crate) layers: Layers,
     pub(crate) groups: Groups,
-    pub(crate) index: Vec<PsdNode>, // Add this to store all nodes
-    pub(crate) tree: PsdNode,
+    pub(crate) tree: Rc<RefCell<PsdNode>>,
 }
 
 /// Frame represents a group stack frame
@@ -124,11 +125,10 @@ impl LayerAndMaskInformationSection {
             return Ok(LayerAndMaskInformationSection {
                 layers: Layers::new(),
                 groups: Groups::with_capacity(0),
-                index: vec![],
-                tree: PsdNode {
+                tree: Rc::new(RefCell::new(PsdNode {
                     content: None,
                     children: Vec::new(),
-                },
+                })),
             });
         }
 
@@ -168,11 +168,10 @@ impl LayerAndMaskInformationSection {
         let mut layers = Layers::with_capacity(layer_records.len());
         let mut groups = Groups::with_capacity(group_count);
 
-        let mut index = Vec::new();
-        index.push(PsdNode {
+        let root = Rc::new(RefCell::new(PsdNode {
             content: None,
-            children: Vec::new(),
-        }); // root node
+            children: vec![],
+        }));
 
         let mut stack: Vec<Frame> = vec![Frame {
             start_idx: 0,
@@ -180,13 +179,12 @@ impl LayerAndMaskInformationSection {
             group_id: 0,
             parent_group_id: 0,
         }];
-
-        let mut tree_stack: Vec<usize> = vec![0]; // Index of the root node
-
+        let mut tree_stack: Vec<Rc<RefCell<PsdNode>>> = vec![Rc::clone(&root)];
         let mut already_viewed = 0;
 
         for (layer_record, channels) in layer_records.into_iter() {
             let current_group_id = stack.last().unwrap().group_id;
+            let current_tree_node = tree_stack.last().unwrap().clone();
 
             match layer_record.divider_type {
                 Some(GroupDivider::CloseFolder) | Some(GroupDivider::OpenFolder) => {
@@ -198,38 +196,21 @@ impl LayerAndMaskInformationSection {
                         group_id: already_viewed,
                         parent_group_id: current_group_id,
                     };
-                    stack.push(frame.clone());
+                    stack.push(frame);
 
-                    let new_group_node = PsdNode {
-                        content: Some(NodeType::Group(PsdGroup::new(
-                            layer_record.name.clone(),
-                            already_viewed,
-                            Range {
-                                start: layers.len(),
-                                end: 0,
-                            },
-                            &layer_record,
-                            psd_size.0,
-                            psd_size.1,
-                            if frame.parent_group_id > 0 {
-                                Some(frame.parent_group_id)
-                            } else {
-                                None
-                            },
-                        ))),
-                        children: Vec::new(),
-                    };
-
-                    index.push(new_group_node);
-                    let new_group_node_index = index.len() - 1;
-
-                    let parent_index = *tree_stack.last().unwrap();
-                    index[parent_index].children.push(new_group_node_index);
-
-                    tree_stack.push(new_group_node_index);
+                    let group_node = Rc::new(RefCell::new(PsdNode {
+                        content: None, // Group content will be set when closing the folder
+                        children: vec![],
+                    }));
+                    current_tree_node
+                        .borrow_mut()
+                        .children
+                        .push(Rc::clone(&group_node));
+                    tree_stack.push(group_node);
                 }
                 Some(GroupDivider::BoundingSection) => {
                     let frame = stack.pop().unwrap();
+                    let group_node = tree_stack.pop().unwrap();
 
                     let range = Range {
                         start: frame.start_idx,
@@ -250,41 +231,31 @@ impl LayerAndMaskInformationSection {
                         },
                     );
 
+                    group_node.borrow_mut().content = Some(NodeType::Group(group.clone()));
                     groups.push(group);
-                    tree_stack.pop();
                 }
                 _ => {
-                    let psd_layer = LayerAndMaskInformationSection::read_layer(
+                    let layer = LayerAndMaskInformationSection::read_layer(
                         &layer_record,
                         current_group_id,
                         psd_size,
                         channels,
                     )?;
+                    let layer_node = Rc::new(RefCell::new(PsdNode {
+                        content: Some(NodeType::Layer(layer.clone())),
+                        children: vec![],
+                    }));
 
-                    let new_layer_node = PsdNode {
-                        content: Some(NodeType::Layer(psd_layer.clone())),
-                        children: Vec::new(),
-                    };
-
-                    index.push(new_layer_node);
-                    let new_layer_node_index = index.len() - 1;
-
-                    let parent_index = *tree_stack.last().unwrap();
-                    index[parent_index].children.push(new_layer_node_index);
-
-                    layers.push(psd_layer.name.clone(), psd_layer);
+                    current_tree_node.borrow_mut().children.push(layer_node);
+                    layers.push(layer_record.name.clone(), layer);
                 }
             }
         }
 
-        // Clone the root node before moving the `nodes` vector
-        let root_node = index.get(0).cloned().unwrap_or_default(); // Assuming PsdNode implements Default
-
         Ok(LayerAndMaskInformationSection {
             layers,
             groups,
-            index,
-            tree: root_node,
+            tree: root, // This is the new tree structure
         })
     }
 

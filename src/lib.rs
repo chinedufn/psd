@@ -7,8 +7,10 @@
 
 #![deny(missing_docs)]
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::rc::Rc;
 
 use thiserror::Error;
 
@@ -264,20 +266,28 @@ impl Psd {
     }
 
     /// Returns the PSD group/layer tree
-    pub fn tree(&self) -> &PsdNode {
-        &self.layer_and_mask_information_section.tree
+    pub fn tree(&self) -> Rc<RefCell<PsdNode>> {
+        Rc::clone(&self.layer_and_mask_information_section.tree)
     }
 
-    /// execute a function for every node in the tree
-    pub fn traverse_tree<F>(&self, node_index: usize, depth: usize, action: &F)
+    /// Traverses the PSD group/layer tree, applying the given action to each node
+    pub fn traverse<F>(&self, action: F)
+    where
+        F: Fn(&PsdNode, usize), // Include depth in the closure
+    {
+        let tree = self.tree();
+        Self::traverse_node(&tree, &action, 0); // Start with depth 0
+    }
+
+    fn traverse_node<F>(node: &Rc<RefCell<PsdNode>>, action: &F, depth: usize)
     where
         F: Fn(&PsdNode, usize),
     {
-        let node = &self.layer_and_mask_information_section.nodes[node_index];
-        action(node, depth);
+        let node_borrow = node.borrow();
+        action(&node_borrow, depth);
 
-        for &child_index in node.children() {
-            self.traverse_tree(child_index, depth + 1, action);
+        for child in node_borrow.children().iter() {
+            Self::traverse_node(child, action, depth + 1); // Increment depth for child nodes
         }
     }
 }
