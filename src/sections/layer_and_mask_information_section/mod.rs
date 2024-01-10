@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::ops::Range;
 use std::rc::Rc;
@@ -37,6 +37,17 @@ pub enum NodeType {
     Layer(PsdLayer),
 }
 
+// A struct to hold the borrowed data and provide access to the content
+pub struct BorrowedNodeContent<'a> {
+    node_ref: Ref<'a, PsdNode>,
+}
+
+impl<'a> BorrowedNodeContent<'a> {
+    pub fn content(&self) -> Option<&NodeType> {
+        self.node_ref.content.as_ref()
+    }
+}
+
 /// Struct used to define PSD tree nodes and children
 #[derive(Default, Debug, Clone)]
 pub struct PsdNode {
@@ -51,6 +62,11 @@ impl PsdNode {
     /// returns PsdNode children PsdNode
     pub fn children(&self) -> Vec<Rc<RefCell<PsdNode>>> {
         self.children.clone()
+    }
+
+    /// Gets a reference to a child node at a given index.
+    pub fn child(&self, index: usize) -> Option<Rc<RefCell<PsdNode>>> {
+        self.children.get(index).cloned()
     }
 }
 

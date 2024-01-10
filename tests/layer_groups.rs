@@ -129,15 +129,105 @@ fn one_group_with_two_subgroups() {
 fn tree_one_group_with_two_subgroups() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-with-two-subgroups.psd");
     let psd = Psd::from_bytes(psd).unwrap();
-    psd.traverse(|node, depth| {
-        let indent = " ".repeat(depth * 4); // 4 spaces per depth level
-        if let Some(content) = &node.content() {
-            match content {
-                NodeType::Group(group) => println!("{}Group: {}", indent, group.name()),
-                NodeType::Layer(layer) => println!("{}Layer: {}", indent, layer.name()),
-            }
-        }
-    });
+
+    let tree = psd.tree();
+    let root_node = tree.borrow();
+
+    // "outside group"
+    let outside_group_node = root_node.child(0).unwrap();
+    let outside_group = match outside_group_node.borrow().content() {
+        Some(NodeType::Group(group)) => group,
+        _ => panic!("Expected 'outside group' to be a group"),
+    };
+    assert_eq!(outside_group.id(), 1);
+
+    // "first group inside"
+    let first_group_inside_node = outside_group_node.borrow().child(0).unwrap();
+    let first_group_inside = match first_group_inside_node.borrow().content() {
+        Some(NodeType::Group(group)) => group,
+        _ => panic!("Expected 'first group inside' to be a group"),
+    };
+    assert_eq!(first_group_inside.parent_id().unwrap(), outside_group.id());
+
+    // "First Layer"
+    let first_layer_node = first_group_inside_node.borrow().child(0).unwrap();
+    let first_layer = match first_layer_node.borrow().content() {
+        Some(NodeType::Layer(layer)) => layer,
+        _ => panic!("Expected 'First Layer' to be a layer"),
+    };
+    assert_eq!(first_group_inside.id(), first_layer.parent_id().unwrap());
+
+    // "second group inside"
+    let second_group_inside_node = outside_group_node.borrow().child(1).unwrap();
+    let second_group_inside = match second_group_inside_node.borrow().content() {
+        Some(NodeType::Group(group)) => group,
+        _ => panic!("Expected 'second group inside' to be a group"),
+    };
+    assert_eq!(second_group_inside.parent_id().unwrap(), outside_group.id());
+
+    // "sub sub group"
+    let sub_sub_group_node = second_group_inside_node.borrow().child(0).unwrap();
+    let sub_sub_group = match sub_sub_group_node.borrow().content() {
+        Some(NodeType::Group(group)) => group,
+        _ => panic!("Expected 'sub sub group' to be a group"),
+    };
+    assert_eq!(sub_sub_group.parent_id().unwrap(), second_group_inside.id());
+
+    // "Second Layer"
+    let second_layer_node = sub_sub_group_node.borrow().child(0).unwrap();
+    let second_layer = match second_layer_node.borrow().content() {
+        Some(NodeType::Layer(layer)) => layer,
+        _ => panic!("Expected 'Second Layer' to be a layer"),
+    };
+    assert_eq!(sub_sub_group.id(), second_layer.parent_id().unwrap());
+
+    // "Third Layer"
+    let third_layer_node = second_group_inside_node.borrow().child(1).unwrap();
+    let third_layer = match third_layer_node.borrow().content() {
+        Some(NodeType::Layer(layer)) => layer,
+        _ => panic!("Expected 'Third Layer' to be a layer"),
+    };
+    assert_eq!(second_group_inside.id(), third_layer.parent_id().unwrap());
+
+    // "third group inside"
+    let third_group_inside_node = outside_group_node.borrow().child(2).unwrap();
+    let third_group_inside = match third_group_inside_node.borrow().content() {
+        Some(NodeType::Group(group)) => group,
+        _ => panic!("Expected 'third group inside' to be a group"),
+    };
+    assert_eq!(third_group_inside.parent_id().unwrap(), outside_group.id());
+
+    // "Fourth Layer"
+    let fourth_layer_node = outside_group_node.borrow().child(3).unwrap();
+    let fourth_layer = match fourth_layer_node.borrow().content() {
+        Some(NodeType::Layer(layer)) => layer,
+        _ => panic!("Expected 'Fourth Layer' to be a layer"),
+    };
+    assert_eq!(outside_group.id(), fourth_layer.parent_id().unwrap());
+
+    // "Firth Layer"
+    let firth_layer_node = root_node.child(1).unwrap();
+    let firth_layer = match firth_layer_node.borrow().content() {
+        Some(NodeType::Layer(layer)) => layer,
+        _ => panic!("Expected 'Firth Layer' to be a layer"),
+    };
+    assert!(firth_layer.parent_id().is_none());
+
+    // "outside group 2"
+    let outside_group_2_node = root_node.child(2).unwrap();
+    let outside_group_2 = match outside_group_2_node.borrow().content() {
+        Some(NodeType::Group(group)) => group,
+        _ => panic!("Expected 'outside group 2' to be a group"),
+    };
+    assert_eq!(outside_group_2.id(), 6);
+
+    // "Sixth Layer"
+    let sixth_layer_node = outside_group_2_node.borrow().child(0).unwrap();
+    let sixth_layer = match sixth_layer_node.borrow().content() {
+        Some(NodeType::Layer(layer)) => layer,
+        _ => panic!("Expected 'Sixth Layer' to be a layer"),
+    };
+    assert_eq!(outside_group_2.id(), sixth_layer.parent_id().unwrap());
 }
 
 /// Verify that we can properly load an RLEcompressed empty channel (caused by a group from GIMP)
