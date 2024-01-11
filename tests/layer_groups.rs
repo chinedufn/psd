@@ -1,4 +1,4 @@
-use psd::{NodeAction, NodeType, Psd, PsdGroup};
+use psd::{NodeType, Psd, PsdGroup};
 const TOP_LEVEL_ID: u32 = 1;
 
 /// Verify that we can get a group by it's ID.

@@ -30,7 +30,7 @@ pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStr
 pub use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 pub use crate::sections::layer_and_mask_information_section::{
-    LayerAndMaskInformationSection, NodeAction, NodeType, PsdNode,
+    LayerAndMaskInformationSection, NodeType, PsdNode,
 };
 use crate::sections::MajorSections;
 
