@@ -94,7 +94,7 @@ pub struct LayerAndMaskInformationSection {
 }
 
 /// Frame represents a group stack frame
-#[derive(Debug, Clone)] // Add Clone here
+#[derive(Debug, Clone)]
 struct Frame {
     start_idx: usize,
     name: String,
@@ -173,6 +173,7 @@ impl LayerAndMaskInformationSection {
             children: vec![],
         }));
 
+        // Create stack with root-level
         let mut stack: Vec<Frame> = vec![Frame {
             start_idx: 0,
             name: String::from("root"),
@@ -182,11 +183,14 @@ impl LayerAndMaskInformationSection {
         let mut tree_stack: Vec<Rc<RefCell<PsdNode>>> = vec![Rc::clone(&root)];
         let mut already_viewed = 0;
 
+        // Read each layer's channel image data
         for (layer_record, channels) in layer_records.into_iter() {
+            // get current group from stack
             let current_group_id = stack.last().unwrap().group_id;
             let current_tree_node = tree_stack.last().unwrap().clone();
 
             match layer_record.divider_type {
+                // open the folder
                 Some(GroupDivider::CloseFolder) | Some(GroupDivider::OpenFolder) => {
                     already_viewed += 1;
 
@@ -208,6 +212,7 @@ impl LayerAndMaskInformationSection {
                         .push(Rc::clone(&group_node));
                     tree_stack.push(group_node);
                 }
+                // close the folder
                 Some(GroupDivider::BoundingSection) => {
                     let frame = stack.pop().unwrap();
                     let group_node = tree_stack.pop().unwrap();
