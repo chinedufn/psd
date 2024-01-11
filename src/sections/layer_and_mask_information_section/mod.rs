@@ -1,3 +1,4 @@
+use crate::sections::image_resources_section::DescriptorStructure;
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -21,6 +22,8 @@ const SIGNATURE_EIGHT_B64: [u8; 4] = [56, 66, 54, 52];
 const KEY_UNICODE_LAYER_NAME: &[u8; 4] = b"luni";
 /// Key of `Section divider setting (Photoshop 6.0)`, "lsct"
 const KEY_SECTION_DIVIDER_SETTING: &[u8; 4] = b"lsct";
+// Key of some timeline related information?
+const KEY_TIMELINE_INFO: &[u8; 4] = b"shmd";
 
 pub mod groups;
 pub mod layer;
@@ -95,7 +98,7 @@ impl LayerAndMaskInformationSection {
         }
 
         // Read the next four bytes to get the length of the layer info section.
-        let _layer_info_section_len = cursor.read_u32();
+        let layer_info_section_len = cursor.read_u32();
 
         // Next 2 bytes is the layer count
         //
@@ -115,11 +118,31 @@ impl LayerAndMaskInformationSection {
         let (group_count, layer_records) =
             LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
 
+        // println!("SEEKING FROM {:?} to {:?} total_size {:?}", cursor.position(), layer_info_section_len + 8, bytes.len());
+        let mask_info_section_pos = layer_info_section_len as usize + 8;
+        if mask_info_section_pos < bytes.len() {
+            cursor.seek(mask_info_section_pos as u64);
+            let mask_info_section_len = cursor.read_u32();
+            let additional_layer_info_pos = cursor.position() + mask_info_section_len as u64;
+            if additional_layer_info_pos < bytes.len() as u64 {
+                cursor.seek(additional_layer_info_pos as u64);
+
+                while cursor.position() < (bytes.len() as u64) - 4 {
+                    println!("Additional Layer Info Start: {:?}", String::from_utf8_lossy(cursor.read_4()));
+                    println!(" Type: {:?}", String::from_utf8_lossy(cursor.read_4()));
+                    let ali_entry_len = cursor.read_u32();
+                    println!(" Len {:?}", ali_entry_len);
+                    cursor.seek(cursor.position() + ali_entry_len as u64);
+                }
+            }
+        }
+
         LayerAndMaskInformationSection::decode_layers(
             layer_records,
             group_count,
             (psd_width, psd_height),
         )
+
     }
 
     fn decode_layers(
@@ -417,6 +440,8 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     let padding = (4 - bytes_mod_4) % 4;
     cursor.read(padding as u32);
 
+    println!("NEW LAYER");
+
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
@@ -446,9 +471,41 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
                     cursor.read_4();
                 }
             }
+            KEY_TIMELINE_INFO => {
+                let num_sections = cursor.read_u32();
+                println!("SECTION LEN {:?} NUM SUB-SECTIONS {:?}", additional_layer_info_len, num_sections);
+                for _ in 0..num_sections {
+                    if cursor.read_4() != b"8BIM" {
+                        panic!("WTF");
+                    }
+                    let sub_section_name = String::from_utf8_lossy(&cursor.read_4()).into_owned();
+                    println!("  SUB-SECTION {:?}", sub_section_name);
+                    let _idk = cursor.read_u32();
+                    let sub_section_len = cursor.read_u32();
+                    match sub_section_name.as_str() {
+                        "mlst" => {
+                            let start_pos = cursor.position() + 18;
+                            println!("    {:?}", String::from_utf8_lossy(&cursor.read(sub_section_len)));
+                            cursor.seek(start_pos);
+                            // let num_sections = cursor.read_u32();
+                            println!("    {:#?}", DescriptorStructure::read_fields(cursor, false));
+                            cursor.seek(start_pos + (sub_section_len as u64) - 18);
+                        },
+                        "mdyn" => {
+                            println!("    {:?}", cursor.read_u32());
+                        },
+                        "cust" => {
+                            let bytes = cursor.read(sub_section_len);
+                            println!("    {:?}", String::from_utf8_lossy(&bytes));
+                        }
+                        _ => todo!(),
+                    }
+                }
+            },
 
             // TODO: Skipping other keys until we implement parsing for them
             _ => {
+                println!("  {:?} {:?} len={:?}", key, String::from_utf8_lossy(&key), additional_layer_info_len);
                 cursor.read(additional_layer_info_len);
             }
         }
