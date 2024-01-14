@@ -5,6 +5,7 @@ use crate::sections::image_resources_section::DescriptorStructure;
 #[allow(missing_docs)]
 pub enum ImageResource {
     Slices(SlicesImageResource),
+    Xmp(String),
 }
 
 /// Comes from a slices resource block
