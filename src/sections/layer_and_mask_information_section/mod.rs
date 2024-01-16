@@ -386,7 +386,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     //  - bit 2 = obsolete;
     //  - bit 3 = 1 for Photoshop 5.0 and later, tells if bit 4 has useful information;
     //  - bit 4 = pixel data irrelevant to appearance of document
-    let visible = cursor.read_u8() & (1 << 1) != 0; // here we get second bit - visible
+    let visible = cursor.read_u8() & (1 << 1) == 0; // here we get second bit - visible
 
     // We do not currently parse the filler, skip it
     cursor.read_1();
