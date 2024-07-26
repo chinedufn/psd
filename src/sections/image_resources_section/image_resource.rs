@@ -20,7 +20,7 @@ impl SlicesImageResource {
         &self.name
     }
 
-    pub fn descriptors(&self) -> &Vec<DescriptorStructure> {
+    pub fn descriptors(&self) -> &[DescriptorStructure] {
         &self.descriptors
     }
 }

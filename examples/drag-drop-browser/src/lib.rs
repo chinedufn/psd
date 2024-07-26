@@ -19,7 +19,7 @@ use std::rc::Rc;
 ///
 /// If we we didn't do this our closures would get dropped and wouldn't work.
 #[wasm_bindgen]
-struct AppWrapper(Rc<RefCell<App>>);
+pub struct AppWrapper(#[allow(dead_code)] Rc<RefCell<App>>);
 
 #[wasm_bindgen]
 impl AppWrapper {
@@ -28,7 +28,7 @@ impl AppWrapper {
     pub fn new() -> AppWrapper {
         console_error_panic_hook::set_once();
 
-        let mut app = App::new();
+        let app = App::new();
 
         let closure_holder = Rc::clone(&app.raf_closure_holder);
 
@@ -49,13 +49,13 @@ impl AppWrapper {
                     let app = Rc::clone(&app);
 
                     let vdom = app.borrow().render();
-                    app.borrow_mut().update(vdom);
+                    app.borrow_mut().update(vdom).unwrap();
 
                     store.borrow_mut().msg(&Msg::SetIsRendering(false));
                 };
-                let mut re_render = Closure::wrap(Box::new(re_render) as Box<dyn FnMut()>);
+                let re_render = Closure::wrap(Box::new(re_render) as Box<dyn FnMut()>);
 
-                window().request_animation_frame(&re_render.as_ref().unchecked_ref());
+                window().request_animation_frame(&re_render.as_ref().unchecked_ref()).unwrap();
 
                 *closure_holder.borrow_mut() = Some(Box::new(re_render));
             };
@@ -73,7 +73,7 @@ impl AppWrapper {
 
 /// Our client side web application
 #[wasm_bindgen]
-struct App {
+pub struct App {
     store: Rc<RefCell<Store>>,
     dom_updater: PercyDom,
     /// Holds the most recent RAF closure
@@ -85,7 +85,7 @@ impl App {
     /// Create a new App
     fn new() -> App {
         let vdom = html! { <div> </div> };
-        let mut dom_updater = PercyDom::new_append_to_mount(vdom, &body());
+        let dom_updater = PercyDom::new_append_to_mount(vdom, &body());
 
         let state = State {
             psd: None,
@@ -111,7 +111,7 @@ impl App {
         self.store.borrow_mut().msg(&Msg::ReplacePsd(demo_psd));
 
         let vdom = self.render();
-        self.update(vdom);
+        self.update(vdom).unwrap();
     }
 
     /// Render the virtual-dom
@@ -200,7 +200,7 @@ impl App {
                     let file_reader = web_sys::FileReader::new().unwrap();
                     file_reader.read_as_array_buffer(&psd).unwrap();
 
-                    let mut onload = Closure::wrap(Box::new(move |event: Event| {
+                    let onload = Closure::wrap(Box::new(move |event: Event| {
                         let file_reader: FileReader = event.target().unwrap().dyn_into().unwrap();
                         let psd = file_reader.result().unwrap();
                         let psd = js_sys::Uint8Array::new(&psd);
@@ -239,8 +239,8 @@ impl App {
 
         // Flatten the PSD into only the pixels from the layers that are currently
         // toggled on.
-        let mut psd_pixels = psd
-            .flatten_layers_rgba(&|(idx, layer)| {
+        let psd_pixels = psd
+            .flatten_layers_rgba(&|(_, layer)| {
                 let layer_visible = *self
                     .store
                     .borrow()

@@ -1,6 +1,6 @@
 use crate::PsdLayer;
 use std::collections::HashMap;
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 
 /// `NamedItems` is immutable container for storing items with order-preservation
 /// and indexing by id and name

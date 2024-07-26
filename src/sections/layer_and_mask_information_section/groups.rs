@@ -24,7 +24,7 @@ impl Groups {
     }
 
     /// Get the group ID's in order (from bottom to top in a PSD file).
-    pub fn group_ids_in_order(&self) -> &Vec<u32> {
+    pub fn group_ids_in_order(&self) -> &[u32] {
         &self.group_ids_in_order
     }
 }

@@ -32,6 +32,7 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 /// | 2      | The color mode of the file. Supported values are: Bitmap = 0; Grayscale = 1; Indexed = 2; RGB = 3; CMYK = 4; Multichannel = 7; Duotone = 8; Lab = 9. |
 #[derive(Debug)]
 pub struct FileHeaderSection {
+    #[allow(dead_code)]
     pub(in crate) version: PsdVersion,
     pub(in crate) channel_count: ChannelCount,
     pub(in crate) width: PsdWidth,
@@ -86,19 +87,19 @@ impl FileHeaderSection {
         }
 
         // First four bytes must be '8BPS'
-        let signature = cursor.read_4();
+        let signature = *cursor.read_n::<4>();
         if signature != EXPECTED_PSD_SIGNATURE {
             return Err(FileHeaderSectionError::InvalidSignature {});
         }
 
         // The next 2 bytes represent the version
-        let version = cursor.read_2();
+        let version = *cursor.read_n::<2>();
         if version != EXPECTED_VERSION {
             return Err(FileHeaderSectionError::InvalidVersion {});
         }
 
         // The next 6 bytes are reserved and should always be 0
-        let reserved = cursor.read_6();
+        let reserved = *cursor.read_n::<6>();
         if reserved != EXPECTED_RESERVED {
             return Err(FileHeaderSectionError::InvalidReserved {});
         }
@@ -119,11 +120,11 @@ impl FileHeaderSection {
             PsdWidth::new(width).ok_or(FileHeaderSectionError::WidthOutOfRange { width })?;
 
         // 2 bytes for depth
-        let depth = cursor.read_2()[1];
+        let depth = cursor.read_n::<2>()[1];
         let depth = PsdDepth::new(depth).ok_or(FileHeaderSectionError::InvalidDepth { depth })?;
 
         // 2 bytes for color mode
-        let color_mode = cursor.read_2()[1];
+        let color_mode = cursor.read_n::<2>()[1];
         let color_mode = ColorMode::new(color_mode)
             .ok_or(FileHeaderSectionError::InvalidColorMode { color_mode })?;
 
@@ -145,7 +146,7 @@ impl FileHeaderSection {
 /// Version: always equal to 1. Do not try to read the file if the version does not match this value. (**PSB** version is 2.)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum PsdVersion {
     /// Regular PSD (Not a PSB)
     One,
@@ -162,7 +163,7 @@ pub struct ChannelCount(u8);
 impl ChannelCount {
     /// Create a new ChannelCount
     pub fn new(channel_count: u8) -> Option<ChannelCount> {
-        if channel_count < 1 || channel_count > 56 {
+        if !(1..=56).contains(&channel_count) {
             return None;
         }
 
@@ -187,7 +188,7 @@ pub struct PsdHeight(pub(in crate) u32);
 impl PsdHeight {
     /// Create a new PsdHeight
     pub fn new(height: u32) -> Option<PsdHeight> {
-        if height < 1 || height > 30000 {
+        if !(1..=30000).contains(&height) {
             return None;
         }
 
@@ -207,7 +208,7 @@ pub struct PsdWidth(pub(in crate) u32);
 impl PsdWidth {
     /// Create a new PsdWidth
     pub fn new(width: u32) -> Option<PsdWidth> {
-        if width < 1 || width > 30000 {
+        if !(1..=30000).contains(&width) {
             return None;
         }
 
