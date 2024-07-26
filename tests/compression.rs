@@ -34,7 +34,7 @@ fn rle_decompress_layer() -> Result<()> {
     ]
     .iter()
     {
-        test_rle_layer(&psd, &layer_name, expected_pixels);
+        test_rle_layer(&psd, layer_name, expected_pixels);
     }
 
     Ok(())

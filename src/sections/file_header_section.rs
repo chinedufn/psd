@@ -33,15 +33,15 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 #[derive(Debug)]
 pub struct FileHeaderSection {
     #[allow(dead_code)]
-    pub(in crate) version: PsdVersion,
-    pub(in crate) channel_count: ChannelCount,
-    pub(in crate) width: PsdWidth,
-    pub(in crate) height: PsdHeight,
-    pub(in crate) depth: PsdDepth,
-    pub(in crate) color_mode: ColorMode,
+    pub(crate) version: PsdVersion,
+    pub(crate) channel_count: ChannelCount,
+    pub(crate) width: PsdWidth,
+    pub(crate) height: PsdHeight,
+    pub(crate) depth: PsdDepth,
+    pub(crate) color_mode: ColorMode,
 }
 
-/// Represents an malformed file section header
+/// Represents a malformed file section header
 #[derive(Debug, PartialEq, Error)]
 pub enum FileHeaderSectionError {
     #[error("A file section header is comprised of 26 bytes, you provided {length} bytes.")]
@@ -82,8 +82,7 @@ impl FileHeaderSection {
         if bytes.len() != 26 {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
-            }
-            );
+            });
         }
 
         // First four bytes must be '8BPS'
@@ -183,7 +182,7 @@ impl ChannelCount {
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 #[derive(Debug)]
-pub struct PsdHeight(pub(in crate) u32);
+pub struct PsdHeight(pub(crate) u32);
 
 impl PsdHeight {
     /// Create a new PsdHeight
@@ -203,7 +202,7 @@ impl PsdHeight {
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 #[derive(Debug, Clone, Copy)]
-pub struct PsdWidth(pub(in crate) u32);
+pub struct PsdWidth(pub(crate) u32);
 
 impl PsdWidth {
     /// Create a new PsdWidth
@@ -350,16 +349,11 @@ mod tests {
     }
 
     fn error_from_bytes(bytes: &[u8]) -> FileHeaderSectionError {
-        FileHeaderSection::from_bytes(&bytes).expect_err("error")
+        FileHeaderSection::from_bytes(bytes).expect_err("error")
     }
 
     // [0, 1, 2, ..., 25]
     fn make_bytes() -> [u8; 26] {
-        let mut bytes = [0; 26];
-        for i in 0..26 {
-            bytes[i] = i as u8;
-        }
-
-        bytes
+        std::array::from_fn(|i| i as u8)
     }
 }

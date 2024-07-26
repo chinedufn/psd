@@ -39,7 +39,7 @@ impl Layers {
     }
 
     #[allow(missing_docs)]
-    pub(in crate) fn push(&mut self, name: String, item: PsdLayer) {
+    pub(crate) fn push(&mut self, name: String, item: PsdLayer) {
         self.items.push(item);
         self.item_indices.insert(name, self.items.len() - 1);
     }

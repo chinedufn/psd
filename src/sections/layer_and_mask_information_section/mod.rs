@@ -417,7 +417,9 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
-    while *cursor.peek_n::<4>() == SIGNATURE_EIGHT_BIM || *cursor.peek_n::<4>() == SIGNATURE_EIGHT_B64 {
+    while *cursor.peek_n::<4>() == SIGNATURE_EIGHT_BIM
+        || *cursor.peek_n::<4>() == SIGNATURE_EIGHT_B64
+    {
         let _signature = cursor.read_n::<4>();
         let mut key = [0; 4];
         key.copy_from_slice(cursor.read_n::<4>());

@@ -143,7 +143,7 @@ impl<'a> PsdCursor<'a> {
         let start = self.cursor.position() as usize;
         let end = start + count;
         let bytes = &self.cursor.get_ref()[start..end];
-        
+
         self.cursor.set_position(end as u64);
         bytes
     }
@@ -166,7 +166,7 @@ impl<'a> PsdCursor<'a> {
     pub fn peek_n<const N: usize>(&self) -> &'a [u8; N] {
         self.peek(N).try_into().unwrap()
     }
-    
+
     pub fn peek_u32(&self) -> u32 {
         u32::from_be_bytes(*self.peek_n())
     }

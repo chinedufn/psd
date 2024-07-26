@@ -13,7 +13,7 @@ fn image_check_1x1p_bound_field() {
     let descriptors = match &psd.resources()[0] {
         ImageResource::Slices(s) => s.descriptors(),
     };
-    let descriptor = descriptors.get(0).unwrap();
+    let descriptor = &descriptors[0];
     let bounds = descriptor.fields.get("bounds").unwrap();
 
     if let DescriptorField::Descriptor(d) = bounds {
@@ -44,7 +44,7 @@ fn image_check_16x16p_bound_field() {
     let descriptors = match &psd.resources()[0] {
         ImageResource::Slices(s) => s.descriptors(),
     };
-    let descriptor = descriptors.get(0).unwrap();
+    let descriptor = &descriptors[0];
     let bounds = descriptor.fields.get("bounds").unwrap();
 
     if let DescriptorField::Descriptor(d) = bounds {
