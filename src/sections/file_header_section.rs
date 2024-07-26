@@ -119,11 +119,11 @@ impl FileHeaderSection {
             PsdWidth::new(width).ok_or(FileHeaderSectionError::WidthOutOfRange { width })?;
 
         // 2 bytes for depth
-        let depth = cursor.read_n::<2>()[1];
+        let &[_, depth] = cursor.read_n::<2>();
         let depth = PsdDepth::new(depth).ok_or(FileHeaderSectionError::InvalidDepth { depth })?;
 
         // 2 bytes for color mode
-        let color_mode = cursor.read_n::<2>()[1];
+        let &[_, color_mode] = cursor.read_n::<2>();
         let color_mode = ColorMode::new(color_mode)
             .ok_or(FileHeaderSectionError::InvalidColorMode { color_mode })?;
 

@@ -19,7 +19,6 @@ impl Groups {
     /// Add a group to the list of groups, making it last in the order.
     pub fn push(&mut self, group: PsdGroup) {
         self.group_ids_in_order.push(group.id);
-
         self.groups.insert(group.id, group);
     }
 

@@ -252,10 +252,7 @@ impl Psd {
 
             let blended_pixel = renderer.flattened_pixel(pixel_coord);
 
-            flattened_pixels.push(blended_pixel[0]);
-            flattened_pixels.push(blended_pixel[1]);
-            flattened_pixels.push(blended_pixel[2]);
-            flattened_pixels.push(blended_pixel[3]);
+            flattened_pixels.extend_from_slice(&blended_pixel);
         }
 
         Ok(flattened_pixels)

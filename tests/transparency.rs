@@ -43,7 +43,7 @@ fn transparency_rle_compressed() -> Result<()> {
     let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    let mut red_block = vec![];
+    let mut red_block = Vec::with_capacity(9 * 9);
     for left in 0..9 {
         for top in 0..9 {
             red_block.push((left + 1, top + 1, RED_PIXEL));

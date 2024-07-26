@@ -61,14 +61,5 @@ fn make_green_8x8() -> Vec<u8> {
 }
 
 fn make_8x8_rgba(color: [u8; 4]) -> Vec<u8> {
-    let mut pixels = vec![];
-
-    for _ in 0..8 * 8 {
-        pixels.push(color[0]);
-        pixels.push(color[1]);
-        pixels.push(color[2]);
-        pixels.push(color[3]);
-    }
-
-    pixels
+    bytemuck::allocation::cast_vec(vec![color; 8 * 8])
 }

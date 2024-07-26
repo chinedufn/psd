@@ -10,6 +10,7 @@ edition = "2018"
 
 [dependencies]
 thiserror = "1"
+bytemuck = { version = "1.16.1", features = ["must_cast", "extern_crate_alloc"] }
 
 [dev-dependencies]
 anyhow = "1"

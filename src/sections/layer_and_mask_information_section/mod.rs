@@ -219,7 +219,7 @@ impl LayerAndMaskInformationSection {
             layer_records.push(layer_record);
         }
 
-        let mut result = vec![];
+        let mut result = Vec::with_capacity(layer_records.len());
         for layer_record in layer_records {
             let channels = read_layer_channels(
                 cursor,
@@ -364,8 +364,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     // We do not currently parse the blend mode signature, skip it
     cursor.read_n::<4>();
 
-    let mut key = [0; 4];
-    key.copy_from_slice(cursor.read_n::<4>());
+    let key = *cursor.read_n::<4>();
     let blend_mode = match BlendMode::match_mode(key) {
         Some(v) => v,
         None => return Err(PsdLayerError::UnknownBlendingMode { mode: key }),
@@ -421,8 +420,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
         || *cursor.peek_n::<4>() == SIGNATURE_EIGHT_B64
     {
         let _signature = cursor.read_n::<4>();
-        let mut key = [0; 4];
-        key.copy_from_slice(cursor.read_n::<4>());
+        let key = *cursor.read_n::<4>();
         let additional_layer_info_len = cursor.read_u32() as usize;
 
         match &key {

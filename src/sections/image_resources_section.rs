@@ -561,8 +561,7 @@ impl DescriptorStructure {
     fn read_descriptor_field(
         cursor: &mut PsdCursor,
     ) -> Result<DescriptorField, ImageResourcesDescriptorError> {
-        let mut os_type = [0; 4];
-        os_type.copy_from_slice(cursor.read_n::<4>());
+        let os_type = *cursor.read_n::<4>();
 
         let r: DescriptorField = match &os_type {
             OS_TYPE_REFERENCE => {
@@ -630,8 +629,7 @@ impl DescriptorStructure {
         for _ in 0..count {
             DescriptorStructure::read_key_length(cursor);
 
-            let mut os_type = [0; 4];
-            os_type.copy_from_slice(cursor.read_n::<4>());
+            let os_type = *cursor.read_n::<4>();
             vec.push(match &os_type {
                 OS_TYPE_PROPERTY => {
                     DescriptorField::Property(DescriptorStructure::read_property_structure(cursor))
@@ -670,8 +668,7 @@ impl DescriptorStructure {
     fn read_unit_float(
         cursor: &mut PsdCursor,
     ) -> Result<UnitFloatStructure, ImageResourcesDescriptorError> {
-        let mut unit_float = [0; 4];
-        unit_float.copy_from_slice(cursor.read_n::<4>());
+        let unit_float = *cursor.read_n::<4>();
 
         Ok(match &unit_float {
             UNIT_FLOAT_ANGLE => UnitFloatStructure::Angle(cursor.read_f64()),
