@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 console_error_panic_hook = "0.1.6"
-css-rs-macro = "0.1.0"
+percy-css-macro = "0.1.1"
 js-sys = "0.3.70"
 psd = {path = "../../"}
 percy-dom = "0.9.9"

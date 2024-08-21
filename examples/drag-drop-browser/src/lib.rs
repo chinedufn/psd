@@ -6,7 +6,7 @@ use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 use web_sys::*;
 
-use css_rs_macro::css;
+use percy_css_macro::css;
 
 use psd::Psd;
 use std::cell::RefCell;
