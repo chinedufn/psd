@@ -6,7 +6,7 @@ description = "A Rust API for parsing and working with PSD files."
 keywords = ["psd", "photoshop", "texture", "png", "image"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/chinedufn/psd"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 thiserror = "1"

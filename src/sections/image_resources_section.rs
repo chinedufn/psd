@@ -13,6 +13,7 @@ const RESOURCE_SLICES_INFO: i16 = 1050;
 
 mod image_resource;
 
+#[allow(dead_code)]
 struct ImageResourcesBlock {
     resource_id: i16,
     name: String,
@@ -534,12 +535,12 @@ impl DescriptorStructure {
 
     fn read_fields(
         cursor: &mut PsdCursor,
-        sub_list: bool,
+        _sub_list: bool,
     ) -> Result<HashMap<String, DescriptorField>, ImageResourcesDescriptorError> {
         let count = cursor.read_u32();
         let mut m = HashMap::with_capacity(count as usize);
 
-        for n in 0..count {
+        for _ in 0..count {
             let key = DescriptorStructure::read_key_length(cursor);
             let key = String::from_utf8_lossy(key).into_owned();
 
@@ -551,12 +552,12 @@ impl DescriptorStructure {
 
     fn read_list(
         cursor: &mut PsdCursor,
-        sub_list: bool,
+        _sub_list: bool,
     ) -> Result<Vec<DescriptorField>, ImageResourcesDescriptorError> {
         let count = cursor.read_u32();
         let mut vec = Vec::with_capacity(count as usize);
 
-        for n in 0..count {
+        for _ in 0..count {
             let field = DescriptorStructure::read_descriptor_field(cursor)?;
             vec.push(field);
         }
@@ -633,7 +634,7 @@ impl DescriptorStructure {
         let count = cursor.read_u32();
         let mut vec = Vec::with_capacity(count as usize);
 
-        for n in 0..count {
+        for _ in 0..count {
             DescriptorStructure::read_key_length(cursor);
 
             let mut os_type = [0; 4];

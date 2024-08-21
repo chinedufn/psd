@@ -12,6 +12,7 @@ pub mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MajorSections<'a> {
     pub(crate) file_header: &'a [u8],
     pub(crate) color_mode_data: &'a [u8],

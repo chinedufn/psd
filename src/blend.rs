@@ -106,7 +106,7 @@ fn map_blend_mode(blend_mode: BlendMode) -> &'static BlendFunction {
     }
 }
 
-fn pass_through(color_b: f32, color_s: f32) -> f32 {
+fn pass_through(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
@@ -115,11 +115,11 @@ fn pass_through(color_b: f32, color_s: f32) -> f32 {
 ///
 /// `B(Cb, Cs) = Cs`
 #[inline(always)]
-fn normal(color_b: f32, color_s: f32) -> f32 {
+fn normal(_color_b: f32, color_s: f32) -> f32 {
     color_s
 }
 
-fn dissolve(color_b: f32, color_s: f32) -> f32 {
+fn dissolve(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
@@ -179,7 +179,7 @@ fn linear_burn(color_b: f32, color_s: f32) -> f32 {
     (color_b - color_s - 1.).max(0.)
 }
 
-fn darker_color(color_b: f32, color_s: f32) -> f32 {
+fn darker_color(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
@@ -243,7 +243,7 @@ fn linear_dodge(color_b: f32, color_s: f32) -> f32 {
     (color_b + color_s).min(1.)
 }
 
-fn lighter_color(color_b: f32, color_s: f32) -> f32 {
+fn lighter_color(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
@@ -317,21 +317,21 @@ fn hard_light(color_b: f32, color_s: f32) -> f32 {
     }
 }
 
-fn vivid_light(color_b: f32, color_s: f32) -> f32 {
+fn vivid_light(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
-fn linear_light(color_b: f32, color_s: f32) -> f32 {
-    unimplemented!()
-}
-
-#[inline(always)]
-fn pin_light(color_b: f32, color_s: f32) -> f32 {
+fn linear_light(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
 #[inline(always)]
-fn hard_mix(color_b: f32, color_s: f32) -> f32 {
+fn pin_light(_color_b: f32, _color_s: f32) -> f32 {
+    unimplemented!()
+}
+
+#[inline(always)]
+fn hard_mix(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
@@ -384,19 +384,19 @@ fn divide(color_b: f32, color_s: f32) -> f32 {
     }
 }
 
-fn hue(color_b: f32, color_s: f32) -> f32 {
+fn hue(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
-fn saturation(color_b: f32, color_s: f32) -> f32 {
+fn saturation(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
-fn color(color_b: f32, color_s: f32) -> f32 {
+fn color(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 
-fn luminosity(color_b: f32, color_s: f32) -> f32 {
+fn luminosity(_color_b: f32, _color_s: f32) -> f32 {
     unimplemented!()
 }
 

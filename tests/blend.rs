@@ -19,10 +19,15 @@ const BLEND_LINEAR_BURN_BLUE_RED_PIXEL: [u8; 4] = [85, 0, 85, 192];
 const BLEND_LINEAR_DODGE_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 170, 192];
 
 const BLEND_HARD_LIGHT_BLUE_RED_PIXEL: [u8; 4] = [85, 0, 170, 192];
+#[allow(dead_code)]
 const BLEND_SOFT_LIGHT_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 85, 192];
+#[allow(dead_code)]
 const BLEND_VIVID_LIGHT_BLUE_RED_PIXEL: [u8; 4] = [85, 0, 170, 192];
+#[allow(dead_code)]
 const BLEND_LINEAR_LIGHT_BLUE_RED_PIXEL: [u8; 4] = [85, 0, 169, 192];
+#[allow(dead_code)]
 const BLEND_PIN_LIGHT_BLUE_RED_PIXEL: [u8; 4] = [85, 0, 170, 192];
+#[allow(dead_code)]
 const BLEND_HARD_MIX_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 85, 192];
 
 const BLEND_SUBTRACT_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 85, 192];
