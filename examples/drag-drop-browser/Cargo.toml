@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-console_error_panic_hook = "0.1.6"
+console_error_panic_hook = "0.1.7"
 percy-css-macro = "0.1.1"
 js-sys = "0.3.70"
 psd = {path = "../../"}
@@ -36,3 +36,8 @@ features = [
     "Window",
     "console"
 ]
+
+[patch.crates-io]
+syn = "2"
+proc-macro2 = "1"
+quote = "1"
