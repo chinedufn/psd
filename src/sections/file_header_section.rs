@@ -1,5 +1,9 @@
+use std::io::Write;
+
 use crate::sections::PsdCursor;
 use thiserror::Error;
+
+use super::{PsdBuffer, PsdSerialize};
 
 /// Bytes representing the string "8BPS".
 pub const EXPECTED_PSD_SIGNATURE: [u8; 4] = [56, 66, 80, 83];
@@ -30,14 +34,14 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 /// | 4      | The width of the image in pixels. Supported range is 1 to 30,000.<br> (**PSB** max of 300,000)                                                       |
 /// | 2      | Depth: the number of bits per channel. Supported values are 1, 8, 16 and 32.                                                                         |
 /// | 2      | The color mode of the file. Supported values are: Bitmap = 0; Grayscale = 1; Indexed = 2; RGB = 3; CMYK = 4; Multichannel = 7; Duotone = 8; Lab = 9. |
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FileHeaderSection {
-    pub(in crate) version: PsdVersion,
-    pub(in crate) channel_count: ChannelCount,
-    pub(in crate) width: PsdWidth,
-    pub(in crate) height: PsdHeight,
-    pub(in crate) depth: PsdDepth,
-    pub(in crate) color_mode: ColorMode,
+    pub(crate) version: PsdVersion,
+    pub(crate) channel_count: ChannelCount,
+    pub(crate) width: PsdWidth,
+    pub(crate) height: PsdHeight,
+    pub(crate) depth: PsdDepth,
+    pub(crate) color_mode: ColorMode,
 }
 
 /// Represents an malformed file section header
@@ -81,8 +85,7 @@ impl FileHeaderSection {
         if bytes.len() != 26 {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
-            }
-            );
+            });
         }
 
         // First four bytes must be '8BPS'
@@ -140,12 +143,30 @@ impl FileHeaderSection {
     }
 }
 
+impl PsdSerialize for FileHeaderSection {
+    fn write<T>(&self, buffer: &mut PsdBuffer<T>)
+    where
+        T: Write + std::io::Seek,
+    {
+        buffer.write(EXPECTED_PSD_SIGNATURE);
+        match self.version {
+            PsdVersion::One => buffer.write(EXPECTED_VERSION),
+        };
+        buffer.write(EXPECTED_RESERVED);
+        buffer.write((self.channel_count.count() as u16).to_be_bytes());
+        buffer.write(self.height.0.to_be_bytes());
+        buffer.write(self.width.0.to_be_bytes());
+        buffer.write((self.depth as u16).to_be_bytes());
+        buffer.write((self.color_mode as u16).to_be_bytes())
+    }
+}
+
 /// # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
 ///
 /// Version: always equal to 1. Do not try to read the file if the version does not match this value. (**PSB** version is 2.)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PsdVersion {
     /// Regular PSD (Not a PSB)
     One,
@@ -156,7 +177,7 @@ pub enum PsdVersion {
 /// The number of channels in the image, including any alpha channels. Supported range is 1 to 56.
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ChannelCount(u8);
 
 impl ChannelCount {
@@ -181,8 +202,8 @@ impl ChannelCount {
 /// (**PSB** max of 300,000.)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
-pub struct PsdHeight(pub(in crate) u32);
+#[derive(Debug, PartialEq)]
+pub struct PsdHeight(pub(crate) u32);
 
 impl PsdHeight {
     /// Create a new PsdHeight
@@ -201,8 +222,8 @@ impl PsdHeight {
 /// (*PSB** max of 300,000)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug, Clone, Copy)]
-pub struct PsdWidth(pub(in crate) u32);
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PsdWidth(pub(crate) u32);
 
 impl PsdWidth {
     /// Create a new PsdWidth
@@ -348,6 +369,18 @@ mod tests {
         };
     }
 
+    #[test]
+    fn write_read_round_trip() {
+        let initial = make_section();
+        let mut bytes: Vec<u8> = vec![];
+        let mut buffer = PsdBuffer::new(&mut bytes);
+
+        initial.write(&mut buffer);
+
+        let result = FileHeaderSection::from_bytes(&bytes).unwrap();
+        assert_eq!(initial, result);
+    }
+
     fn error_from_bytes(bytes: &[u8]) -> FileHeaderSectionError {
         FileHeaderSection::from_bytes(&bytes).expect_err("error")
     }
@@ -360,5 +393,16 @@ mod tests {
         }
 
         bytes
+    }
+
+    fn make_section() -> FileHeaderSection {
+        FileHeaderSection {
+            version: PsdVersion::One,
+            channel_count: ChannelCount(2),
+            height: PsdHeight(3),
+            width: PsdWidth(4),
+            depth: PsdDepth::Eight,
+            color_mode: ColorMode::Rgb,
+        }
     }
 }

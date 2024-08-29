@@ -1,5 +1,5 @@
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::PsdCursor;
+use crate::sections::{PsdCursor, PsdSerialize};
 use thiserror::Error;
 
 pub trait IntoRgba {
@@ -267,7 +267,7 @@ fn sixteen_to_eight_rgba(channel1: &[u8], channel2: &[u8]) -> Vec<u8> {
 }
 
 /// Indicates how a channe'sl data is compressed
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 #[allow(missing_docs)]
 pub enum PsdChannelCompression {
     /// Not compressed
@@ -293,6 +293,15 @@ impl PsdChannelCompression {
     }
 }
 
+impl PsdSerialize for PsdChannelCompression {
+    fn write<T>(&self, buffer: &mut crate::sections::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        buffer.write((self.to_owned() as u16).to_be_bytes());
+    }
+}
+
 /// The different kinds of channels in a layer (red, green, blue, ...).
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 #[allow(missing_docs)]
@@ -303,6 +312,15 @@ pub enum PsdChannelKind {
     TransparencyMask = -1,
     UserSuppliedLayerMask = -2,
     RealUserSuppliedLayerMask = -3,
+}
+
+impl PsdSerialize for PsdChannelKind {
+    fn write<T>(&self, buffer: &mut crate::sections::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        buffer.write((self.to_owned() as i16).to_be_bytes());
+    }
 }
 
 /// Represents an invalid channel

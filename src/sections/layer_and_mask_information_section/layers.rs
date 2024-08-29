@@ -1,6 +1,6 @@
 use crate::PsdLayer;
 use std::collections::HashMap;
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 
 /// `NamedItems` is immutable container for storing items with order-preservation
 /// and indexing by id and name
@@ -39,7 +39,7 @@ impl Layers {
     }
 
     #[allow(missing_docs)]
-    pub(in crate) fn push(&mut self, name: String, item: PsdLayer) {
+    pub(crate) fn push(&mut self, name: String, item: PsdLayer) {
         self.items.push(item);
         self.item_indices.insert(name, self.items.len() - 1);
     }

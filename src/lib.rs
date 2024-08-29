@@ -10,6 +10,8 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
+use sections::color_mode_data_section::ColorModeDataSectionError;
+use sections::{PsdBuffer, PsdDeserialize, PsdSerialize};
 use thiserror::Error;
 
 use sections::file_header_section::FileHeaderSectionError;
@@ -19,12 +21,15 @@ use sections::layer_and_mask_information_section::layer::PsdLayerError;
 
 use crate::psd_channel::IntoRgba;
 pub use crate::psd_channel::{PsdChannelCompression, PsdChannelKind};
+use crate::sections::color_mode_data_section::ColorModeDataSection;
 pub use crate::sections::file_header_section::{ColorMode, PsdDepth};
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::image_data_section::ImageDataSection;
+pub use crate::sections::image_resources_section::image_resource::descriptor_structure::{
+    DescriptorField, UnitFloatStructure,
+};
 pub use crate::sections::image_resources_section::ImageResource;
 use crate::sections::image_resources_section::ImageResourcesSection;
-pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
 pub use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
 use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
@@ -46,6 +51,9 @@ pub enum PsdError {
     /// Failed to parse PSD header
     #[error("Failed to parse PSD header: '{0}'.")]
     HeaderError(FileHeaderSectionError),
+    /// Failed to parse PSD color mode data
+    #[error("Failed to parse PSD color mode data: '{0}'.")]
+    ColorModeDataError(ColorModeDataSectionError),
     /// Failed to parse PSD layer
     #[error("Failed to parse PSD layer: '{0}'.")]
     LayerError(PsdLayerError),
@@ -66,6 +74,7 @@ pub enum PsdError {
 #[derive(Debug)]
 pub struct Psd {
     file_header_section: FileHeaderSection,
+    color_mode_data_section: ColorModeDataSection,
     image_resources_section: ImageResourcesSection,
     layer_and_mask_information_section: LayerAndMaskInformationSection,
     image_data_section: ImageDataSection,
@@ -93,6 +102,10 @@ impl Psd {
         let psd_height = file_header_section.height.0;
         let channel_count = file_header_section.channel_count.count();
 
+        let color_mode_data_section =
+            ColorModeDataSection::from_bytes(major_sections.color_mode_data)
+                .map_err(PsdError::ColorModeDataError)?;
+
         let layer_and_mask_information_section = LayerAndMaskInformationSection::from_bytes(
             major_sections.layer_and_mask,
             psd_width,
@@ -114,10 +127,33 @@ impl Psd {
 
         Ok(Psd {
             file_header_section,
+            color_mode_data_section,
             image_resources_section,
             layer_and_mask_information_section,
             image_data_section,
         })
+    }
+
+    /// Create bytes from a Psd.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let psd = Psd::new();
+    ///
+    /// let bytes = Psd::into_bytes(psd);
+    /// ```
+    pub fn into_bytes(&self) -> Result<Vec<u8>, PsdError> {
+        let mut bytes: Vec<u8> = vec![];
+        let mut buffer = PsdBuffer::new(&mut bytes);
+
+        self.file_header_section.write(&mut buffer);
+        self.color_mode_data_section.write(&mut buffer);
+        self.image_resources_section.write(&mut buffer);
+        self.layer_and_mask_information_section.write(&mut buffer);
+        self.image_data_section.write(&mut buffer);
+
+        Ok(bytes)
     }
 }
 
@@ -338,5 +374,19 @@ mod tests {
             err,
             PsdError::HeaderError(FileHeaderSectionError::InvalidSignature {})
         );
+    }
+
+    #[test]
+    fn write_smoketest() {
+        let intial_bytes = include_bytes!(
+            "../tests/fixtures/groups/green-1x1-one-group-one-layer-inside-one-outside.psd"
+        );
+        let original = Psd::from_bytes(intial_bytes).unwrap();
+
+        let bytes = original.into_bytes().unwrap();
+
+        let psd = Psd::from_bytes(&bytes).unwrap();
+
+        assert_eq!(original.layers().len(), psd.layers().len());
     }
 }
