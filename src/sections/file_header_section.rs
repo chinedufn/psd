@@ -31,13 +31,14 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 /// | 2      | Depth: the number of bits per channel. Supported values are 1, 8, 16 and 32.                                                                         |
 /// | 2      | The color mode of the file. Supported values are: Bitmap = 0; Grayscale = 1; Indexed = 2; RGB = 3; CMYK = 4; Multichannel = 7; Duotone = 8; Lab = 9. |
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FileHeaderSection {
-    pub(in crate) version: PsdVersion,
-    pub(in crate) channel_count: ChannelCount,
-    pub(in crate) width: PsdWidth,
-    pub(in crate) height: PsdHeight,
-    pub(in crate) depth: PsdDepth,
-    pub(in crate) color_mode: ColorMode,
+    pub(crate) version: PsdVersion,
+    pub(crate) channel_count: ChannelCount,
+    pub(crate) width: PsdWidth,
+    pub(crate) height: PsdHeight,
+    pub(crate) depth: PsdDepth,
+    pub(crate) color_mode: ColorMode,
 }
 
 /// Represents an malformed file section header
@@ -81,8 +82,7 @@ impl FileHeaderSection {
         if bytes.len() != 26 {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
-            }
-            );
+            });
         }
 
         // First four bytes must be '8BPS'
@@ -182,7 +182,7 @@ impl ChannelCount {
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 #[derive(Debug)]
-pub struct PsdHeight(pub(in crate) u32);
+pub struct PsdHeight(pub(crate) u32);
 
 impl PsdHeight {
     /// Create a new PsdHeight
@@ -202,7 +202,7 @@ impl PsdHeight {
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 #[derive(Debug, Clone, Copy)]
-pub struct PsdWidth(pub(in crate) u32);
+pub struct PsdWidth(pub(crate) u32);
 
 impl PsdWidth {
     /// Create a new PsdWidth

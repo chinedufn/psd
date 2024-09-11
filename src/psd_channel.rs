@@ -197,6 +197,7 @@ pub trait IntoRgba {
 }
 
 /// Rle decompress a channel
+#[allow(dead_code)]
 fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
     let mut cursor = PsdCursor::new(&bytes[..]);
 
@@ -228,6 +229,7 @@ fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
 /// into an 8 bit channel.
 ///
 /// We store the final bytes in the first channel (overwriting the old bytes)
+#[allow(dead_code)]
 fn sixteen_to_eight_rgba(channel1: &[u8], channel2: &[u8]) -> Vec<u8> {
     let mut eight = Vec::with_capacity(channel1.len());
 

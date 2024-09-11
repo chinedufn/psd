@@ -6,7 +6,7 @@ use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 use web_sys::*;
 
-use css_rs_macro::css;
+use percy_css_macro::css;
 
 use psd::Psd;
 use std::cell::RefCell;
@@ -25,10 +25,11 @@ struct AppWrapper(Rc<RefCell<App>>);
 impl AppWrapper {
     /// Create a new AppWrapper. We'll call this in a script tag in index.html
     #[wasm_bindgen(constructor)]
+    #[allow(dead_code)]
     pub fn new() -> AppWrapper {
         console_error_panic_hook::set_once();
 
-        let mut app = App::new();
+        let app = App::new();
 
         let closure_holder = Rc::clone(&app.raf_closure_holder);
 
@@ -49,13 +50,13 @@ impl AppWrapper {
                     let app = Rc::clone(&app);
 
                     let vdom = app.borrow().render();
-                    app.borrow_mut().update(vdom);
+                    let _ = app.borrow_mut().update(vdom);
 
                     store.borrow_mut().msg(&Msg::SetIsRendering(false));
                 };
-                let mut re_render = Closure::wrap(Box::new(re_render) as Box<dyn FnMut()>);
+                let re_render = Closure::wrap(Box::new(re_render) as Box<dyn FnMut()>);
 
-                window().request_animation_frame(&re_render.as_ref().unchecked_ref());
+                let _ = window().request_animation_frame(&re_render.as_ref().unchecked_ref());
 
                 *closure_holder.borrow_mut() = Some(Box::new(re_render));
             };
@@ -73,6 +74,7 @@ impl AppWrapper {
 
 /// Our client side web application
 #[wasm_bindgen]
+#[allow(dead_code)]
 struct App {
     store: Rc<RefCell<Store>>,
     dom_updater: PercyDom,
@@ -83,9 +85,10 @@ struct App {
 #[wasm_bindgen]
 impl App {
     /// Create a new App
+    #[allow(dead_code)]
     fn new() -> App {
         let vdom = html! { <div> </div> };
-        let mut dom_updater = PercyDom::new_append_to_mount(vdom, &body());
+        let dom_updater = PercyDom::new_append_to_mount(vdom, &body());
 
         let state = State {
             psd: None,
@@ -111,7 +114,7 @@ impl App {
         self.store.borrow_mut().msg(&Msg::ReplacePsd(demo_psd));
 
         let vdom = self.render();
-        self.update(vdom);
+        let _ = self.update(vdom);
     }
 
     /// Render the virtual-dom
@@ -200,7 +203,7 @@ impl App {
                     let file_reader = web_sys::FileReader::new().unwrap();
                     file_reader.read_as_array_buffer(&psd).unwrap();
 
-                    let mut onload = Closure::wrap(Box::new(move |event: Event| {
+                    let onload = Closure::wrap(Box::new(move |event: Event| {
                         let file_reader: FileReader = event.target().unwrap().dyn_into().unwrap();
                         let psd = file_reader.result().unwrap();
                         let psd = js_sys::Uint8Array::new(&psd);
@@ -239,8 +242,8 @@ impl App {
 
         // Flatten the PSD into only the pixels from the layers that are currently
         // toggled on.
-        let mut psd_pixels = psd
-            .flatten_layers_rgba(&|(idx, layer)| {
+        let psd_pixels = psd
+            .flatten_layers_rgba(&|(_idx, layer)| {
                 let layer_visible = *self
                     .store
                     .borrow()
@@ -276,7 +279,8 @@ impl App {
 
 /// A light wrapper around State, useful when you want to accept a Msg and handle
 /// anything impure (such as working with local storage) before passing the Msg
-/// along the State. Allowing you to keep State pure.
+/// along the State. Allowing you to keep State pure.\
+#[allow(dead_code)]
 struct Store {
     state: State,
     on_msg: Option<Box<dyn Fn()>>,
@@ -292,6 +296,7 @@ impl Deref for Store {
 }
 
 /// Handles application state
+#[allow(dead_code)]
 struct State {
     /// The current PSD that is being displayed
     psd: Option<Psd>,
@@ -317,6 +322,7 @@ impl Store {
 
 impl State {
     /// Update State given some new Msg
+    #[allow(dead_code)]
     fn msg(&mut self, msg: &Msg) {
         match msg {
             // Replace the current PSD with a new one
@@ -351,27 +357,32 @@ impl State {
 }
 
 /// All of our Msg variants that are used to update application state
+#[allow(dead_code)]
 enum Msg<'a> {
     /// Replace the current PSD with a new one, usually after drag and drop
     ReplacePsd(&'a [u8]),
-    /// Set whether or not a layer (by index) should be visible
+    /// Set whether a layer (by index) should be visible
     SetLayerVisibility(usize, bool),
     /// Set that the application is planning to render on the next request animation frame
     SetIsRendering(bool),
 }
 
-fn window() -> web_sys::Window {
+#[allow(dead_code)]
+fn window() -> Window {
     web_sys::window().unwrap()
 }
 
-fn document() -> web_sys::Document {
+#[allow(dead_code)]
+fn document() -> Document {
     window().document().unwrap()
 }
 
-fn body() -> web_sys::HtmlElement {
+#[allow(dead_code)]
+fn body() -> HtmlElement {
     document().body().unwrap()
 }
 
+#[allow(dead_code)]
 static APP_CONTAINER: &'static str = css! {r#"
 :host {
     display: flex;
