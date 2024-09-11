@@ -35,6 +35,7 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 /// | 2      | Depth: the number of bits per channel. Supported values are 1, 8, 16 and 32.                                                                         |
 /// | 2      | The color mode of the file. Supported values are: Bitmap = 0; Grayscale = 1; Indexed = 2; RGB = 3; CMYK = 4; Multichannel = 7; Duotone = 8; Lab = 9. |
 #[derive(Debug, PartialEq)]
+#[allow(dead_code)]
 pub struct FileHeaderSection {
     pub(crate) version: PsdVersion,
     pub(crate) channel_count: ChannelCount,

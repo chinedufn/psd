@@ -18,6 +18,7 @@ const RESOURCE_SLICES_INFO: i16 = 1050;
 
 pub mod image_resource;
 
+#[allow(dead_code)]
 struct ImageResourcesBlock {
     resource_id: i16,
     name: String,
