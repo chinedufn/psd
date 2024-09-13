@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use super::PsdSerialize;
 
-/// Represents an malformed image data
+/// Represents a malformed image data
 #[derive(Debug, PartialEq, Error)]
 pub enum ImageDataSectionError {
     #[error(

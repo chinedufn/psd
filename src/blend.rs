@@ -120,7 +120,6 @@ pub(crate) fn blend_pixels(
     }
 }
 
-
 type BlendFunction = dyn Fn(f32, f32) -> f32;
 
 /// Returns blend function for given BlendMode
