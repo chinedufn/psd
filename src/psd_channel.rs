@@ -233,42 +233,28 @@ fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
 fn sixteen_to_eight_rgba(channel1: &[u8], channel2: &[u8]) -> Vec<u8> {
     let mut eight = Vec::with_capacity(channel1.len());
 
-    for idx in 0..channel1.len() {
-        if idx % 2 == 1 {
-            continue;
+    for c in [channel1, channel2].iter() {
+        for idx in 0..c.len() {
+            if idx % 2 == 1 {
+                continue;
+            }
+
+            let sixteen_bit = [c[idx], c[idx + 1]];
+            let sixteen_bit = u16::from_be_bytes(sixteen_bit);
+
+            let eight_bit = (sixteen_bit / 256) as u8;
+
+            eight.push(eight_bit);
+            eight.push(eight_bit);
+            eight.push(eight_bit);
+            eight.push(255);
         }
-
-        let sixteen_bit = [channel1[idx], channel1[idx + 1]];
-        let sixteen_bit = u16::from_be_bytes(sixteen_bit);
-
-        let eight_bit = (sixteen_bit / 256) as u8;
-
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(255);
-    }
-
-    for idx in 0..channel2.len() {
-        if idx % 2 == 1 {
-            continue;
-        }
-
-        let sixteen_bit = [channel2[idx], channel2[idx + 1]];
-        let sixteen_bit = u16::from_be_bytes(sixteen_bit);
-
-        let eight_bit = (sixteen_bit / 256) as u8;
-
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(255);
     }
 
     eight
 }
 
-/// Indicates how a channe'sl data is compressed
+/// Indicates how a channels data is compressed
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 #[allow(missing_docs)]
 pub enum PsdChannelCompression {
