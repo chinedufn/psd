@@ -4,7 +4,7 @@ use std::ops::Range;
 use thiserror::Error;
 
 use crate::sections::image_resources_section::image_resource::descriptor_structure::{
-    DescriptorStructure, ImageResourcesDescriptorError,
+    ImageResourcesDescriptorError,
 };
 use crate::sections::PsdCursor;
 

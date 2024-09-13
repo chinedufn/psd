@@ -1,7 +1,6 @@
 use std::{
     io::{Cursor, SeekFrom},
     mem::size_of,
-    ptr::write_bytes,
 };
 
 use self::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};

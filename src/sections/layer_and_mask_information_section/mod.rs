@@ -231,7 +231,7 @@ impl PsdSerialize for LayerRecordWrite<'_> {
                 buf.write_sized_with(crate::sections::Length::Size1, |buf| buf.write(&layer.name));
             });
 
-            if let Some(group) = layer.group_id.and_then(|id| self.1.get(&id)) {
+            if let Some(_group) = layer.group_id.and_then(|id| self.1.get(&id)) {
                 //                                Additional layer information
                 //+------------------------------------------------------------------------------------------+
                 //| Length   | Description                                                                   |
@@ -629,7 +629,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     cursor.read_1();
 
     // We do not currently use the length of the extra data field, skip it
-    let extra_len = cursor.read_u32();
+    let _extra_len = cursor.read_u32();
     let start = cursor.position();
 
     // We do not currently use the layer mask data, skip it
@@ -657,7 +657,7 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
 
     let end = cursor.position();
 
-    let read_len = end - start;
+    let _read_len = end - start;
 
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
