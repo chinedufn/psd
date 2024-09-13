@@ -9,6 +9,7 @@ pub(crate) fn apply_opacity(pixel: &mut Pixel, opacity: u8) {
 }
 
 const INV_255: f32 = 1.0 / 255.0;
+const EPSILON: f32 = 1e-6;
 
 ///
 /// https://www.w3.org/TR/compositing-1/#simplealphacompositing
@@ -45,31 +46,35 @@ pub(crate) fn blend_pixels(
     let alpha_b = bottom[3] as f32 * INV_255;
     let alpha_output = alpha_s + alpha_b - alpha_s * alpha_b;
 
-    let (r_s, g_s, b_s) = (
-        top[0] as f32 * INV_255,
-        top[1] as f32 * INV_255,
-        top[2] as f32 * INV_255,
-    );
-    let (r_b, g_b, b_b) = (
-        bottom[0] as f32 * INV_255,
-        bottom[1] as f32 * INV_255,
-        bottom[2] as f32 * INV_255,
-    );
+    if alpha_output > 0.0 {
+        let (r_s, g_s, b_s) = (
+            top[0] as f32 * INV_255,
+            top[1] as f32 * INV_255,
+            top[2] as f32 * INV_255,
+        );
+        let (r_b, g_b, b_b) = (
+            bottom[0] as f32 * INV_255,
+            bottom[1] as f32 * INV_255,
+            bottom[2] as f32 * INV_255,
+        );
 
-    let blend_f = map_blend_mode(blend_mode);
+        let blend_f = map_blend_mode(blend_mode);
 
-    // Multiply composite result by 255.0 before division, matching original function
-    let (r_co, g_co, b_co) = (
-        composite(r_s, alpha_s, r_b, alpha_b, blend_f) * 255.0,
-        composite(g_s, alpha_s, g_b, alpha_b, blend_f) * 255.0,
-        composite(b_s, alpha_s, b_b, alpha_b, blend_f) * 255.0,
-    );
+        // Multiply composite result by 255.0 before division, matching original function
+        let (r_co, g_co, b_co) = (
+            composite(r_s, alpha_s, r_b, alpha_b, blend_f) * 255.0,
+            composite(g_s, alpha_s, g_b, alpha_b, blend_f) * 255.0,
+            composite(b_s, alpha_s, b_b, alpha_b, blend_f) * 255.0,
+        );
 
-    // Divide after rounding, matching the original function's order
-    out[0] = (r_co.round() / alpha_output).clamp(0.0, 255.0) as u8;
-    out[1] = (g_co.round() / alpha_output).clamp(0.0, 255.0) as u8;
-    out[2] = (b_co.round() / alpha_output).clamp(0.0, 255.0) as u8;
-    out[3] = (alpha_output * 255.0).round().clamp(0.0, 255.0) as u8;
+        // Divide after rounding, matching the original function's order
+        out[0] = (r_co.round() / alpha_output).clamp(0.0, 255.0) as u8;
+        out[1] = (g_co.round() / alpha_output).clamp(0.0, 255.0) as u8;
+        out[2] = (b_co.round() / alpha_output).clamp(0.0, 255.0) as u8;
+        out[3] = (alpha_output * 255.0).round().clamp(0.0, 255.0) as u8;
+    } else {
+        out.fill(0);
+    }
 }
 
 
@@ -170,10 +175,17 @@ fn multiply(color_b: f32, color_s: f32) -> f32 {
 ///```
 #[inline(always)]
 fn color_burn(color_b: f32, color_s: f32) -> f32 {
-    if color_b == 1. {
-        1.
+    // Why Use Epsilon Comparisons:
+    // Floating-Point Precision: Accounts for tiny deviations due to floating-point arithmetic.
+    // Robustness: Prevents unexpected behavior when color_b or color_s are very close to the comparison values.
+    // Accuracy: Ensures that values very close to 0.0 or 1.0 are treated appropriately.
+    if (color_b - 1.0).abs() < EPSILON {
+        1.0
+    } else if color_b.abs() < EPSILON {
+        // the previous method could result in a division by zero
+        0.0
     } else {
-        (1. - (1. - color_s) / color_b).max(0.)
+        (1.0 - (1.0 - color_s) / color_b).max(0.0)
     }
 }
 
@@ -234,12 +246,12 @@ fn screen(color_b: f32, color_s: f32) -> f32 {
 /// ```
 #[inline(always)]
 fn color_dodge(color_b: f32, color_s: f32) -> f32 {
-    if color_b == 0. {
-        0.
-    } else if color_s == 1. {
-        1.
+    if color_b.abs() < EPSILON {
+        0.0
+    } else if (color_s - 1.0).abs() < EPSILON {
+        1.0
     } else {
-        (color_b / (1. - color_s)).min(1.)
+        (color_b / (1.0 - color_s)).min(1.0)
     }
 }
 
@@ -388,10 +400,10 @@ fn subtract(color_b: f32, color_s: f32) -> f32 {
 /// `B(Cb, Cs) = Cb / Cs`
 #[inline(always)]
 fn divide(color_b: f32, color_s: f32) -> f32 {
-    if color_s == 0. {
-        color_b
-    } else {
+    if color_s > 0. {
         color_b / color_s
+    } else {
+        color_b
     }
 }
 
@@ -436,4 +448,30 @@ fn composite(
     let cs = color_s * alpha_s;
     let cb = color_b * alpha_b;
     cs + cb * (1. - alpha_s)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_color_dodge() {
+        let color_b = 1e-8;
+        let color_s = 1.0;
+
+        let result = color_dodge(color_b, color_s);
+
+        assert_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn test_color_burn() {
+        let color_b = 0.9999999;
+        let color_s = 0.5;
+
+        let result = color_burn(color_b, color_s);
+
+        assert_eq!(result, 1.0);
+    }
 }
