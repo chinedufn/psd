@@ -35,7 +35,7 @@ const EPSILON: f32 = 1e-6;
 ///
 /// *The backdrop is the content behind the element and is what the element is composited with. This means that the backdrop is the result of compositing all previous elements.
 ///
-/// ** this optimized version is based on tdakkota's implementation but improves it by ~10%-25% and allows for the blending of methods that need access to all channels simultaneously.
+/// ** this optimized version is based on tdakkota's implementation but improves it by ~10%-25% by removing division where possible and allows for the blending of methods that need access to all channels simultaneously.
 pub(crate) fn blend_pixels(
     top: Pixel,
     bottom: Pixel,
@@ -126,7 +126,7 @@ type BlendFunction = dyn Fn(f32, f32) -> f32;
 /// Returns blend function for given BlendMode
 fn map_blend_mode(blend_mode: BlendMode) -> &'static BlendFunction {
     // Modes are sorted like in Photoshop UI
-    // TODO: make other modes
+    // TODO: Finish dissolve
     match blend_mode {
         BlendMode::PassThrough => &pass_through, // only for groups
         // --------------------------------------
