@@ -243,7 +243,7 @@ impl PsdSerialize for SlicesResourceBlock {
         buffer.write(pad); // Slice Id
         buffer.write(pad); // Group Id
         buffer.write(pad); // Origin
-                           // Skip Associated Layer Id
+        // Skip Associated Layer Id
         buffer.write_unicode_string(""); // Name
         buffer.write(pad); // Type
 
@@ -280,7 +280,7 @@ impl PsdSerialize for SlicesResourceBlock {
 
 #[derive(Debug)]
 pub struct SlicesImageResourceV7_8 {
-    descriptor: DescriptorStructure,
+    pub(crate) descriptor: DescriptorStructure,
 }
 
 impl PsdDeserialize for SlicesImageResourceV7_8 {
@@ -302,8 +302,8 @@ impl PsdDeserialize for SlicesImageResourceV7_8 {
         let descriptor_version = cursor.read_i32();
         if descriptor_version != 16 {
             unimplemented!(
-                    "Only the version 16 (descriptors) resource format for slices is currently supported"
-                );
+                "Only the version 16 (descriptors) resource format for slices is currently supported"
+            );
         }
         let descriptor = DescriptorStructure::read_descriptor_structure(&mut cursor)?;
 

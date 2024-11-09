@@ -25,6 +25,8 @@ impl PsdSerialize for ImageResource {
         let id: ImageResourceId = self.into();
         buffer.write(id.into_bytes());
 
+        // TODO: do we need to write this or is it only when we are at an odd buffer index?
+        //       reference: https://github.com/yu-icchi/go-psd/blob/5976db4c66f0/encode.go#L110
         buffer.write_pascal_string("");
 
         match self {

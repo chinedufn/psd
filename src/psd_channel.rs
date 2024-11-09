@@ -42,9 +42,9 @@ pub trait IntoRgba {
         let alpha = self.alpha();
 
         // TODO: We're assuming that if we only see two channels it is a 16 bit grayscale
-        // PSD. Instead we should just check the Psd's color mode and depth to see if
-        // they are grayscale and sixteen. As we run into more cases we'll clean things like
-        // this up over time.
+        //  PSD. Instead we should just check the Psd's color mode and depth to see if
+        //  they are grayscale and sixteen. As we run into more cases we'll clean things like
+        //  this up over time.
         //        if green.is_some() && blue.is_none() && alpha.is_none() {
         //            return self.generate_16_bit_grayscale_rgba();
         //        }

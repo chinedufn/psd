@@ -77,8 +77,8 @@ impl FileHeaderSection {
     /// Create a FileSectionHeader from the first 26 bytes of a PSD
     ///
     /// TODO: Accept a ColorModeSection along with the bytes so that we can add
-    /// any ColorModeSection data to the ColorMode if necessary. Rename this method
-    /// to "new" in the process.
+    ///  any ColorModeSection data to the ColorMode if necessary. Rename this method
+    ///  to "new" in the process.
     pub fn from_bytes(bytes: &[u8]) -> Result<FileHeaderSection, FileHeaderSectionError> {
         let mut cursor = PsdCursor::new(bytes);
 
@@ -154,11 +154,11 @@ impl PsdSerialize for FileHeaderSection {
             PsdVersion::One => buffer.write(EXPECTED_VERSION),
         };
         buffer.write(EXPECTED_RESERVED);
-        buffer.write((self.channel_count.count() as u16).to_be_bytes());
-        buffer.write(self.height.0.to_be_bytes());
-        buffer.write(self.width.0.to_be_bytes());
-        buffer.write((self.depth as u16).to_be_bytes());
-        buffer.write((self.color_mode as u16).to_be_bytes())
+        buffer.write(self.channel_count.to_be_bytes());
+        buffer.write(self.height.to_be_bytes());
+        buffer.write(self.width.to_be_bytes());
+        buffer.write(self.depth.to_be_bytes());
+        buffer.write(self.color_mode.to_be_bytes())
     }
 }
 
@@ -195,6 +195,11 @@ impl ChannelCount {
     pub fn count(&self) -> u8 {
         self.0
     }
+
+    /// Convert the channel count to big endian bytes
+    pub fn to_be_bytes(&self) -> [u8; 2] {
+        (self.count() as u16).to_be_bytes()
+    }
 }
 
 /// # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
@@ -215,6 +220,15 @@ impl PsdHeight {
 
         Some(PsdHeight(height))
     }
+    /// Return the height
+    pub fn get(&self) -> u32 {
+        self.0
+    }
+
+    /// Convert the height to big endian bytes
+    pub fn to_be_bytes(&self) -> [u8; 4] {
+        self.get().to_be_bytes()
+    }
 }
 
 /// # [Adobe Docs](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
@@ -234,6 +248,14 @@ impl PsdWidth {
         }
 
         Some(PsdWidth(width))
+    }
+    /// Return the width
+    pub fn get(&self) -> u32 {
+        self.0
+    }
+    /// Convert the width to big endian bytes
+    pub fn to_be_bytes(&self) -> [u8; 4] {
+        self.get().to_be_bytes()
     }
 }
 
@@ -261,6 +283,19 @@ impl PsdDepth {
             32 => Some(PsdDepth::ThirtyTwo),
             _ => None,
         }
+    }
+    /// Return the depth
+    pub fn get(&self) -> u8 {
+        match self {
+            PsdDepth::One => 1,
+            PsdDepth::Eight => 8,
+            PsdDepth::Sixteen => 16,
+            PsdDepth::ThirtyTwo => 32,
+        }
+    }
+    /// Convert the depth to big endian bytes
+    pub fn to_be_bytes(&self) -> [u8; 2] {
+        (self.get() as u16).to_be_bytes()
     }
 }
 
@@ -300,6 +335,23 @@ impl ColorMode {
             9 => Some(ColorMode::Lab),
             _ => None,
         }
+    }
+    /// Return the color mode
+    pub fn get(&self) -> u8 {
+        match self {
+            ColorMode::Bitmap => 0,
+            ColorMode::Grayscale => 1,
+            ColorMode::Indexed => 2,
+            ColorMode::Rgb => 3,
+            ColorMode::Cmyk => 4,
+            ColorMode::Multichannel => 7,
+            ColorMode::Duotone => 8,
+            ColorMode::Lab => 9,
+        }
+    }
+    /// Convert the color mode to big endian bytes
+    pub fn to_be_bytes(&self) -> [u8; 2] {
+        (self.get() as u16).to_be_bytes()
     }
 }
 
