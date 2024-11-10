@@ -41,6 +41,3 @@ features = [
 syn = "2"
 proc-macro2 = "1"
 quote = "1"
-
-[package.metadata.wasm-pack]
-wasm-opt = false
