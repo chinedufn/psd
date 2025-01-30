@@ -26,10 +26,11 @@ fn name_of_slices_resource_group() {
         let psd = std::fs::read(&file).unwrap();
         let psd = Psd::from_bytes(&psd).unwrap();
 
-        match &psd.resources()[0] {
+        match &psd.resources()[1] {
             ImageResource::Slices(slices) => {
                 assert_eq!(slices.name().as_str(), expected_slices_name);
             }
+            ImageResource::Xmp(..) => panic!("unexpected resource ordering"),
         };
     }
 }
@@ -44,14 +45,12 @@ fn slices_v7_8() -> Result<()> {
     let psd = include_bytes!("./fixtures/slices-v8.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    match &psd.resources()[0] {
-        ImageResource::Slices(slices) => {
-            assert_eq!(slices.name().as_str(), "\u{0}");
+    let descriptors = match &psd.resources()[1] {
+        ImageResource::Slices(s) => {
+            assert_eq!(s.name().as_str(), "\u{0}");
+            s.descriptors()
         }
-    };
-
-    let descriptors = match &psd.resources()[0] {
-        ImageResource::Slices(s) => s.descriptors(),
+        ImageResource::Xmp(..) => panic!("unexpected resource ordering"),
     };
     let descriptor = descriptors.get(0).unwrap();
     let bounds = descriptor.fields.get("bounds").unwrap();
