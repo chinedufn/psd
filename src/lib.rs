@@ -7,8 +7,10 @@
 
 #![deny(missing_docs)]
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::rc::Rc;
 
 use thiserror::Error;
 
@@ -27,7 +29,9 @@ use crate::sections::image_resources_section::ImageResourcesSection;
 pub use crate::sections::image_resources_section::{DescriptorField, UnitFloatStructure};
 pub use crate::sections::layer_and_mask_information_section::layer::PsdGroup;
 pub use crate::sections::layer_and_mask_information_section::layer::PsdLayer;
-use crate::sections::layer_and_mask_information_section::LayerAndMaskInformationSection;
+pub use crate::sections::layer_and_mask_information_section::{
+    LayerAndMaskInformationSection, NodeType, PsdNode,
+};
 use crate::sections::MajorSections;
 
 use self::sections::file_header_section::FileHeaderSection;
@@ -259,6 +263,32 @@ impl Psd {
         }
 
         Ok(flattened_pixels)
+    }
+
+    /// Returns the PSD group/layer tree
+    pub fn tree(&self) -> Rc<RefCell<PsdNode>> {
+        Rc::clone(&self.layer_and_mask_information_section.tree)
+    }
+
+    /// Traverses the PSD group/layer tree, applying the given action to each node
+    pub fn traverse<F>(&self, action: F)
+    where
+        F: Fn(&PsdNode, usize), // Include depth in the closure
+    {
+        let tree = self.tree();
+        Self::traverse_node(&tree, &action, 0); // Start with depth 0
+    }
+
+    fn traverse_node<F>(node: &Rc<RefCell<PsdNode>>, action: &F, depth: usize)
+    where
+        F: Fn(&PsdNode, usize),
+    {
+        let node_borrow = node.borrow();
+        action(&node_borrow, depth);
+
+        for child in node_borrow.children().iter() {
+            Self::traverse_node(child, action, depth + 1); // Increment depth for child nodes
+        }
     }
 }
 
