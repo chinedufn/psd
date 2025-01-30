@@ -147,7 +147,7 @@ impl Psd {
 // Methods for working with layers
 impl Psd {
     /// Get all of the layers in the PSD
-    pub fn layers(&self) -> &Vec<PsdLayer> {
+    pub fn layers(&self) -> &[PsdLayer] {
         &self.layer_and_mask_information_section.layers
     }
 
@@ -175,7 +175,7 @@ impl Psd {
 
     /// Get the group ID's in the order that they appear in Photoshop.
     /// (i.e. from the bottom of layers view to the top of the layers view).
-    pub fn group_ids_in_order(&self) -> &Vec<u32> {
+    pub fn group_ids_in_order(&self) -> &[u32] {
         self.layer_and_mask_information_section
             .groups
             .group_ids_in_order()
@@ -252,10 +252,7 @@ impl Psd {
 
             let blended_pixel = renderer.flattened_pixel(pixel_coord);
 
-            flattened_pixels.push(blended_pixel[0]);
-            flattened_pixels.push(blended_pixel[1]);
-            flattened_pixels.push(blended_pixel[2]);
-            flattened_pixels.push(blended_pixel[3]);
+            flattened_pixels.extend_from_slice(&blended_pixel);
         }
 
         Ok(flattened_pixels)
@@ -279,7 +276,7 @@ impl Psd {
 // Methods for working with the image resources section
 impl Psd {
     /// Resources from the image resources section of the PSD file
-    pub fn resources(&self) -> &Vec<ImageResource> {
+    pub fn resources(&self) -> &[ImageResource] {
         &self.image_resources_section.resources
     }
 }

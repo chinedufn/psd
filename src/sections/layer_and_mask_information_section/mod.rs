@@ -111,7 +111,7 @@ impl LayerAndMaskInformationSection {
         // TODO: If the layer count was negative we were supposed to treat the first alpha
         // channel as transparency data for the merged result.. So add a new test with a transparent
         // PSD and make sure that we're handling this case properly.
-        let layer_count: u16 = layer_count.abs() as u16;
+        let layer_count: u16 = layer_count.unsigned_abs();
         let (group_count, layer_records) =
             LayerAndMaskInformationSection::read_layer_records(&mut cursor, layer_count)?;
 
@@ -149,7 +149,7 @@ impl LayerAndMaskInformationSection {
             match layer_record.divider_type {
                 // open the folder
                 Some(GroupDivider::CloseFolder) | Some(GroupDivider::OpenFolder) => {
-                    already_viewed = already_viewed + 1;
+                    already_viewed += 1;
 
                     let frame = Frame {
                         start_idx: layers.len(),
@@ -212,17 +212,14 @@ impl LayerAndMaskInformationSection {
         for _layer_num in 0..layer_count {
             let layer_record = read_layer_record(cursor)?;
 
-            match layer_record.divider_type {
-                Some(GroupDivider::BoundingSection) => {
-                    groups_count = groups_count + 1;
-                }
-                _ => {}
+            if let Some(GroupDivider::BoundingSection) = layer_record.divider_type {
+                groups_count += 1;
             }
 
             layer_records.push(layer_record);
         }
 
-        let mut result = vec![];
+        let mut result = Vec::with_capacity(layer_records.len());
         for layer_record in layer_records {
             let channels = read_layer_channels(
                 cursor,
@@ -245,7 +242,7 @@ impl LayerAndMaskInformationSection {
         channels: LayerChannels,
     ) -> Result<PsdLayer, PsdLayerError> {
         Ok(PsdLayer::new(
-            &layer_record,
+            layer_record,
             psd_size.0,
             psd_size.1,
             if parent_id > 0 { Some(parent_id) } else { None },
@@ -257,7 +254,7 @@ impl LayerAndMaskInformationSection {
 /// Reads layer channels
 fn read_layer_channels(
     cursor: &mut PsdCursor,
-    channel_data_lengths: &Vec<(PsdChannelKind, u32)>,
+    channel_data_lengths: &[(PsdChannelKind, u32)],
     scanlines: usize,
 ) -> Result<LayerChannels, PsdLayerError> {
     let capacity = channel_data_lengths.len();
@@ -274,7 +271,7 @@ fn read_layer_channels(
             PsdChannelCompression::RawData
         };
 
-        let channel_data = cursor.read(*channel_length);
+        let channel_data = cursor.read((*channel_length) as usize);
         let channel_bytes = match compression {
             PsdChannelCompression::RawData => ChannelBytes::RawData(channel_data.into()),
             PsdChannelCompression::RleCompressed => {
@@ -365,10 +362,9 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     }
 
     // We do not currently parse the blend mode signature, skip it
-    cursor.read_4();
+    cursor.read_n::<4>();
 
-    let mut key = [0; 4];
-    key.copy_from_slice(cursor.read_4());
+    let key = *cursor.read_n::<4>();
     let blend_mode = match BlendMode::match_mode(key) {
         Some(v) => v,
         None => return Err(PsdLayerError::UnknownBlendingMode { mode: key }),
@@ -392,19 +388,19 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     cursor.read_1();
 
     // We do not currently use the length of the extra data field, skip it
-    cursor.read_4();
+    cursor.read_n::<4>();
 
     // We do not currently use the layer mask data, skip it
     let layer_mask_data_len = cursor.read_u32();
-    cursor.read(layer_mask_data_len);
+    cursor.read(layer_mask_data_len as usize);
 
     // We do not currently use the layer blending range, skip it
     let layer_blending_range_data_len = cursor.read_u32();
-    cursor.read(layer_blending_range_data_len);
+    cursor.read(layer_blending_range_data_len as usize);
 
     // Read the layer name
     let name_len = cursor.read_u8();
-    let name = cursor.read(name_len as u32);
+    let name = cursor.read(name_len as usize);
     let name = String::from_utf8_lossy(name);
     let mut name = name.to_string();
 
@@ -415,35 +411,36 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     // The 1 is the 1 byte that we read for the name length
     let bytes_mod_4 = (name_len + 1) % 4;
     let padding = (4 - bytes_mod_4) % 4;
-    cursor.read(padding as u32);
+    cursor.read(padding as usize);
 
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop
     // until we stop seeing them.
-    while cursor.peek_4() == SIGNATURE_EIGHT_BIM || cursor.peek_4() == SIGNATURE_EIGHT_B64 {
-        let _signature = cursor.read_4();
-        let mut key = [0; 4];
-        key.copy_from_slice(cursor.read_4());
-        let additional_layer_info_len = cursor.read_u32();
+    while *cursor.peek_n::<4>() == SIGNATURE_EIGHT_BIM
+        || *cursor.peek_n::<4>() == SIGNATURE_EIGHT_B64
+    {
+        let _signature = cursor.read_n::<4>();
+        let key = *cursor.read_n::<4>();
+        let additional_layer_info_len = cursor.read_u32() as usize;
 
         match &key {
             KEY_UNICODE_LAYER_NAME => {
                 let pos = cursor.position();
                 name = cursor.read_unicode_string_padding(1);
-                cursor.seek(pos + additional_layer_info_len as u64);
+                cursor.seek(pos + additional_layer_info_len);
             }
             KEY_SECTION_DIVIDER_SETTING => {
                 divider_type = GroupDivider::match_divider(cursor.read_i32());
 
                 // data present only if length >= 12
                 if additional_layer_info_len >= 12 {
-                    let _signature = cursor.read_4();
-                    let _key = cursor.read_4();
+                    let _signature = cursor.read_n::<4>();
+                    let _key = cursor.read_n::<4>();
                 }
 
                 // data present only if length >= 16
                 if additional_layer_info_len >= 16 {
-                    cursor.read_4();
+                    cursor.read_n::<4>();
                 }
             }
 

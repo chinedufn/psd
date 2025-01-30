@@ -32,15 +32,16 @@ const EXPECTED_RESERVED: [u8; 6] = [0; 6];
 /// | 2      | The color mode of the file. Supported values are: Bitmap = 0; Grayscale = 1; Indexed = 2; RGB = 3; CMYK = 4; Multichannel = 7; Duotone = 8; Lab = 9. |
 #[derive(Debug)]
 pub struct FileHeaderSection {
-    pub(in crate) version: PsdVersion,
-    pub(in crate) channel_count: ChannelCount,
-    pub(in crate) width: PsdWidth,
-    pub(in crate) height: PsdHeight,
-    pub(in crate) depth: PsdDepth,
-    pub(in crate) color_mode: ColorMode,
+    #[allow(dead_code)]
+    pub(crate) version: PsdVersion,
+    pub(crate) channel_count: ChannelCount,
+    pub(crate) width: PsdWidth,
+    pub(crate) height: PsdHeight,
+    pub(crate) depth: PsdDepth,
+    pub(crate) color_mode: ColorMode,
 }
 
-/// Represents an malformed file section header
+/// Represents a malformed file section header
 #[derive(Debug, PartialEq, Error)]
 pub enum FileHeaderSectionError {
     #[error("A file section header is comprised of 26 bytes, you provided {length} bytes.")]
@@ -81,24 +82,23 @@ impl FileHeaderSection {
         if bytes.len() != 26 {
             return Err(FileHeaderSectionError::IncorrectLength {
                 length: bytes.len(),
-            }
-            );
+            });
         }
 
         // First four bytes must be '8BPS'
-        let signature = cursor.read_4();
+        let signature = *cursor.read_n::<4>();
         if signature != EXPECTED_PSD_SIGNATURE {
             return Err(FileHeaderSectionError::InvalidSignature {});
         }
 
         // The next 2 bytes represent the version
-        let version = cursor.read_2();
+        let version = *cursor.read_n::<2>();
         if version != EXPECTED_VERSION {
             return Err(FileHeaderSectionError::InvalidVersion {});
         }
 
         // The next 6 bytes are reserved and should always be 0
-        let reserved = cursor.read_6();
+        let reserved = *cursor.read_n::<6>();
         if reserved != EXPECTED_RESERVED {
             return Err(FileHeaderSectionError::InvalidReserved {});
         }
@@ -119,11 +119,11 @@ impl FileHeaderSection {
             PsdWidth::new(width).ok_or(FileHeaderSectionError::WidthOutOfRange { width })?;
 
         // 2 bytes for depth
-        let depth = cursor.read_2()[1];
+        let &[_, depth] = cursor.read_n::<2>();
         let depth = PsdDepth::new(depth).ok_or(FileHeaderSectionError::InvalidDepth { depth })?;
 
         // 2 bytes for color mode
-        let color_mode = cursor.read_2()[1];
+        let &[_, color_mode] = cursor.read_n::<2>();
         let color_mode = ColorMode::new(color_mode)
             .ok_or(FileHeaderSectionError::InvalidColorMode { color_mode })?;
 
@@ -145,7 +145,7 @@ impl FileHeaderSection {
 /// Version: always equal to 1. Do not try to read the file if the version does not match this value. (**PSB** version is 2.)
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum PsdVersion {
     /// Regular PSD (Not a PSB)
     One,
@@ -162,7 +162,7 @@ pub struct ChannelCount(u8);
 impl ChannelCount {
     /// Create a new ChannelCount
     pub fn new(channel_count: u8) -> Option<ChannelCount> {
-        if channel_count < 1 || channel_count > 56 {
+        if !(1..=56).contains(&channel_count) {
             return None;
         }
 
@@ -182,12 +182,12 @@ impl ChannelCount {
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 #[derive(Debug)]
-pub struct PsdHeight(pub(in crate) u32);
+pub struct PsdHeight(pub(crate) u32);
 
 impl PsdHeight {
     /// Create a new PsdHeight
     pub fn new(height: u32) -> Option<PsdHeight> {
-        if height < 1 || height > 30000 {
+        if !(1..=30000).contains(&height) {
             return None;
         }
 
@@ -202,12 +202,12 @@ impl PsdHeight {
 ///
 /// via: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 #[derive(Debug, Clone, Copy)]
-pub struct PsdWidth(pub(in crate) u32);
+pub struct PsdWidth(pub(crate) u32);
 
 impl PsdWidth {
     /// Create a new PsdWidth
     pub fn new(width: u32) -> Option<PsdWidth> {
-        if width < 1 || width > 30000 {
+        if !(1..=30000).contains(&width) {
             return None;
         }
 
@@ -349,16 +349,11 @@ mod tests {
     }
 
     fn error_from_bytes(bytes: &[u8]) -> FileHeaderSectionError {
-        FileHeaderSection::from_bytes(&bytes).expect_err("error")
+        FileHeaderSection::from_bytes(bytes).expect_err("error")
     }
 
     // [0, 1, 2, ..., 25]
     fn make_bytes() -> [u8; 26] {
-        let mut bytes = [0; 26];
-        for i in 0..26 {
-            bytes[i] = i as u8;
-        }
-
-        bytes
+        std::array::from_fn(|i| i as u8)
     }
 }

@@ -54,18 +54,14 @@ fn layer_with_clipping() {
     let psd = Psd::from_bytes(psd).unwrap();
 
     assert_eq!(psd.layers().len(), 3);
-    assert_eq!(
-        psd.layer_by_name("Clipping base")
-            .unwrap()
-            .is_clipping_mask(),
-        true
-    );
-    assert_eq!(
-        psd.layer_by_name("First clipped layer")
-            .unwrap()
-            .is_clipping_mask(),
-        false
-    );
+    assert!(psd
+        .layer_by_name("Clipping base")
+        .unwrap()
+        .is_clipping_mask());
+    assert!(!psd
+        .layer_by_name("First clipped layer")
+        .unwrap()
+        .is_clipping_mask());
 }
 
 const TOP_LEVEL_ID: u32 = 1;
@@ -83,7 +79,7 @@ fn one_group_one_layer_inside() {
     let group = group_by_name(&psd, "group");
     assert_eq!(group.id(), TOP_LEVEL_ID);
 
-    let layer_parent_id = psd.layers().get(0).unwrap().parent_id().unwrap();
+    let layer_parent_id = psd.layers()[0].parent_id().unwrap();
 
     assert_eq!(layer_parent_id, group.id());
 }
@@ -173,22 +169,22 @@ fn one_group_inside_another() {
 ///
 /// PSD file structure
 /// group: outside group, parent: `None`
-/// 	group: first group inside, parent: `outside group`
-/// 		layer: First Layer, parent: `first group inside`
+///     group: first group inside, parent: `outside group`
+///         layer: First Layer, parent: `first group inside`
 ///
-/// 	group: second group inside, parent: `outside group`
-/// 		group: sub sub group, parent: `second group inside`
-/// 			layer: Second Layer, parent: `sub sub group`
+///     group: second group inside, parent: `outside group`
+///         group: sub sub group, parent: `second group inside`
+///             layer: Second Layer, parent: `sub sub group`
 ///
-/// 		layer: Third Layer, parent: `second group inside`
+///         layer: Third Layer, parent: `second group inside`
 ///
-/// 	group: third group inside, parent: `outside group`
+///     group: third group inside, parent: `outside group`
 ///
-/// 	layer: Fourth Layer, parent: `outside group`
+///     layer: Fourth Layer, parent: `outside group`
 /// layer: Firth Layer, parent: `None`
 ///
 /// group: outside group 2, parent: `None`
-/// 	layer: Sixth Layer, parent: `outside group 2`
+///     layer: Sixth Layer, parent: `outside group 2`
 ///
 #[test]
 fn one_group_with_two_subgroups() {

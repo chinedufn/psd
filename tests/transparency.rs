@@ -43,7 +43,7 @@ fn transparency_rle_compressed() -> Result<()> {
     let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
     let psd = Psd::from_bytes(psd)?;
 
-    let mut red_block = vec![];
+    let mut red_block = Vec::with_capacity(9 * 9);
     for left in 0..9 {
         for top in 0..9 {
             red_block.push((left + 1, top + 1, RED_PIXEL));
@@ -113,26 +113,4 @@ fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &[(usize, usize, [u8; 4]
             }
         };
     }
-}
-
-fn make_image(pixel: [u8; 4], pixel_count: u32) -> Vec<u8> {
-    let pixel_count = pixel_count as usize;
-    let mut image = vec![0; pixel_count * 4];
-
-    for idx in 0..pixel_count {
-        image[idx * 4] = pixel[0];
-        image[idx * 4 + 1] = pixel[1];
-        image[idx * 4 + 2] = pixel[2];
-        image[idx * 4 + 3] = pixel[3];
-    }
-
-    image
-}
-
-fn put_pixel(image: &mut Vec<u8>, width: usize, left: usize, top: usize, new: [u8; 4]) {
-    let idx = (top * width) + left;
-    image[idx * 4] = new[0];
-    image[idx * 4 + 1] = new[1];
-    image[idx * 4 + 2] = new[2];
-    image[idx * 4 + 3] = new[3];
 }

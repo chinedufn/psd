@@ -17,11 +17,11 @@ impl<'a> Renderer<'a> {
         width: usize,
     ) -> Renderer<'a> {
         Renderer {
-            layers_to_flatten_top_down: layers_to_flatten_top_down,
+            layers_to_flatten_top_down,
             cached_layer_rgba: repeat_with(|| RefCell::new(None))
                 .take(layers_to_flatten_top_down.len())
                 .collect(),
-            width: width,
+            width,
             pixel_cache: RefCell::new(Vec::with_capacity(layers_to_flatten_top_down.len())),
         }
     }
@@ -48,15 +48,10 @@ impl<'a> Renderer<'a> {
 
         let (pixel_left, pixel_top) = pixel_coord;
         let pixel_idx = ((self.width * pixel_top) + pixel_left) * 4;
-
-        let (start, end) = (pixel_idx, pixel_idx + 4);
-
-        let pixel = &layer_rgba[start..end];
-        let mut copy = [0; 4];
-        copy.copy_from_slice(pixel);
-
-        blend::apply_opacity(&mut copy, layer.opacity);
-        copy
+        
+        let mut pixel = *layer_rgba[pixel_idx..].first_chunk::<4>().unwrap();
+        blend::apply_opacity(&mut pixel, layer.opacity);
+        pixel
     }
 
     /// Get the pixel at a coordinate within this image.
@@ -73,7 +68,7 @@ impl<'a> Renderer<'a> {
         pixels.clear();
         for (idx, layer) in self.layers_to_flatten_top_down.iter().enumerate() {
             // If this pixel is out of bounds of this layer we return the pixel below it.
-            // If there is no pixel below it we return a transparent pixel
+            // If there is no pixel below it, we return a transparent pixel
             if (pixel_left as i32) < layer.layer_properties.layer_left
                 || (pixel_left as i32) > layer.layer_properties.layer_right
                 || (pixel_top as i32) < layer.layer_properties.layer_top

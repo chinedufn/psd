@@ -53,7 +53,7 @@ fn slices_v7_8() -> Result<()> {
     let descriptors = match &psd.resources()[0] {
         ImageResource::Slices(s) => s.descriptors(),
     };
-    let descriptor = descriptors.get(0).unwrap();
+    let descriptor = &descriptors[0];
     let bounds = descriptor.fields.get("bounds").unwrap();
 
     if let DescriptorField::Descriptor(d) = bounds {
