@@ -1,5 +1,5 @@
 use crate::sections::image_data_section::ChannelBytes;
-use crate::sections::PsdCursor;
+use crate::sections::{PsdCursor, PsdSerialize};
 use thiserror::Error;
 
 pub trait IntoRgba {
@@ -42,9 +42,9 @@ pub trait IntoRgba {
         let alpha = self.alpha();
 
         // TODO: We're assuming that if we only see two channels it is a 16 bit grayscale
-        // PSD. Instead we should just check the Psd's color mode and depth to see if
-        // they are grayscale and sixteen. As we run into more cases we'll clean things like
-        // this up over time.
+        //  PSD. Instead we should just check the Psd's color mode and depth to see if
+        //  they are grayscale and sixteen. As we run into more cases we'll clean things like
+        //  this up over time.
         //        if green.is_some() && blue.is_none() && alpha.is_none() {
         //            return self.generate_16_bit_grayscale_rgba();
         //        }
@@ -197,6 +197,7 @@ pub trait IntoRgba {
 }
 
 /// Rle decompress a channel
+#[allow(dead_code)]
 fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
     let mut cursor = PsdCursor::new(&bytes[..]);
 
@@ -228,46 +229,33 @@ fn rle_decompress(bytes: &[u8]) -> Vec<u8> {
 /// into an 8 bit channel.
 ///
 /// We store the final bytes in the first channel (overwriting the old bytes)
+#[allow(dead_code)]
 fn sixteen_to_eight_rgba(channel1: &[u8], channel2: &[u8]) -> Vec<u8> {
     let mut eight = Vec::with_capacity(channel1.len());
 
-    for idx in 0..channel1.len() {
-        if idx % 2 == 1 {
-            continue;
+    for c in [channel1, channel2].iter() {
+        for idx in 0..c.len() {
+            if idx % 2 == 1 {
+                continue;
+            }
+
+            let sixteen_bit = [c[idx], c[idx + 1]];
+            let sixteen_bit = u16::from_be_bytes(sixteen_bit);
+
+            let eight_bit = (sixteen_bit / 256) as u8;
+
+            eight.push(eight_bit);
+            eight.push(eight_bit);
+            eight.push(eight_bit);
+            eight.push(255);
         }
-
-        let sixteen_bit = [channel1[idx], channel1[idx + 1]];
-        let sixteen_bit = u16::from_be_bytes(sixteen_bit);
-
-        let eight_bit = (sixteen_bit / 256) as u8;
-
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(255);
-    }
-
-    for idx in 0..channel2.len() {
-        if idx % 2 == 1 {
-            continue;
-        }
-
-        let sixteen_bit = [channel2[idx], channel2[idx + 1]];
-        let sixteen_bit = u16::from_be_bytes(sixteen_bit);
-
-        let eight_bit = (sixteen_bit / 256) as u8;
-
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(eight_bit);
-        eight.push(255);
     }
 
     eight
 }
 
-/// Indicates how a channe'sl data is compressed
-#[derive(Debug, Eq, PartialEq)]
+/// Indicates how a channels data is compressed
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 #[allow(missing_docs)]
 pub enum PsdChannelCompression {
     /// Not compressed
@@ -293,6 +281,15 @@ impl PsdChannelCompression {
     }
 }
 
+impl PsdSerialize for PsdChannelCompression {
+    fn write<T>(&self, buffer: &mut crate::sections::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        buffer.write((self.to_owned() as u16).to_be_bytes());
+    }
+}
+
 /// The different kinds of channels in a layer (red, green, blue, ...).
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 #[allow(missing_docs)]
@@ -303,6 +300,15 @@ pub enum PsdChannelKind {
     TransparencyMask = -1,
     UserSuppliedLayerMask = -2,
     RealUserSuppliedLayerMask = -3,
+}
+
+impl PsdSerialize for PsdChannelKind {
+    fn write<T>(&self, buffer: &mut crate::sections::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        buffer.write((self.to_owned() as i16).to_be_bytes());
+    }
 }
 
 /// Represents an invalid channel

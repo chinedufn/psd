@@ -28,7 +28,7 @@ fn name_of_slices_resource_group() {
 
         match &psd.resources()[0] {
             ImageResource::Slices(slices) => {
-                assert_eq!(slices.name().as_str(), expected_slices_name);
+                assert_eq!(slices.name(), expected_slices_name);
             }
         };
     }
@@ -46,7 +46,7 @@ fn slices_v7_8() -> Result<()> {
 
     match &psd.resources()[0] {
         ImageResource::Slices(slices) => {
-            assert_eq!(slices.name().as_str(), "\u{0}");
+            assert_eq!(slices.name(), "\u{0}");
         }
     };
 

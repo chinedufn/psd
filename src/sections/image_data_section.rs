@@ -3,7 +3,9 @@ use crate::sections::PsdCursor;
 use crate::PsdDepth;
 use thiserror::Error;
 
-/// Represents an malformed image data
+use super::PsdSerialize;
+
+/// Represents a malformed image data
 #[derive(Debug, PartialEq, Error)]
 pub enum ImageDataSectionError {
     #[error(
@@ -44,6 +46,27 @@ pub struct ImageDataSection {
     pub(crate) alpha: Option<ChannelBytes>,
 }
 
+impl PsdSerialize for ImageDataSection {
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        self.compression.write(buffer);
+        self.red.write(buffer);
+
+        if let Some(green) = &self.green {
+            green.write(buffer);
+        }
+
+        if let Some(blue) = &self.blue {
+            blue.write(buffer);
+        }
+
+        if let Some(alpha) = &self.alpha {
+            alpha.write(buffer);
+        }
+    }
+}
 impl ImageDataSection {
     /// Create an ImageDataSection from the bytes in the corresponding section in a PSD file
     /// (including the length market)
@@ -223,4 +246,16 @@ impl ImageDataSection {
 pub enum ChannelBytes {
     RawData(Vec<u8>),
     RleCompressed(Vec<u8>),
+}
+
+impl PsdSerialize for ChannelBytes {
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        match self {
+            Self::RawData(bytes) => buffer.write(bytes),
+            Self::RleCompressed(bytes) => buffer.write(bytes),
+        }
+    }
 }

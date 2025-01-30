@@ -89,6 +89,7 @@ fn transparent_above_opaque() -> Result<()> {
 // Ensure that the specified, zero-indexed left, top coordinate has the provided pixel color.
 // Otherwise it should be fully transparent.
 // (left, top, pixel)
+#[allow(dead_code)]
 fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &[(usize, usize, [u8; 4])]) {
     let pixel_count = (psd.width() * psd.height()) as usize;
     let width = psd.width() as usize;
@@ -115,6 +116,7 @@ fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &[(usize, usize, [u8; 4]
     }
 }
 
+#[allow(dead_code)]
 fn make_image(pixel: [u8; 4], pixel_count: u32) -> Vec<u8> {
     let pixel_count = pixel_count as usize;
     let mut image = vec![0; pixel_count * 4];
@@ -129,6 +131,7 @@ fn make_image(pixel: [u8; 4], pixel_count: u32) -> Vec<u8> {
     image
 }
 
+#[allow(dead_code)]
 fn put_pixel(image: &mut Vec<u8>, width: usize, left: usize, top: usize, new: [u8; 4]) {
     let idx = (top * width) + left;
     image[idx * 4] = new[0];

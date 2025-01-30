@@ -11,6 +11,8 @@ use crate::sections::layer_and_mask_information_section::layer::{
 use crate::sections::layer_and_mask_information_section::layers::Layers;
 use crate::sections::PsdCursor;
 
+use super::PsdSerialize;
+
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_BIM: [u8; 4] = [56, 66, 73, 77];
 /// One of the possible additional layer block signatures
@@ -66,6 +68,241 @@ struct Frame {
     name: String,
     group_id: u32,
     parent_group_id: u32,
+}
+
+impl PsdSerialize for LayerAndMaskInformationSection {
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        buffer.write_sized(|buf| {
+            LayerInfo(self).write(buf);
+        });
+    }
+}
+
+struct LayerInfo<'a>(&'a LayerAndMaskInformationSection);
+
+impl PsdSerialize for LayerInfo<'_> {
+    /// Layer info
+    /// +------------------------------------------------------------------------------------------+
+    /// | Length   | Description                                                                   |
+    /// |----------+-------------------------------------------------------------------------------|
+    /// | 4        | Length of the layers info section, rounded up to a multiple of 2. (**PSB**    |
+    /// |          | length is 8 bytes.)                                                           |
+    /// |----------+-------------------------------------------------------------------------------|
+    /// |          | Layer count. If it is a negative number, its absolute value is the number of  |
+    /// | 2        | layers and the first alpha channel contains the transparency data for the     |
+    /// |          | merged result.                                                                |
+    /// |----------+-------------------------------------------------------------------------------|
+    /// | Variable | Information about each layer. See Layer records describes the structure of    |
+    /// |          | this information for each layer.                                              |
+    /// |----------+-------------------------------------------------------------------------------|
+    /// |          | Channel image data. Contains one or more image data records (see See Channel  |
+    /// | Variable | image data for structure) for each layer. The layers are in the same order as |
+    /// |          | in the layer information (previous row of this table).                        |
+    /// +------------------------------------------------------------------------------------------+
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        // Length of layer info section, rounded up to a multiple of 2.
+        buffer.write_sized(|buf| {
+            buf.pad(2, |buf| {
+                // TODO: Handle first channel as transparency for merged result. (negative layer count)
+                buf.write((self.0.layers.len() as i16).to_be_bytes());
+
+                for layer in self.0.layers.iter() {
+                    LayerRecordWrite(layer, &self.0.groups).write(buf);
+                }
+
+                for layer in self.0.layers.iter() {
+                    for kind in [
+                        PsdChannelKind::Red,
+                        PsdChannelKind::Green,
+                        PsdChannelKind::Blue,
+                        PsdChannelKind::TransparencyMask,
+                        PsdChannelKind::UserSuppliedLayerMask,
+                        PsdChannelKind::RealUserSuppliedLayerMask,
+                    ] {
+                        if let Some(data) = layer.channels.get(&kind) {
+                            ChannelImageData(data).write(buf);
+                        }
+                    }
+                }
+            });
+        });
+    }
+}
+
+struct LayerRecordWrite<'a>(&'a PsdLayer, &'a Groups);
+
+impl PsdSerialize for LayerRecordWrite<'_> {
+    /// +------------------------------------------------------------------------------------------+
+    /// | Length             | Description                                                         |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | 4 * 4              | Rectangle containing the contents of the layer. Specified as top,   |
+    /// |                    | left, bottom, right coordinates                                     |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | 2                  | Number of channels in the layer                                     |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// |                    | Channel information. Six bytes per channel, consisting of:          |
+    /// |                    |                                                                     |
+    /// |                    | 2 bytes for Channel ID: 0 = red, 1 = green, etc.;                   |
+    /// |                    |                                                                     |
+    /// | 6 *                | -1 = transparency mask; -2 = user supplied layer mask, -3 real user |
+    /// |                    | supplied layer mask (when both a user mask and a vector mask are    |
+    /// | number of channels | present)                                                            |
+    /// |                    |                                                                     |
+    /// |                    | 4 bytes for length of corresponding channel data. (**PSB** 8 bytes  |
+    /// |                    | for length of corresponding channel data.) See See Channel image    |
+    /// |                    | data for structure of channel data.                                 |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | 4                  | Blend mode signature: '8BIM'                                        |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// |                    | Blend mode key:                                                     |
+    /// |                    |                                                                     |
+    /// |                    | 'pass' = pass through, 'norm' = normal, 'diss' = dissolve, 'dark' = |
+    /// |                    | darken, 'mul ' = multiply, 'idiv' = color burn, 'lbrn' = linear     |
+    /// |                    | burn, 'dkCl' = darker color, 'lite' = lighten, 'scrn' = screen,     |
+    /// | 4                  | 'div ' = color dodge, 'lddg' = linear dodge, 'lgCl' = lighter       |
+    /// |                    | color, 'over' = overlay, 'sLit' = soft light, 'hLit' = hard light,  |
+    /// |                    | 'vLit' = vivid light, 'lLit' = linear light, 'pLit' = pin light,    |
+    /// |                    | 'hMix' = hard mix, 'diff' = difference, 'smud' = exclusion, 'fsub'  |
+    /// |                    | = subtract, 'fdiv' = divide 'hue ' = hue, 'sat ' = saturation,      |
+    /// |                    | 'colr' = color, 'lum ' = luminosity,                                |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | 1                  | Opacity. 0 = transparent ... 255 = opaque                           |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | 1                  | Clipping: 0 = base, 1 = non-base                                    |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// |                    | Flags:                                                              |
+    /// |                    | bit 0 = transparency protected;                                     |
+    /// |                    | bit 1 = visible;                                                    |
+    /// | 1                  | bit 2 = obsolete;                                                   |
+    /// |                    | bit 3 = 1 for Photoshop 5.0 and later, tells if bit 4 has useful    |
+    /// |                    | information;                                                        |
+    /// |                    | bit 4 = pixel data irrelevant to appearance of document             |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | 1                  | Filler (zero)                                                       |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | 4                  | Length of the extra data field ( = the total length of the next     |
+    /// |                    | five fields).                                                       |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | Variable           | Layer mask data: See See Layer mask / adjustment layer data for     |
+    /// |                    | structure. Can be 40 bytes, 24 bytes, or 4 bytes if no layer mask.  |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | Variable           | Layer blending ranges: See See Layer blending ranges data.          |
+    /// |--------------------+---------------------------------------------------------------------|
+    /// | Variable           | Layer name: Pascal string, padded to a multiple of 4 bytes.         |
+    /// +------------------------------------------------------------------------------------------+
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        let layer = self.0;
+
+        // Rectangle containing the contents
+        buffer.write(layer.layer_top.to_be_bytes());
+        buffer.write(layer.layer_left.to_be_bytes());
+        buffer.write(layer.layer_bottom.to_be_bytes());
+        buffer.write(layer.layer_right.to_be_bytes());
+
+        buffer.write((layer.channels.len() as u16).to_be_bytes()); // Number of channels
+
+        ChannelInformation(&layer.channels).write(buffer);
+
+        buffer.write(SIGNATURE_EIGHT_BIM); // Blend mode signature
+        let blend_mode: &[u8] = layer.blend_mode.into();
+        buffer.write(blend_mode);
+
+        buffer.write(layer.opacity.to_be_bytes());
+        buffer.write((layer.clipping_mask as u8).to_be_bytes());
+
+        buffer.write([(layer.visible as u8) << 1]); // Visible bit
+
+        buffer.write([0_u8]); // Filler
+
+        //let start = buffer.buffer.stream_position().unwrap();
+        buffer.write_sized(|buf| {
+            buf.write(0_u32.to_be_bytes()); // No layer mask data
+            buf.write(0_u32.to_be_bytes()); // No layer blending ranges data
+            buf.pad(4, |buf| {
+                buf.write_sized_with(crate::sections::Length::Size1, |buf| buf.write(&layer.name));
+            });
+
+            if let Some(_group) = layer.group_id.and_then(|id| self.1.get(&id)) {
+                //                                Additional layer information
+                //+------------------------------------------------------------------------------------------+
+                //| Length   | Description                                                                   |
+                //|----------+-------------------------------------------------------------------------------|
+                //| 4        | Signature: '8BIM' or '8B64'                                                   |
+                //|----------+-------------------------------------------------------------------------------|
+                //| 4        | Key: a 4-character code (See individual sections)                             |
+                //|----------+-------------------------------------------------------------------------------|
+                //|          | Length data below, rounded up to an even byte count.                          |
+                //| 4        |                                                                               |
+                //|          | (**PSB**, the following keys have a length count of 8 bytes: LMsk, Lr16,      |
+                //|          | Lr32, Layr, Mt16, Mt32, Mtrn, Alph, FMsk, lnk2, FEid, FXid, PxSD.             |
+                //|----------+-------------------------------------------------------------------------------|
+                //| Variable | Data (See individual sections)                                                |
+                //+------------------------------------------------------------------------------------------+
+            }
+        });
+        //let end = buffer.buffer.stream_position().unwrap();
+
+        //let write_extra_len = end - start - 4;
+
+        //buffer.pad(4, |buf| {
+        //    buf.write_pascal_string(&layer.name);
+        //});
+
+        //if let Some(group_id) = &layer.group_id {
+
+        //    self.1.get(group_id)
+
+        //}
+    }
+}
+
+struct ChannelImageData<'a>(&'a ChannelBytes);
+
+impl PsdSerialize for ChannelImageData<'_> {
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        let bytes = self.0;
+        let compression = match bytes {
+            ChannelBytes::RawData(_) => PsdChannelCompression::RawData,
+            ChannelBytes::RleCompressed(_) => PsdChannelCompression::RleCompressed,
+        };
+
+        compression.write(buffer);
+        bytes.write(buffer);
+    }
+}
+
+struct ChannelInformation<'a>(&'a LayerChannels);
+
+impl PsdSerialize for ChannelInformation<'_> {
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        for (kind, bytes) in self.0.iter() {
+            kind.write(buffer); // 2 bytes for Channel ID
+
+            let bytes = match bytes {
+                ChannelBytes::RawData(bytes) => bytes,
+                ChannelBytes::RleCompressed(bytes) => bytes,
+            };
+
+            // Channel image data
+            // 2 bytes for compression type + channel image data length
+            buffer.write((2 + bytes.len() as u32).to_be_bytes());
+        }
+    }
 }
 
 impl LayerAndMaskInformationSection {
@@ -392,7 +629,8 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     cursor.read_1();
 
     // We do not currently use the length of the extra data field, skip it
-    cursor.read_4();
+    let _extra_len = cursor.read_u32();
+    let start = cursor.position();
 
     // We do not currently use the layer mask data, skip it
     let layer_mask_data_len = cursor.read_u32();
@@ -416,6 +654,10 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
     let bytes_mod_4 = (name_len + 1) % 4;
     let padding = (4 - bytes_mod_4) % 4;
     cursor.read(padding as u32);
+
+    let end = cursor.position();
+
+    let _read_len = end - start;
 
     let mut divider_type = None;
     // There can be multiple additional layer information sections so we'll loop

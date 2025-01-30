@@ -1,7 +1,7 @@
 psd
 ===
 
-[![Build status](https://circleci.com/gh/chinedufn/psd.svg?style=shield&circle-token=:circle-token)](https://circleci.com/gh/chinedufn/psd) [![docs](https://docs.rs/psd/badge.svg)](https://docs.rs/psd)
+[![Build status](https://circleci.com/gh/chinedufn/psd.svg?style=shield)](https://circleci.com/gh/chinedufn/psd) [![docs](https://docs.rs/psd/badge.svg)](https://docs.rs/psd)
 
 > A Rust API for parsing and working with PSD files.
 

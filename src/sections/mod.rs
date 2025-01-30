@@ -1,10 +1,14 @@
-use std::io::Cursor;
+use std::{
+    io::{Cursor, SeekFrom},
+    mem::size_of,
+};
 
 use self::file_header_section::{FileHeaderSectionError, EXPECTED_PSD_SIGNATURE};
 
 /// The length of the entire file header section
 const FILE_HEADER_SECTION_LEN: usize = 26;
 
+pub mod color_mode_data_section;
 pub mod file_header_section;
 pub mod image_data_section;
 pub mod image_resources_section;
@@ -12,6 +16,7 @@ pub mod layer_and_mask_information_section;
 
 /// References to the different major sections of a PSD file
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MajorSections<'a> {
     pub(crate) file_header: &'a [u8],
     pub(crate) color_mode_data: &'a [u8],
@@ -136,15 +141,23 @@ impl<'a> PsdCursor<'a> {
     pub fn read(&mut self, count: u32) -> &[u8] {
         let start = self.cursor.position() as usize;
         let end = start + count as usize;
-        let bytes = &self.cursor.get_ref()[start..end];
-
         self.cursor.set_position(end as u64);
-        bytes
+
+        &self.get_ref()[start..end]
     }
 
     pub fn peek_u32(&self) -> u32 {
         let bytes = self.peek_4();
         u32_from_be_bytes(bytes)
+    }
+
+    pub fn peek_i32(&self) -> i32 {
+        let bytes = self.peek_4();
+
+        let mut array = [0; 4];
+        array.copy_from_slice(bytes);
+
+        i32::from_be_bytes(array)
     }
 
     /// Peek at the next four bytes
@@ -156,7 +169,7 @@ impl<'a> PsdCursor<'a> {
     fn peek(&self, n: u8) -> &[u8] {
         let start = self.cursor.position() as usize;
         let end = start + n as usize;
-        let bytes = &self.cursor.get_ref()[start..end];
+        let bytes = &self.get_ref()[start..end];
         bytes
     }
 
@@ -310,10 +323,216 @@ impl<'a> PsdCursor<'a> {
     }
 }
 
+use thiserror::Error;
+#[derive(Debug, Error)]
+pub enum PsdWriteError {
+    #[error("io error")]
+    IO(#[from] std::io::Error),
+}
+
+use std::io::{Seek, Write};
+
+pub(crate) struct PsdBuffer<T> {
+    buffer: T,
+}
+
+impl<T> PsdBuffer<T>
+where
+    T: AsRef<[u8]>,
+{
+    /// Create a new PsdCursor
+    pub fn new(bytes: T) -> PsdBuffer<Cursor<T>> {
+        PsdBuffer {
+            buffer: Cursor::new(bytes),
+        }
+    }
+}
+
+impl<T> PsdBuffer<T>
+where
+    T: Write,
+{
+    pub fn write<B>(&mut self, bytes: B)
+    where
+        B: AsRef<[u8]>,
+    {
+        let _ = self.buffer.write(bytes.as_ref());
+    }
+
+    pub fn write_pascal_string<S>(&mut self, string: S)
+    where
+        S: AsRef<[u8]>,
+    {
+        let bytes = string.as_ref();
+        let len = bytes.len() as u8;
+        let _ = self.buffer.write(&[len]);
+        let _ = self.buffer.write(bytes);
+
+        if len == 0 || len % 2 != 0 {
+            let _ = self.buffer.write(&[0]);
+        }
+    }
+}
+
+impl<T> PsdBuffer<T>
+where
+    T: Write + Seek,
+{
+    pub fn pad<F>(&mut self, pad: usize, func: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        let start = self.buffer.stream_position().unwrap();
+        func(self);
+        let end = self.buffer.stream_position().unwrap();
+
+        assert!(start <= end);
+        let length = (end - start) as usize;
+
+        let remander = length % pad;
+        let pad = (pad - remander) % pad;
+
+        for _ in 0..pad {
+            let _ = self.buffer.write(&[0_u8]);
+        }
+    }
+
+    /// Write a variable length of data to the buffer prefixed by 4 bytes that contain the length
+    /// of the written data.
+    ///
+    /// +---------------------------------------------------------+
+    /// | Length   | Description                                  |
+    /// |----------+----------------------------------------------|
+    /// | 4        | The length of the following data.            |
+    /// |----------+----------------------------------------------|
+    /// | Variable | The data written to this buffer in the func. |
+    /// +---------------------------------------------------------+
+    pub fn write_sized<F>(&mut self, func: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.write_sized_with(Length::Size4, func);
+    }
+
+    pub fn write_sized_with<F>(&mut self, length_size: Length, func: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        let length_start = self.buffer.stream_position().unwrap();
+
+        let data_start = self
+            .buffer
+            .seek(SeekFrom::Current(length_size.size() as i64))
+            .unwrap();
+        func(self);
+        let data_end = self.buffer.stream_position().unwrap();
+
+        assert!(data_start <= data_end);
+        let data_length = data_end - data_start;
+
+        self.buffer.seek(SeekFrom::Start(length_start)).unwrap();
+        match length_size {
+            Length::Size1 => self.buffer.write(&(data_length as u8).to_be_bytes()),
+            Length::Size4 => self.buffer.write(&(data_length as u32).to_be_bytes()),
+        }
+        .unwrap();
+        self.buffer.seek(SeekFrom::Start(data_end)).unwrap();
+    }
+
+    pub fn write_unicode_string<S>(&mut self, string: S)
+    where
+        S: AsRef<str>,
+    {
+        AsUnicodeString(&string).write(self);
+    }
+}
+
+pub enum Length {
+    Size1,
+    Size4,
+}
+
+impl Length {
+    pub fn size(&self) -> usize {
+        match self {
+            Length::Size1 => size_of::<u8>(),
+            Length::Size4 => size_of::<u32>(),
+        }
+    }
+}
+
+pub(crate) trait PsdSerialize {
+    fn write<T>(&self, buffer: &mut PsdBuffer<T>)
+    where
+        T: Write + Seek;
+
+    fn to_bytes(&self) -> Result<Vec<u8>, PsdWriteError> {
+        let mut buf = vec![];
+        self.write(&mut PsdBuffer::new(&mut buf));
+        Ok(buf)
+    }
+}
+
+struct AsUnicodeString<'a, T>(&'a T)
+where
+    T: AsRef<str>;
+
+impl<S> PsdSerialize for AsUnicodeString<'_, S>
+where
+    S: AsRef<str>,
+{
+    fn write<T>(&self, buffer: &mut PsdBuffer<T>)
+    where
+        T: Write,
+    {
+        //let mut utf16_unit_length = 0_u32;
+        //let bytes: Vec<_> = self
+        //    .0
+        //    .as_ref()
+        //    .encode_utf16()
+        //    .flat_map(|unit| {
+        //        utf16_unit_length += 1;
+        //        unit.to_be_bytes()
+        //    })
+        //    .collect();
+
+        //buffer.write(utf16_unit_length.to_be_bytes());
+        //buffer.write(&bytes);
+
+        write_unicode_string(self.0.as_ref(), &mut buffer.buffer).unwrap();
+    }
+}
+
+pub fn write_unicode_string(string: &str, mut buf: impl Write) -> Result<(), std::io::Error> {
+    let mut utf16_unit_length = 0_u32;
+
+    let bytes: Vec<_> = string
+        .encode_utf16()
+        .flat_map(|unit| {
+            utf16_unit_length += 1;
+            unit.to_be_bytes()
+        })
+        .collect();
+
+    buf.write_all(&utf16_unit_length.to_be_bytes())?;
+    buf.write_all(&bytes)?;
+    Ok(())
+}
+
+pub(crate) trait PsdDeserialize
+where
+    Self: Sized,
+{
+    type Error;
+
+    // consider changing to take a PsdBuffer/Cursor allow buffer to "yield" a new buffer over a
+    // slice of the parent buffer
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error>;
+}
+
 fn u8_slice_to_u16(bytes: &[u8]) -> Vec<u16> {
     return Vec::from(bytes)
         .chunks_exact(2)
-        .into_iter()
         .map(|a| u16::from_be_bytes([a[0], a[1]]))
         .collect();
 }
