@@ -98,3 +98,11 @@ Contains a layer that is larger 13x9px that than the PSD bounds 1x1.
 
 https://github.com/chinedufn/psd/issues/45
 https://github.com/chinedufn/psd/issues/43
+
+## visibility.psd
+
+Contains 2 layers with 1x1px, one layer is hidden and named `invisible`, while the other is visible and named `visible`.
+
+In PSD standard, 1 means hidden and 0 means visible, which is the opposite of what we commonly think.
+
+https://github.com/chinedufn/psd/issues/55
