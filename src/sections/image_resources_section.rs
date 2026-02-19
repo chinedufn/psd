@@ -10,6 +10,7 @@ use crate::sections::PsdCursor;
 const EXPECTED_RESOURCE_BLOCK_SIGNATURE: [u8; 4] = [56, 66, 73, 77];
 const EXPECTED_DESCRIPTOR_VERSION: u32 = 16;
 const RESOURCE_SLICES_INFO: i16 = 1050;
+const RESOURCE_ICC_PROFILE: i16 = 1039;
 
 mod image_resource;
 
@@ -22,6 +23,7 @@ struct ImageResourcesBlock {
 #[derive(Debug)]
 pub struct ImageResourcesSection {
     pub(crate) resources: Vec<ImageResource>,
+    pub(crate) icc_profile: Option<Vec<u8>>,
 }
 
 /// Represents an malformed resource block
@@ -42,6 +44,7 @@ impl ImageResourcesSection {
         let mut cursor = PsdCursor::new(bytes);
 
         let mut resources = vec![];
+        let mut icc_profile = None;
 
         let length = cursor.read_u32() as u64;
 
@@ -57,13 +60,16 @@ impl ImageResourcesSection {
                     .map_err(ImageResourcesSectionError::InvalidResource)?;
                     resources.push(ImageResource::Slices(slices_image_resource));
                 }
+                _ if rid == RESOURCE_ICC_PROFILE => {
+                    icc_profile = Some(cursor.get_ref()[block.data_range].to_vec());
+                }
                 _ => {}
             }
         }
 
         assert_eq!(cursor.position(), length + 4);
 
-        Ok(ImageResourcesSection { resources })
+        Ok(ImageResourcesSection { resources, icc_profile })
     }
 
     /// +----------+--------------------------------------------------------------------------------------------------------------------+

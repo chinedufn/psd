@@ -436,16 +436,17 @@ impl IntoRgba for PsdLayer {
         let top_in_layer = idx / self.width() as usize;
         let top_in_psd = self.layer_properties.layer_top + top_in_layer as i32;
 
-        let idx = top_in_psd
-            .checked_mul(self.layer_properties.psd_width as i32)
-            .unwrap()
-            + left_in_psd;
-
-        if idx < 0 {
-            None
-        } else {
-            Some(idx as usize)
+        if left_in_psd < 0 || left_in_psd >= self.layer_properties.psd_width as i32 {
+            return None;
         }
+        if top_in_psd < 0 || top_in_psd >= self.layer_properties.psd_height as i32 {
+            return None;
+        }
+
+        let idx = top_in_psd as usize * self.layer_properties.psd_width as usize
+            + left_in_psd as usize;
+
+        Some(idx)
     }
 
     fn red(&self) -> &ChannelBytes {

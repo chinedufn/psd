@@ -282,6 +282,15 @@ impl Psd {
     pub fn resources(&self) -> &Vec<ImageResource> {
         &self.image_resources_section.resources
     }
+
+    /// The ICC color profile embedded in the PSD file, if any.
+    ///
+    /// This corresponds to image resource ID 1039 in the PSD specification.
+    /// The returned bytes are the raw ICC profile data, suitable for embedding
+    /// in output formats (e.g. JPEG APP2 marker).
+    pub fn icc_profile(&self) -> Option<&[u8]> {
+        self.image_resources_section.icc_profile.as_deref()
+    }
 }
 
 impl IntoRgba for Psd {

@@ -127,7 +127,9 @@ pub trait IntoRgba {
 
                 for (idx, byte) in channel_bytes.iter().enumerate() {
                     if let Some(rgba_idx) = self.rgba_idx(idx) {
-                        rgba[rgba_idx * 4 + offset] = *byte;
+                        if let Some(buffer) = rgba.get_mut(rgba_idx * 4 + offset) {
+                            *buffer = *byte;
+                        }
                     }
                 }
             }

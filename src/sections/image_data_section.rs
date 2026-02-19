@@ -104,12 +104,40 @@ impl ImageDataSection {
                     // currently only support one byte per pixel so we convert the 2 bytes
                     // back down into 1 byte by mapping 0-65535 down to 0-255
                     PsdDepth::Sixteen => {
-                        for idx in 0..red.len() / 2 {
-                            let bytes = [red[2 * idx], red[2 * idx + 1]];
-                            let bits16 = u16::from_be_bytes(bytes);
-                            red[idx] = (bits16 / 256) as u8;
+                        // Convert all channels from 16-bit to 8-bit by mapping
+                        // 0-65535 down to 0-255.
+                        fn convert_16_to_8(buf: &mut Vec<u8>) {
+                            for idx in 0..buf.len() / 2 {
+                                let bytes = [buf[2 * idx], buf[2 * idx + 1]];
+                                let bits16 = u16::from_be_bytes(bytes);
+                                buf[idx] = (bits16 / 256) as u8;
+                            }
+                            buf.truncate(buf.len() / 2);
                         }
-                        red.truncate(red.len() / 2);
+
+                        convert_16_to_8(&mut red);
+
+                        let green = green.map(|ch| match ch {
+                            ChannelBytes::RawData(mut data) => {
+                                convert_16_to_8(&mut data);
+                                ChannelBytes::RawData(data)
+                            }
+                            other => other,
+                        });
+                        let blue = blue.map(|ch| match ch {
+                            ChannelBytes::RawData(mut data) => {
+                                convert_16_to_8(&mut data);
+                                ChannelBytes::RawData(data)
+                            }
+                            other => other,
+                        });
+                        let alpha = alpha.map(|ch| match ch {
+                            ChannelBytes::RawData(mut data) => {
+                                convert_16_to_8(&mut data);
+                                ChannelBytes::RawData(data)
+                            }
+                            other => other,
+                        });
 
                         (ChannelBytes::RawData(red), green, blue, alpha)
                     }

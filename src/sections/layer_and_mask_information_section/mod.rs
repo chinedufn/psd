@@ -337,15 +337,15 @@ fn read_layer_record(cursor: &mut PsdCursor) -> Result<LayerRecord, PsdLayerErro
 
     let left = cursor.read_i32();
 
-    // Subtract one in order to zero index. If a layer is fully transparent it's bottom will
-    // already be 0 so we don't subtract
+    // Subtract one in order to zero index. If a layer is fully transparent
+    // (or has zero area), top == bottom and/or left == right, so we must
+    // not subtract in those cases to avoid an off-by-one.
     let bottom = cursor.read_i32();
-    let bottom = if bottom == 0 { 0 } else { bottom - 1 };
+    let bottom = if bottom <= top { bottom } else { bottom - 1 };
 
-    // Subtract one in order to zero index. If a layer is fully transparent it's right will
-    // already be zero so we don't subtract.
+    // Same logic for right/left.
     let right = cursor.read_i32();
-    let right = if right == 0 { 0 } else { right - 1 };
+    let right = if right <= left { right } else { right - 1 };
 
     // Get the number of channels in the layer
     let channel_count = cursor.read_u16();
