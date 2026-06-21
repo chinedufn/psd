@@ -14,6 +14,9 @@ pub enum ImageDataSectionError {
 
     #[error("{compression} is an invalid layer channel compression. Must be 0, 1, 2 or 3")]
     InvalidCompression { compression: u16 },
+
+    #[error("Image data section is malformed or truncated")]
+    MalformedData,
 }
 
 /// The ImageDataSection comes from the final section in the PSD that contains the pixel data
@@ -55,6 +58,10 @@ impl ImageDataSection {
     ) -> Result<ImageDataSection, ImageDataSectionError> {
         let mut cursor = PsdCursor::new(bytes);
         let channel_count = channel_count as usize;
+
+        if bytes.len() < 2 || channel_count == 0 {
+            return Err(ImageDataSectionError::MalformedData);
+        }
 
         let compression = cursor.read_u16();
         let compression = PsdChannelCompression::new(compression)
@@ -124,6 +131,14 @@ impl ImageDataSection {
             // the same compression algorithm used by the Macintosh ROM routine PackBits,
             // and the TIFF standard.
             PsdChannelCompression::RleCompressed => {
+                let scanline_table_len = channel_count
+                    .checked_mul(psd_height as usize)
+                    .and_then(|n| n.checked_mul(2))
+                    .ok_or(ImageDataSectionError::MalformedData)?;
+                if bytes.len() < 2 + scanline_table_len {
+                    return Err(ImageDataSectionError::MalformedData);
+                }
+
                 let mut red_byte_count = 0;
                 let mut green_byte_count = if channel_count >= 2 { Some(0) } else { None };
                 let mut blue_byte_count = if channel_count >= 3 { Some(0) } else { None };
@@ -156,19 +171,25 @@ impl ImageDataSection {
                 // we don't currently use them. We might re-think this in the future when we
                 // implement serialization of a Psd back into bytes.. But not a concern at the
                 // moment.
-                let channel_data_start = 2 + (channel_count * psd_height as usize * 2);
+                let channel_data_start = 2 + scanline_table_len;
 
                 let (red_start, red_end) =
                     (channel_data_start, channel_data_start + red_byte_count);
 
-                let red = bytes[red_start..red_end].into();
+                let red = bytes
+                    .get(red_start..red_end)
+                    .ok_or(ImageDataSectionError::MalformedData)?
+                    .into();
 
                 let green = match green_byte_count {
                     Some(green_byte_count) => {
                         let green_start = red_end;
                         let green_end = green_start + green_byte_count;
                         Some(ChannelBytes::RleCompressed(
-                            bytes[green_start..green_end].into(),
+                            bytes
+                                .get(green_start..green_end)
+                                .ok_or(ImageDataSectionError::MalformedData)?
+                                .into(),
                         ))
                     }
                     None => None,
@@ -179,7 +200,10 @@ impl ImageDataSection {
                         let blue_start = red_end + green_byte_count.unwrap();
                         let blue_end = blue_start + blue_byte_count;
                         Some(ChannelBytes::RleCompressed(
-                            bytes[blue_start..blue_end].into(),
+                            bytes
+                                .get(blue_start..blue_end)
+                                .ok_or(ImageDataSectionError::MalformedData)?
+                                .into(),
                         ))
                     }
                     None => None,
@@ -191,7 +215,10 @@ impl ImageDataSection {
                             red_end + green_byte_count.unwrap() + blue_byte_count.unwrap();
                         let alpha_end = alpha_start + alpha_byte_count;
                         Some(ChannelBytes::RleCompressed(
-                            bytes[alpha_start..alpha_end].into(),
+                            bytes
+                                .get(alpha_start..alpha_end)
+                                .ok_or(ImageDataSectionError::MalformedData)?
+                                .into(),
                         ))
                     }
                     None => None,
@@ -223,4 +250,30 @@ impl ImageDataSection {
 pub enum ChannelBytes {
     RawData(Vec<u8>),
     RleCompressed(Vec<u8>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::PsdDepth;
+
+    #[test]
+    fn rle_with_insufficient_data_is_rejected() {
+        let bytes = [0x00, 0x01];
+        let result = ImageDataSection::from_bytes(&bytes, PsdDepth::Eight, 50_000, 4);
+        assert_eq!(result.unwrap_err(), ImageDataSectionError::MalformedData);
+    }
+
+    #[test]
+    fn empty_section_is_rejected() {
+        let result = ImageDataSection::from_bytes(&[], PsdDepth::Eight, 1, 1);
+        assert_eq!(result.unwrap_err(), ImageDataSectionError::MalformedData);
+    }
+
+    #[test]
+    fn raw_data_within_bounds_still_parses() {
+        let bytes = [0x00, 0x00, 1, 2, 3, 4];
+        let result = ImageDataSection::from_bytes(&bytes, PsdDepth::Eight, 1, 1);
+        assert!(result.is_ok());
+    }
 }
