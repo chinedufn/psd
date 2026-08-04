@@ -5,9 +5,8 @@ const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
 const _GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
 const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 
-/// A fully transparent pixel gets replaced by the pixel on the layer below it
-///
-/// cargo test --test flatten_layers flatten_fully_transparent_pixel_replaced_by_pixel_below -- --exact
+// cargo test --test flatten_layers flatten_fully_transparent_pixel_replaced_by_pixel_below -- --exact
+/// Verify that flattening replaces a fully transparent pixel with the pixel from the layer below.
 #[test]
 fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<()> {
     let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");
@@ -23,10 +22,8 @@ fn flatten_fully_transparent_pixel_replaced_by_pixel_below() -> Result<()> {
     Ok(())
 }
 
-/// Make sure that if we're flattening with a filter that returns zero layers we get back
-/// a transparent image.
-///
-/// cargo test --test flatten_layers no_matching_layers -- --exact
+// cargo test --test flatten_layers no_matching_layers -- --exact
+/// Verify that flattening with a filter that matches zero layers returns a fully transparent image.
 #[test]
 fn no_matching_layers() -> Result<()> {
     let psd = include_bytes!("./fixtures/transparent-top-layer-2x1.psd");

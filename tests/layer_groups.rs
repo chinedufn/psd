@@ -1,7 +1,7 @@
 use psd::{Psd, PsdGroup};
 const TOP_LEVEL_ID: u32 = 1;
 
-/// Verify that we can get a group by it's ID.
+/// Verify that a group can be retrieved by its ID.
 #[test]
 fn group_by_id() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-inside-another.psd");
@@ -15,22 +15,24 @@ fn group_by_id() {
     assert_eq!(psd.groups().get(&2).unwrap().name(), "group inside");
 }
 
-/// group structure
-/// +---------------+----------+---------+
-/// | name          | group_id | parent  |
-/// +---------------+----------+---------+
-/// | group inside  | 2        | Some(1) | refers to 'group outside'
-/// | group outside | 1        | None    |
-/// +------------------------------------+
-///
-/// layer structure
-/// +-------------+-----+---------+
-/// | name        | idx | parent  |
-/// +-------------+-----+---------+
-/// | First Layer | 0   | Some(1) |  refers to 'group inside'
-/// +-------------+-----+---------+
-///
-/// cargo test --test layer_and_mask_information_section one_group_inside_another -- --exact
+// group structure
+// +---------------+----------+---------+
+// | name          | group_id | parent  |
+// +---------------+----------+---------+
+// | group inside  | 2        | Some(1) | refers to 'group outside'
+// | group outside | 1        | None    |
+// +------------------------------------+
+//
+// layer structure
+// +-------------+-----+---------+
+// | name        | idx | parent  |
+// +-------------+-----+---------+
+// | First Layer | 0   | Some(1) |  refers to 'group inside'
+// +-------------+-----+---------+
+//
+// cargo test --test layer_and_mask_information_section one_group_inside_another -- --exact
+/// Verify that nested group relationships (group-in-group) and layer parent IDs are parsed
+/// correctly.
 #[test]
 fn one_group_inside_another() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-inside-another.psd");
@@ -52,26 +54,28 @@ fn one_group_inside_another() {
     assert_eq!(children_group.id(), layer.parent_id().unwrap());
 }
 
-/// PSD file structure
-/// group: outside group, parent: `None`
-///     group: first group inside, parent: `outside group`
-///         layer: First Layer, parent: `first group inside`
-///
-///     group: second group inside, parent: `outside group`
-///         group: sub sub group, parent: `second group inside`
-///             layer: Second Layer, parent: `sub sub group`
-///
-///         layer: Third Layer, parent: `second group inside`
-///
-///     group: third group inside, parent: `outside group`
-///
-///     layer: Fourth Layer, parent: `outside group`
-/// layer: Firth Layer, parent: `None`
-///
-/// group: outside group 2, parent: `None`
-///     layer: Sixth Layer, parent: `outside group 2`
-///
-/// cargo test --test layer_and_mask_information_section one_group_with_two_subgroups -- --exact
+// PSD file structure
+// group: outside group, parent: `None`
+//     group: first group inside, parent: `outside group`
+//         layer: First Layer, parent: `first group inside`
+//
+//     group: second group inside, parent: `outside group`
+//         group: sub sub group, parent: `second group inside`
+//             layer: Second Layer, parent: `sub sub group`
+//
+//         layer: Third Layer, parent: `second group inside`
+//
+//     group: third group inside, parent: `outside group`
+//
+//     layer: Fourth Layer, parent: `outside group`
+// layer: Firth Layer, parent: `None`
+//
+// group: outside group 2, parent: `None`
+//     layer: Sixth Layer, parent: `outside group 2`
+//
+// cargo test --test layer_and_mask_information_section one_group_with_two_subgroups -- --exact
+/// Verify that a more complex nested group structure (multiple subgroups and mixed layers) is
+/// parsed with correct parent/child relationships.
 #[test]
 fn one_group_with_two_subgroups() {
     let psd = include_bytes!("fixtures/groups/green-1x1-one-group-with-two-subgroups.psd");
@@ -124,7 +128,7 @@ fn one_group_with_two_subgroups() {
     assert_eq!(layer.parent_id().unwrap(), outside_group.id());
 }
 
-/// Verify that we can properly load an RLEcompressed empty channel (caused by a group from GIMP)
+/// Verify that an RLE-compressed empty channel (e.g., produced by GIMP group layers) can be parsed.
 #[test]
 fn rle_compressed_empty_channel() {
     let psd = include_bytes!("fixtures/groups/rle-compressed-empty-channel.psd");

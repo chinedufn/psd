@@ -14,8 +14,8 @@ const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 // In the layer and mask info section we fill in transparent rgba pixels ourselves as [0, 0, 0, 0]
 // const TRANSPARENT_PIXEL_LAYER: [u8; 4] = [0, 0, 0, 0];
 
-// Test that images that have transparent pixels and don't use compression
-// return the correct RGBA
+/// Verify that PSDs with transparent pixels and raw (uncompressed) channel data produce the
+/// expected RGBA for both the composite image and a named layer.
 #[test]
 fn transparency_raw_data() -> Result<()> {
     let psd = include_bytes!("./fixtures/3x3-opaque-center.psd");
@@ -36,8 +36,8 @@ fn transparency_raw_data() -> Result<()> {
     Ok(())
 }
 
-// Test that images that have transparent pixels and use rle compression
-// return the correct RGBA
+/// Verify that PSDs with transparent pixels and RLE-compressed channel data produce the expected
+/// RGBA for both the composite image and a named layer.
 #[test]
 fn transparency_rle_compressed() -> Result<()> {
     let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
@@ -72,8 +72,8 @@ fn transparency_rle_compressed() -> Result<()> {
     Ok(())
 }
 
-// Fixes an `already borrowed: BorrowMutError` that we were getting in the `flattened_pixel`
-// method when we were recursing into the method and trying to borrow when we'd already borrowed.
+/// Verify that flattening layers works when a transparent layer appears above an opaque layer
+/// (regression test for a prior borrow error during recursion).
 #[test]
 fn transparent_above_opaque() -> Result<()> {
     let psd = include_bytes!("./fixtures/transparent-above-opaque.psd");
@@ -89,6 +89,7 @@ fn transparent_above_opaque() -> Result<()> {
 // Ensure that the specified, zero-indexed left, top coordinate has the provided pixel color.
 // Otherwise it should be fully transparent.
 // (left, top, pixel)
+#[allow(dead_code)]
 fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &[(usize, usize, [u8; 4])]) {
     let pixel_count = (psd.width() * psd.height()) as usize;
     let width = psd.width() as usize;
@@ -115,6 +116,7 @@ fn assert_colors(image: Vec<u8>, psd: &Psd, assertions: &[(usize, usize, [u8; 4]
     }
 }
 
+#[allow(dead_code)]
 fn make_image(pixel: [u8; 4], pixel_count: u32) -> Vec<u8> {
     let pixel_count = pixel_count as usize;
     let mut image = vec![0; pixel_count * 4];
@@ -129,6 +131,7 @@ fn make_image(pixel: [u8; 4], pixel_count: u32) -> Vec<u8> {
     image
 }
 
+#[allow(dead_code)]
 fn put_pixel(image: &mut Vec<u8>, width: usize, left: usize, top: usize, new: [u8; 4]) {
     let idx = (top * width) + left;
     image[idx * 4] = new[0];

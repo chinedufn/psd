@@ -5,7 +5,8 @@ const RED_PIXEL: [u8; 4] = [255, 0, 0, 255];
 const GREEN_PIXEL: [u8; 4] = [0, 255, 0, 255];
 const BLUE_PIXEL: [u8; 4] = [0, 0, 255, 255];
 
-/// cargo test --test compression rle_decompress_final_image -- --exact
+// cargo test --test compression rle_decompress_final_image -- --exact
+/// Verify that an RLE-compressed PSD can be decompressed into the expected final merged RGBA.
 #[test]
 fn rle_decompress_final_image() -> Result<()> {
     let psd = include_bytes!("./fixtures/rle-3-layer-8x8.psd");
@@ -21,7 +22,8 @@ fn rle_decompress_final_image() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test compression rle_decompress_layer -- --exact
+// cargo test --test compression rle_decompress_layer -- --exact
+/// Verify that RLE-compressed layer channel data can be decompressed per-layer into expected RGBA.
 #[test]
 fn rle_decompress_layer() -> Result<()> {
     let psd = include_bytes!("./fixtures/rle-3-layer-8x8.psd");

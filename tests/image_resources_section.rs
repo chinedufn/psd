@@ -1,9 +1,7 @@
 use psd::{DescriptorField, ImageResource, Psd};
 
-/// In this test we check that root descriptor's `bounds` field is equal to 1
-/// So, then fields parsed correctly
-///
-/// cargo test --test image_resources_section image_check_1x1p_bound_field -- --exact
+// cargo test --test image_resources_section image_check_1x1p_bound_field -- --exact
+/// Verify that the root slices descriptor `bounds` fields are parsed correctly for a 1x1 fixture.
 #[test]
 fn image_check_1x1p_bound_field() {
     let psd = include_bytes!("./fixtures/two-layers-red-green-1x1.psd");
@@ -31,10 +29,8 @@ fn image_check_1x1p_bound_field() {
     }
 }
 
-/// In this test we check that root descriptor's `bounds` field is equal to 16
-/// So, then fields parsed correctly
-///
-/// cargo test --test image_resources_section image_check_16x16p_bound_field -- --exact
+// cargo test --test image_resources_section image_check_16x16p_bound_field -- --exact
+/// Verify that the root slices descriptor `bounds` fields are parsed correctly for a 16x16 fixture.
 #[test]
 fn image_check_16x16p_bound_field() {
     let psd = include_bytes!("./fixtures/16x16-rle-partially-opaque.psd");
@@ -62,9 +58,9 @@ fn image_check_16x16p_bound_field() {
     }
 }
 
-/// The image contains a non-UTF-8 Pascal string of even length in its image resource block.
-///
-/// cargo test --test image_resources_section image_non_utf8_pascal_string -- --exact
+// cargo test --test image_resources_section image_non_utf8_pascal_string -- --exact
+/// Verify that a PSD containing a non-UTF-8 Pascal string (even length) in an image resource block
+/// can still be parsed.
 #[test]
 fn image_non_utf8_pascal_string() {
     let psd = include_bytes!("./fixtures/non-utf8-pascal-string.psd");
@@ -73,9 +69,9 @@ fn image_non_utf8_pascal_string() {
     assert!(psd.layers().is_empty());
 }
 
-/// The image contains a Pascal string of odd length in its image resource block.
-///
-/// cargo test --test image_resources_section image_odd_length_pascal_string -- --exact
+// cargo test --test image_resources_section image_odd_length_pascal_string -- --exact
+/// Verify that a PSD containing an odd-length Pascal string in an image resource block can still
+/// be parsed (padding handling).
 #[test]
 fn image_odd_length_pascal_string() {
     let psd = include_bytes!("./fixtures/odd-length-pascal-string.psd");

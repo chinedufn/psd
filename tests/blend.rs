@@ -31,7 +31,8 @@ const BLEND_DIVIDE_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 85, 192];
 const BLEND_DIFFERENCE_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 170, 192];
 const BLEND_EXCLUSION_BLUE_RED_PIXEL: [u8; 4] = [170, 0, 170, 192];
 
-/// cargo test --test blend normal -- --exact
+// cargo test --test blend normal -- --exact
+/// Verify that flattening layers produces the expected pixel for `Normal` blend mode.
 #[test]
 fn normal() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-normal.psd");
@@ -43,7 +44,8 @@ fn normal() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend multiply -- --exact
+// cargo test --test blend multiply -- --exact
+/// Verify that flattening layers produces the expected pixel for `Multiply` blend mode.
 #[test]
 fn multiply() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-multiply.psd");
@@ -55,7 +57,8 @@ fn multiply() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend screen -- --exact
+// cargo test --test blend screen -- --exact
+/// Verify that flattening layers produces the expected pixel for `Screen` blend mode.
 #[test]
 fn screen() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-screen.psd");
@@ -67,7 +70,8 @@ fn screen() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend overlay -- --exact
+// cargo test --test blend overlay -- --exact
+/// Verify that flattening layers produces the expected pixel for `Overlay` blend mode.
 #[test]
 fn overlay() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-overlay.psd");
@@ -79,7 +83,8 @@ fn overlay() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend darken -- --exact
+// cargo test --test blend darken -- --exact
+/// Verify that flattening layers produces the expected pixel for `Darken` blend mode.
 #[test]
 fn darken() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-darken.psd");
@@ -91,7 +96,8 @@ fn darken() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend lighten -- --exact
+// cargo test --test blend lighten -- --exact
+/// Verify that flattening layers produces the expected pixel for `Lighten` blend mode.
 #[test]
 fn lighten() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-lighten.psd");
@@ -103,7 +109,8 @@ fn lighten() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend color_burn -- --exact
+// cargo test --test blend color_burn -- --exact
+/// Verify that flattening layers produces the expected pixel for `Color Burn` blend mode.
 #[test]
 fn color_burn() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-color-burn.psd");
@@ -115,7 +122,8 @@ fn color_burn() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend color_dodge -- --exact
+// cargo test --test blend color_dodge -- --exact
+/// Verify that flattening layers produces the expected pixel for `Color Dodge` blend mode.
 #[test]
 fn color_dodge() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-color-dodge.psd");
@@ -127,7 +135,8 @@ fn color_dodge() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend linear_burn -- --exact
+// cargo test --test blend linear_burn -- --exact
+/// Verify that flattening layers produces the expected pixel for `Linear Burn` blend mode.
 #[test]
 fn linear_burn() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-linear-burn.psd");
@@ -139,7 +148,8 @@ fn linear_burn() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend linear_dodge -- --exact
+// cargo test --test blend linear_dodge -- --exact
+/// Verify that flattening layers produces the expected pixel for `Linear Dodge` blend mode.
 #[test]
 fn linear_dodge() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-linear-dodge.psd");
@@ -151,7 +161,8 @@ fn linear_dodge() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend hard_light -- --exact
+// cargo test --test blend hard_light -- --exact
+/// Verify that flattening layers produces the expected pixel for `Hard Light` blend mode.
 #[test]
 fn hard_light() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-hard-light.psd");
@@ -163,7 +174,8 @@ fn hard_light() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend soft_light -- --exact
+// cargo test --test blend soft_light -- --exact
+/// Verify that flattening layers produces the expected pixel for `Soft Light` blend mode.
 #[test]
 fn soft_light() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-soft-light.psd");
@@ -175,7 +187,8 @@ fn soft_light() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend divide -- --exact
+// cargo test --test blend divide -- --exact
+/// Verify that flattening layers produces the expected pixel for `Divide` blend mode.
 #[test]
 fn divide() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-divide.psd");
@@ -187,7 +200,8 @@ fn divide() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend subtract -- --exact
+// cargo test --test blend subtract -- --exact
+/// Verify that flattening layers produces the expected pixel for `Subtract` blend mode.
 #[test]
 fn subtract() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-subtract.psd");
@@ -199,7 +213,8 @@ fn subtract() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend difference -- --exact
+// cargo test --test blend difference -- --exact
+/// Verify that flattening layers produces the expected pixel for `Difference` blend mode.
 #[test]
 fn difference() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-difference.psd");
@@ -211,7 +226,8 @@ fn difference() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test blend exclusion -- --exact
+// cargo test --test blend exclusion -- --exact
+/// Verify that flattening layers produces the expected pixel for `Exclusion` blend mode.
 #[test]
 fn exclusion() -> Result<()> {
     let psd = include_bytes!("./fixtures/blending/blue-red-1x1-exclusion.psd");

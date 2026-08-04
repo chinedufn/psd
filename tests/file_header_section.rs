@@ -2,7 +2,8 @@ use anyhow::Result;
 use psd::PsdDepth;
 use psd::{ColorMode, Psd};
 
-/// cargo test --test file_header_section file_header_section -- --exact
+// cargo test --test file_header_section file_header_section -- --exact
+/// Verify that the file header section is parsed correctly for a minimal 1x1 RGB fixture.
 #[test]
 fn file_header_section() -> Result<()> {
     let psd = include_bytes!("./fixtures/green-1x1.psd");
@@ -19,7 +20,9 @@ fn file_header_section() -> Result<()> {
     Ok(())
 }
 
-/// cargo test --test file_header_section negative_top_left -- --exact
+// cargo test --test file_header_section negative_top_left -- --exact
+/// Verify that a fixture with a negative layer top/left still parses and reports the correct
+/// overall PSD dimensions and header properties.
 #[test]
 fn negative_top_left() -> Result<()> {
     let psd = include_bytes!("./fixtures/negative-top-left-layer.psd");

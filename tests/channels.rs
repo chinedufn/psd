@@ -3,7 +3,8 @@ use psd::ColorMode;
 use psd::Psd;
 use psd::PsdDepth;
 
-/// cargo test --test channels one_channel_grayscale_raw_data -- --exact
+// cargo test --test channels one_channel_grayscale_raw_data -- --exact
+/// Verify that a 1x1 16-bit grayscale PSD can be parsed and converted to the expected RGBA output.
 #[test]
 fn one_channel_grayscale_raw_data() -> Result<()> {
     let psd = include_bytes!("./fixtures/one-channel-1x1.psd");
@@ -22,15 +23,16 @@ fn one_channel_grayscale_raw_data() -> Result<()> {
     Ok(())
 }
 
-/// Right now we just make sure that nothing throws when we try to parse a psd that
-/// is 16 bit grayscale.
-///
-/// After exporting this PSD into a png from Photoshop, the colors appeared to be slightly off.
-/// Similarly, our colors appear to be slightly off. Usually by 10 or so units (out of 255).
-///
-/// We can investigate this in further in the future.
-///
-/// cargo test --test channels two_channel_grayscale_raw_data -- --exact
+// Right now we just make sure that nothing throws when we try to parse a psd that
+// is 16 bit grayscale.
+//
+// After exporting this PSD into a png from Photoshop, the colors appeared to be slightly off.
+// Similarly, our colors appear to be slightly off. Usually by 10 or so units (out of 255).
+//
+// We can investigate this in further in the future.
+//
+// cargo test --test channels two_channel_grayscale_raw_data -- --exact
+/// Verify that a 16-bit grayscale PSD with two channels can be parsed without error.
 #[test]
 fn two_channel_grayscale_raw_data() -> Result<()> {
     let psd = include_bytes!("./fixtures/two-channel-8x8.psd");

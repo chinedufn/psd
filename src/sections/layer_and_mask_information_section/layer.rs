@@ -239,6 +239,7 @@ impl PsdLayer {
             Some(channel) => match channel {
                 ChannelBytes::RawData(_) => Ok(PsdChannelCompression::RawData),
                 ChannelBytes::RleCompressed(_) => Ok(PsdChannelCompression::RleCompressed),
+                ChannelBytes::RleCompressedScanlines { .. } => Ok(PsdChannelCompression::RleCompressed),
             },
             None => Err(PsdChannelError::ChannelNotFound { channel }),
         }
@@ -356,6 +357,43 @@ impl BlendMode {
             b"colr" => Some(BlendMode::Color),
             b"lum " => Some(BlendMode::Luminosity),
             _ => None,
+        }
+    }
+}
+
+use std::convert::From;
+
+impl From<BlendMode> for &[u8] {
+    fn from(mode: BlendMode) -> Self {
+        match mode {
+            BlendMode::PassThrough => b"pass",
+            BlendMode::Normal => b"norm",
+            BlendMode::Dissolve => b"diss",
+            BlendMode::Darken => b"dark",
+            BlendMode::Multiply => b"mul ",
+            BlendMode::ColorBurn => b"idiv",
+            BlendMode::LinearBurn => b"lbrn",
+            BlendMode::DarkerColor => b"dkCl",
+            BlendMode::Lighten => b"lite",
+            BlendMode::Screen => b"scrn",
+            BlendMode::ColorDodge => b"div ",
+            BlendMode::LinearDodge => b"lddg",
+            BlendMode::LighterColor => b"lgCl",
+            BlendMode::Overlay => b"over",
+            BlendMode::SoftLight => b"sLit",
+            BlendMode::HardLight => b"hLit",
+            BlendMode::VividLight => b"vLit",
+            BlendMode::LinearLight => b"lLit",
+            BlendMode::PinLight => b"pLit",
+            BlendMode::HardMix => b"hMix",
+            BlendMode::Difference => b"diff",
+            BlendMode::Exclusion => b"smud",
+            BlendMode::Subtract => b"fsub",
+            BlendMode::Divide => b"fdiv",
+            BlendMode::Hue => b"hue ",
+            BlendMode::Saturation => b"sat ",
+            BlendMode::Color => b"colr",
+            BlendMode::Luminosity => b"lum ",
         }
     }
 }

@@ -17,11 +17,11 @@ impl<'a> Renderer<'a> {
         width: usize,
     ) -> Renderer<'a> {
         Renderer {
-            layers_to_flatten_top_down: layers_to_flatten_top_down,
+            layers_to_flatten_top_down,
             cached_layer_rgba: repeat_with(|| RefCell::new(None))
                 .take(layers_to_flatten_top_down.len())
                 .collect(),
-            width: width,
+            width,
             pixel_cache: RefCell::new(Vec::with_capacity(layers_to_flatten_top_down.len())),
         }
     }

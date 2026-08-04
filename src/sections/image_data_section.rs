@@ -3,7 +3,9 @@ use crate::sections::PsdCursor;
 use crate::PsdDepth;
 use thiserror::Error;
 
-/// Represents an malformed image data
+use super::PsdSerialize;
+
+/// Represents a malformed image data
 #[derive(Debug, PartialEq, Error)]
 pub enum ImageDataSectionError {
     #[error(
@@ -44,6 +46,61 @@ pub struct ImageDataSection {
     pub(crate) alpha: Option<ChannelBytes>,
 }
 
+impl PsdSerialize for ImageDataSection {
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        use crate::sections::image_data_section::ChannelBytes::*;
+        self.compression.write(buffer);
+
+        match self.compression {
+            PsdChannelCompression::RawData => {
+                self.red.write(buffer);
+                if let Some(green) = &self.green { green.write(buffer); }
+                if let Some(blue) = &self.blue { blue.write(buffer); }
+                if let Some(alpha) = &self.alpha { alpha.write(buffer); }
+            }
+            PsdChannelCompression::RleCompressed => {
+                // For merged image RLE, Photoshop expects all scanline byte counts for all channels first,
+                // then the concatenated compressed data for each channel.
+                let mut channels: Vec<&ChannelBytes> = Vec::new();
+                channels.push(&self.red);
+                if let Some(g) = &self.green { channels.push(g); }
+                if let Some(b) = &self.blue { channels.push(b); }
+                if let Some(a) = &self.alpha { channels.push(a); }
+
+                // Write scanline lengths for all channels
+                for ch in channels.iter() {
+                    match ch {
+                        RleCompressedScanlines { scanline_lengths, .. } => {
+                            for &len in scanline_lengths.iter() {
+                                buffer.write((len as u16).to_be_bytes());
+                            }
+                        }
+                        // Fallback: if we don't have lengths, write nothing (best-effort). Builders should supply lengths.
+                        _ => {}
+                    }
+                }
+                // Write data blobs for all channels
+                for ch in channels.iter() {
+                    match ch {
+                        RleCompressedScanlines { data, .. } => buffer.write(data),
+                        RleCompressed(bytes) => buffer.write(bytes),
+                        RawData(bytes) => buffer.write(bytes),
+                    }
+                }
+            }
+            _ => {
+                // Keep existing behavior for unsupported compressions
+                self.red.write(buffer);
+                if let Some(green) = &self.green { green.write(buffer); }
+                if let Some(blue) = &self.blue { blue.write(buffer); }
+                if let Some(alpha) = &self.alpha { alpha.write(buffer); }
+            }
+        }
+    }
+}
 impl ImageDataSection {
     /// Create an ImageDataSection from the bytes in the corresponding section in a PSD file
     /// (including the length market)
@@ -124,80 +181,57 @@ impl ImageDataSection {
             // the same compression algorithm used by the Macintosh ROM routine PackBits,
             // and the TIFF standard.
             PsdChannelCompression::RleCompressed => {
-                let mut red_byte_count = 0;
-                let mut green_byte_count = if channel_count >= 2 { Some(0) } else { None };
-                let mut blue_byte_count = if channel_count >= 3 { Some(0) } else { None };
-                let mut alpha_byte_count = if channel_count == 4 { Some(0) } else { None };
+                // Read per-scanline byte counts for each channel
+                let mut red_lengths: Vec<u16> = Vec::with_capacity(psd_height as usize);
+                for _ in 0..psd_height { red_lengths.push(cursor.read_u16()); }
 
-                for _ in 0..psd_height {
-                    red_byte_count += cursor.read_u16() as usize;
-                }
+                let mut green_lengths: Option<Vec<u16>> = if channel_count >= 2 { Some(Vec::with_capacity(psd_height as usize)) } else { None };
+                if let Some(ref mut gl) = green_lengths { for _ in 0..psd_height { gl.push(cursor.read_u16()); } }
 
-                if let Some(ref mut green_byte_count) = green_byte_count {
-                    for _ in 0..psd_height {
-                        *green_byte_count += cursor.read_u16() as usize;
-                    }
-                }
+                let mut blue_lengths: Option<Vec<u16>> = if channel_count >= 3 { Some(Vec::with_capacity(psd_height as usize)) } else { None };
+                if let Some(ref mut bl) = blue_lengths { for _ in 0..psd_height { bl.push(cursor.read_u16()); } }
 
-                if let Some(ref mut blue_byte_count) = blue_byte_count {
-                    for _ in 0..psd_height {
-                        *blue_byte_count += cursor.read_u16() as usize;
-                    }
-                }
+                let mut alpha_lengths: Option<Vec<u16>> = if channel_count == 4 { Some(Vec::with_capacity(psd_height as usize)) } else { None };
+                if let Some(ref mut al) = alpha_lengths { for _ in 0..psd_height { al.push(cursor.read_u16()); } }
 
-                if let Some(ref mut alpha_byte_count) = alpha_byte_count {
-                    for _ in 0..psd_height {
-                        *alpha_byte_count += cursor.read_u16() as usize;
-                    }
-                }
+                // After reading all lengths, the remaining bytes are channel data in order
+                let channel_data_start = cursor.position() as usize;
 
-                // 2 bytes for compression level, then 2 bytes for each scanline of each channel
-                // We're skipping over the bytes that describe the length of each scanling since
-                // we don't currently use them. We might re-think this in the future when we
-                // implement serialization of a Psd back into bytes.. But not a concern at the
-                // moment.
-                let channel_data_start = 2 + (channel_count * psd_height as usize * 2);
+                // Helper to sum lengths
+                let sum_len = |lens: &Vec<u16>| -> usize { lens.iter().map(|&v| v as usize).sum() };
 
-                let (red_start, red_end) =
-                    (channel_data_start, channel_data_start + red_byte_count);
+                let red_byte_count = sum_len(&red_lengths);
+                let (red_start, red_end) = (channel_data_start, channel_data_start + red_byte_count);
+                let red_data = bytes[red_start..red_end].to_vec();
 
-                let red = bytes[red_start..red_end].into();
-
-                let green = match green_byte_count {
-                    Some(green_byte_count) => {
+                let (green, green_end) = match green_lengths {
+                    Some(ref gl) => {
                         let green_start = red_end;
-                        let green_end = green_start + green_byte_count;
-                        Some(ChannelBytes::RleCompressed(
-                            bytes[green_start..green_end].into(),
-                        ))
+                        let green_end = green_start + sum_len(gl);
+                        (Some(ChannelBytes::RleCompressedScanlines { scanline_lengths: gl.clone(), data: bytes[green_start..green_end].to_vec() }), green_end)
+                    }
+                    None => (None, red_end),
+                };
+
+                let (blue, blue_end) = match blue_lengths {
+                    Some(ref bl) => {
+                        let blue_start = green_end;
+                        let blue_end = blue_start + sum_len(bl);
+                        (Some(ChannelBytes::RleCompressedScanlines { scanline_lengths: bl.clone(), data: bytes[blue_start..blue_end].to_vec() }), blue_end)
+                    }
+                    None => (None, green_end),
+                };
+
+                let alpha = match alpha_lengths {
+                    Some(ref al) => {
+                        let alpha_start = blue_end;
+                        let alpha_end = alpha_start + sum_len(al);
+                        Some(ChannelBytes::RleCompressedScanlines { scanline_lengths: al.clone(), data: bytes[alpha_start..alpha_end].to_vec() })
                     }
                     None => None,
                 };
 
-                let blue = match blue_byte_count {
-                    Some(blue_byte_count) => {
-                        let blue_start = red_end + green_byte_count.unwrap();
-                        let blue_end = blue_start + blue_byte_count;
-                        Some(ChannelBytes::RleCompressed(
-                            bytes[blue_start..blue_end].into(),
-                        ))
-                    }
-                    None => None,
-                };
-
-                let alpha = match alpha_byte_count {
-                    Some(alpha_byte_count) => {
-                        let alpha_start =
-                            red_end + green_byte_count.unwrap() + blue_byte_count.unwrap();
-                        let alpha_end = alpha_start + alpha_byte_count;
-                        Some(ChannelBytes::RleCompressed(
-                            bytes[alpha_start..alpha_end].into(),
-                        ))
-                    }
-                    None => None,
-                };
-
-                (ChannelBytes::RleCompressed(red), green, blue, alpha)
+                (ChannelBytes::RleCompressedScanlines { scanline_lengths: red_lengths, data: red_data }, green, blue, alpha)
             }
             PsdChannelCompression::ZipWithoutPrediction => unimplemented!(
                 r#"Zip without prediction compression is currently unsupported.
@@ -222,5 +256,32 @@ impl ImageDataSection {
 #[derive(Debug, Clone)]
 pub enum ChannelBytes {
     RawData(Vec<u8>),
+    /// RLE compressed bytes without scanline headers (used by reader for convenience)
     RleCompressed(Vec<u8>),
+    /// RLE compressed with per-scanline byte lengths and concatenated data (used for writing)
+    RleCompressedScanlines {
+        /// Big-endian 2-byte lengths per scanline
+        scanline_lengths: Vec<u16>,
+        /// Concatenated compressed data of all scanlines
+        data: Vec<u8>,
+    },
+}
+
+impl PsdSerialize for ChannelBytes {
+    fn write<T>(&self, buffer: &mut super::PsdBuffer<T>)
+    where
+        T: std::io::Write + std::io::Seek,
+    {
+        match self {
+            Self::RawData(bytes) => buffer.write(bytes),
+            Self::RleCompressed(bytes) => buffer.write(bytes),
+            Self::RleCompressedScanlines { scanline_lengths, data } => {
+                // Caller is responsible for writing compression header; this writes headers+data
+                for &len in scanline_lengths.iter() {
+                    buffer.write((len as u16).to_be_bytes());
+                }
+                buffer.write(data);
+            }
+        }
+    }
 }
