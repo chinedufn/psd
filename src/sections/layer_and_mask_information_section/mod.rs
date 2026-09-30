@@ -10,6 +10,7 @@ use crate::sections::layer_and_mask_information_section::layer::{
 };
 use crate::sections::layer_and_mask_information_section::layers::Layers;
 use crate::sections::PsdCursor;
+use crate::PsdDepth;
 
 /// One of the possible additional layer block signatures
 const SIGNATURE_EIGHT_BIM: [u8; 4] = [56, 66, 73, 77];
@@ -75,6 +76,7 @@ impl LayerAndMaskInformationSection {
         bytes: &[u8],
         psd_width: u32,
         psd_height: u32,
+        psd_depth: PsdDepth,
     ) -> Result<LayerAndMaskInformationSection, PsdLayerError> {
         let mut cursor = PsdCursor::new(bytes);
 
@@ -118,14 +120,14 @@ impl LayerAndMaskInformationSection {
         LayerAndMaskInformationSection::decode_layers(
             layer_records,
             group_count,
-            (psd_width, psd_height),
+            (psd_width, psd_height, psd_depth),
         )
     }
 
     fn decode_layers(
         layer_records: Vec<(LayerRecord, LayerChannels)>,
         group_count: usize,
-        psd_size: (u32, u32),
+        psd_size: (u32, u32, PsdDepth),
     ) -> Result<LayerAndMaskInformationSection, PsdLayerError> {
         let mut layers = Layers::with_capacity(layer_records.len());
         let mut groups = Groups::with_capacity(group_count);
@@ -177,6 +179,7 @@ impl LayerAndMaskInformationSection {
                         &layer_record,
                         psd_size.0,
                         psd_size.1,
+                        psd_size.2,
                         if frame.parent_group_id > 0 {
                             Some(frame.parent_group_id)
                         } else {
@@ -241,13 +244,14 @@ impl LayerAndMaskInformationSection {
     fn read_layer(
         layer_record: &LayerRecord,
         parent_id: u32,
-        psd_size: (u32, u32),
+        psd_size: (u32, u32, PsdDepth),
         channels: LayerChannels,
     ) -> Result<PsdLayer, PsdLayerError> {
         Ok(PsdLayer::new(
             &layer_record,
             psd_size.0,
             psd_size.1,
+            psd_size.2,
             if parent_id > 0 { Some(parent_id) } else { None },
             channels,
         ))
@@ -287,7 +291,12 @@ fn read_layer_channels(
                 let channel_data = &channel_data[2 * scanlines..];
                 ChannelBytes::RleCompressed(channel_data.into())
             }
-            _ => unimplemented!("Zip compression currently unsupported"),
+            PsdChannelCompression::ZipWithoutPrediction => {
+                ChannelBytes::ZipWithoutPrediction(channel_data.into())
+            }
+            PsdChannelCompression::ZipWithPrediction => {
+                ChannelBytes::ZipWithPrediction(channel_data.into())
+            }
         };
 
         channels.insert(*channel_kind, channel_bytes);

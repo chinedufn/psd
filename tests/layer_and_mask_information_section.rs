@@ -16,6 +16,20 @@ fn layer_and_mask_information_section() {
     assert_eq!(&layer.rgba()[..], &GREEN_PIXEL);
 }
 
+/// cargo test --test layer_and_mask_information_section layer_with_compressed_channels -- --exact
+#[test]
+fn layer_with_compressed_channels() {
+    let psd = include_bytes!("./fixtures/green-1x1-compressed.psd");
+
+    let psd = Psd::from_bytes(psd).unwrap();
+
+    assert_eq!(psd.layers().len(), 1);
+
+    let layer = psd.layer_by_idx(0);
+
+    assert_eq!(&layer.rgba()[..], &GREEN_PIXEL);
+}
+
 /// cargo test --test layer_and_mask_information_section layer_with_cyrillic_name -- --exact
 #[test]
 fn layer_with_cyrillic_name() {

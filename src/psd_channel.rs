@@ -1,5 +1,8 @@
 use crate::sections::image_data_section::ChannelBytes;
 use crate::sections::PsdCursor;
+use crate::PsdDepth;
+use flate2::read::ZlibDecoder;
+use std::io::Read;
 use thiserror::Error;
 
 pub trait IntoRgba {
@@ -27,11 +30,30 @@ pub trait IntoRgba {
     /// The fourth channel
     fn alpha(&self) -> Option<&ChannelBytes>;
 
-    /// The width of the PSD
+    /// The width of the entire PSD.
+    ///
+    /// Even when we are generating RGBA for an individual layer, we still need to know
+    /// the width of the entire PSD so that we can position the layer's pixels correctly
+    /// within the PSD.
     fn psd_width(&self) -> u32;
 
-    /// The height of the PSD
+    /// The height of the entire PSD.
     fn psd_height(&self) -> u32;
+
+    /// The width of the layer or image that we are currently generating RGBA for.
+    ///
+    /// If we are generating RGBA for the entire PSD, this will be the same as `psd_width`.
+    /// If we are generating RGBA for a layer, this will be the width of that layer.
+    fn width(&self) -> u32;
+
+    /// The height of the layer or image that we are currently generating RGBA for.
+    ///
+    /// If we are generating RGBA for the entire PSD, this will be the same as `psd_height`.
+    /// If we are generating RGBA for a layer, this will be the height of that layer.
+    fn height(&self) -> u32;
+
+    /// The bit depth of the layer or image
+    fn depth(&self) -> PsdDepth;
 
     fn generate_rgba(&self) -> Vec<u8> {
         let rgba_len = (self.psd_width() * self.psd_height() * 4) as usize;
@@ -96,6 +118,7 @@ pub trait IntoRgba {
 
                     sixteen_to_eight_rgba(red, green)
                 }
+                _ => unimplemented!("Zip compression for 16-bit grayscale currently unsupported"),
             },
             ChannelBytes::RleCompressed(red) => {
                 let red = &rle_decompress(red);
@@ -106,8 +129,12 @@ pub trait IntoRgba {
                         let green = &rle_decompress(green);
                         sixteen_to_eight_rgba(red, green)
                     }
+                    _ => {
+                        unimplemented!("Zip compression for 16-bit grayscale currently unsupported")
+                    }
                 }
             }
+            _ => unimplemented!("Zip compression for 16-bit grayscale currently unsupported"),
         }
     }
 
@@ -123,17 +150,43 @@ pub trait IntoRgba {
     ) {
         match channel_bytes {
             ChannelBytes::RawData(channel_bytes) => {
-                let offset = channel_kind.rgba_offset().unwrap();
-
-                for (idx, byte) in channel_bytes.iter().enumerate() {
-                    if let Some(rgba_idx) = self.rgba_idx(idx) {
-                        rgba[rgba_idx * 4 + offset] = *byte;
-                    }
-                }
+                self.insert_raw_channel(rgba, channel_kind, channel_bytes);
             }
             // https://en.wikipedia.org/wiki/PackBits
             ChannelBytes::RleCompressed(channel_bytes) => {
                 self.insert_rle_channel(rgba, channel_kind, &channel_bytes);
+            }
+            ChannelBytes::ZipWithoutPrediction(channel_bytes) => {
+                let decompressed = zip_decompress(channel_bytes);
+                self.insert_raw_channel(rgba, channel_kind, &decompressed);
+            }
+            ChannelBytes::ZipWithPrediction(channel_bytes) => {
+                let mut decompressed = zip_decompress(channel_bytes);
+                apply_prediction(
+                    &mut decompressed,
+                    self.width() as usize,
+                    self.height() as usize,
+                    self.depth(),
+                );
+                self.insert_raw_channel(rgba, channel_kind, &decompressed);
+            }
+        }
+    }
+
+    /// Insert raw bytes into the RGBA vector
+    fn insert_raw_channel(
+        &self,
+        rgba: &mut [u8],
+        channel_kind: PsdChannelKind,
+        channel_bytes: &[u8],
+    ) {
+        let offset = channel_kind.rgba_offset().unwrap();
+
+        for (idx, byte) in channel_bytes.iter().enumerate() {
+            if let Some(rgba_idx) = self.rgba_idx(idx) {
+                if let Some(buffer) = rgba.get_mut(rgba_idx * 4 + offset) {
+                    *buffer = *byte;
+                }
             }
         }
     }
@@ -192,6 +245,31 @@ pub trait IntoRgba {
                     idx += 1;
                 }
             };
+        }
+    }
+}
+
+/// Zip decompress a channel
+pub(crate) fn zip_decompress(bytes: &[u8]) -> Vec<u8> {
+    let mut d = ZlibDecoder::new(bytes);
+    let mut buffer = Vec::new();
+    d.read_to_end(&mut buffer).unwrap();
+    buffer
+}
+
+/// Apply TIFF predictor 2
+pub(crate) fn apply_prediction(data: &mut [u8], width: usize, height: usize, depth: PsdDepth) {
+    let stride = match depth {
+        PsdDepth::Eight => 1,
+        PsdDepth::Sixteen => 2,
+        _ => return,
+    };
+
+    for y in 0..height {
+        let row_start = y * width * stride;
+        for i in stride..width * stride {
+            let idx = row_start + i;
+            data[idx] = data[idx].wrapping_add(data[idx - stride]);
         }
     }
 }
@@ -365,6 +443,7 @@ mod tests {
             clipping_mask: false,
             psd_width: 1,
             psd_height: 1,
+            psd_depth: PsdDepth::Eight,
             blend_mode: BlendMode::Normal,
             group_id: None,
         };
@@ -382,5 +461,40 @@ mod tests {
         layer.insert_channel_bytes(&mut rgba, PsdChannelKind::Red, layer.red());
 
         assert_eq!(rgba, vec![0; 4]);
+    }
+
+    #[test]
+    fn test_zip_decompress() {
+        let data = vec![0xAA, 0xBB, 0xCC, 0xDD];
+        let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+        use std::io::Write;
+        encoder.write_all(&data).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let decompressed = zip_decompress(&compressed);
+        assert_eq!(data, decompressed);
+    }
+
+    #[test]
+    fn test_apply_prediction_8bit() {
+        let mut data = vec![100, 10, 20, 30, 100, 5, 10, 15];
+        // Prediction 2: current = current + previous
+        // Row 1: [100, 110, 130, 160]
+        // Row 2: [100, 105, 115, 130]
+        apply_prediction(&mut data, 4, 2, PsdDepth::Eight);
+        assert_eq!(data, vec![100, 110, 130, 160, 100, 105, 115, 130]);
+    }
+
+    #[test]
+    fn test_apply_prediction_16bit() {
+        let mut data = vec![
+            0, 100, 0, 10, // Row 1, Col 1 & 2
+            0, 200, 0, 5, // Row 2, Col 1 & 2
+        ];
+        // 16-bit stride is 2.
+        // Row 1: [0, 100], [0, 10] -> [0, 100], [0, 110]
+        // Row 2: [0, 200], [0, 5] -> [0, 200], [0, 205]
+        apply_prediction(&mut data, 2, 2, PsdDepth::Sixteen);
+        assert_eq!(data, vec![0, 100, 0, 110, 0, 200, 0, 205]);
     }
 }
